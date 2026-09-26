@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+
+<style>
+  body { margin: 0; font-family: 'Work Sans', system-ui, sans-serif; background: #FFFFFF; color: #2E3C4C; }
+  a { text-decoration: none; }
+  .fld { font-family: 'Work Sans', sans-serif; font-size: 14px; color: #2E3C4C; background:#F2F4F8; border: 1px solid transparent; border-radius: 10px; padding: 14px; box-sizing: border-box; width: 100%; }
+</style>
+
+<div style="width:1440px; height:900px; box-sizing:border-box; display:flex; background:#FFFFFF;">
+
+  <!-- Panneau marque -->
+  <div style="position:relative; overflow:hidden; width:640px; flex-shrink:0; background:linear-gradient(160deg, #1F9997 0%, #145F5D 100%); padding:48px 56px; box-sizing:border-box; display:flex; flex-direction:column;">
+    <div style="position:absolute; top:-120px; right:-120px; width:380px; height:380px; border-radius:50%; background:rgba(255,255,255,0.10);"></div>
+    <div style="position:absolute; bottom:-160px; left:-100px; width:360px; height:360px; border-radius:50%; background:rgba(255,255,255,0.07);"></div>
+    <div aria-hidden="true" style="position:absolute; bottom:-30px; left:20px; font-family:'Poppins',sans-serif; font-weight:800; font-size:180px; line-height:1; color:#FFFFFF; opacity:0.07; letter-spacing:-4px; white-space:nowrap;">TROUVIO</div>
+
+    <a href="Accueil.html" style="position:relative;"><img src="../../../public/brand/trouvio-logo-horizontal.svg" alt="Trouvio" style="height:24px; width:auto; display:block; filter:brightness(0) invert(1);"></a>
+
+    <div style="position:relative; margin-top:88px;">
+      <h2 style="margin:0; font-family:'Poppins',sans-serif; font-weight:800; font-size:42px; line-height:1.12; color:#FFFFFF; letter-spacing:-0.5px;">Tes offres<br>t'attendent.</h2>
+      <p style="margin:16px 0 0 0; font-size:16px; color:rgba(255,255,255,0.82); line-height:1.6; max-width:400px;">Depuis ta dernière visite, Trouvio a continué de trier pour toi.</p>
+    </div>
+
+    <div style="position:relative; margin-top:44px; width:380px;">
+      <div style="background:#FFFFFF; border-radius:16px; padding:18px; box-shadow:0 24px 48px rgba(10,50,49,0.32); display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:11px; color:#6B7684; font-weight:700; letter-spacing:0.03em;">NOUVEAU DEPUIS HIER</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#F2F4F8; border-radius:10px; padding:10px 12px;"><div><div style="font-size:11px; color:#6B7684; font-weight:600;">Nova Digital</div><div style="font-size:13px; font-weight:700;">Développeur Laravel Senior</div></div><span style="background:#1F9997; color:#FFFFFF; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;">92%</span></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#F2F4F8; border-radius:10px; padding:10px 12px;"><div><div style="font-size:11px; color:#6B7684; font-weight:600;">Atrium Software</div><div style="font-size:13px; font-weight:700;">Lead Developer React/TS</div></div><span style="background:#1F9997; color:#FFFFFF; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;">87%</span></div>
+      </div>
+      <div style="position:absolute; top:-18px; right:-40px; background:#2E3C4C; color:#FFFFFF; border-radius:14px; padding:12px 16px; box-shadow:0 18px 36px rgba(0,0,0,0.25); text-align:center;">
+        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:22px; line-height:1;">4</div>
+        <div style="font-size:10px; font-weight:700; opacity:0.75; margin-top:3px;">AU-DESSUS DU SEUIL</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulaire -->
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:48px; background:#FFFFFF;">
+    <div style="width:400px; display:flex; flex-direction:column; gap:22px;">
+      <div>
+        <h1 style="margin:0 0 8px 0; font-family:'Poppins',sans-serif; font-weight:800; font-size:32px; letter-spacing:-0.5px;">Content de te revoir</h1>
+        <p style="margin:0; font-size:15px; color:#6B7684;">Connecte-toi pour retrouver ton fil d'offres.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:13px; font-weight:600;" for="email">Adresse email</label>
+        <input id="email" class="fld" type="email" placeholder="toi@exemple.be">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; font-weight:600;" for="pwd">Mot de passe</label>
+          <a href="#" style="font-size:12px; color:#1F9997; font-weight:600;">Mot de passe oublié ?</a>
+        </div>
+        <input id="pwd" class="fld" type="password" placeholder="••••••••">
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#6B7684;"><input type="checkbox" checked style="accent-color:#1F9997;"> Rester connecté</label>
+      <a href="Main.html" style="display:flex; align-items:center; justify-content:center; background:#1F9997; color:#FFFFFF; font-size:15px; font-weight:600; padding:15px; border-radius:10px; box-shadow:0 12px 26px rgba(31,153,151,0.32);">Se connecter</a>
+      <div style="display:flex; align-items:center; gap:12px; font-size:12px; color:#A9B2BC;"><div style="flex:1; height:1px; background:#E2E6EC;"></div>ou<div style="flex:1; height:1px; background:#E2E6EC;"></div></div>
+      <a href="#" style="display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid #E2E6EC; color:#2E3C4C; font-size:14px; font-weight:600; padding:13px; border-radius:10px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F9997" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 8l9 6 9-6"/></svg>
+        Recevoir un lien de connexion par email
+      </a>
+      <div style="text-align:center; font-size:14px; color:#6B7684;">Pas encore de compte ? <a href="Inscription.html" style="color:#1F9997; font-weight:600;">Créer un compte</a></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

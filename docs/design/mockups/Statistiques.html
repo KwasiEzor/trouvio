@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+
+<style>
+
+body{margin:0;font-family:'Work Sans',system-ui,sans-serif;background:#F2F4F8;color:#2E3C4C;}
+a{text-decoration:none;color:inherit;}
+.card{background:#FFFFFF;border:1px solid #E6EAF0;border-radius:18px;box-shadow:0 8px 24px rgba(46,60,76,0.05);}
+.h2{margin:0;font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2E3C4C;}
+.muted{color:#6B7684;}
+.ico{width:40px;height:40px;border-radius:12px;background:#DCEFEE;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#1F9997;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;background:#F2F4F8;color:#2E3C4C;white-space:nowrap;}
+.pill-t{background:#DCEFEE;color:#1F9997;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#1F9997;color:#FFFFFF;font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 8px 18px rgba(31,153,151,0.25);font-family:'Work Sans',sans-serif;white-space:nowrap;}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#FFFFFF;color:#2E3C4C;font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;border:1px solid #E2E6EC;cursor:pointer;font-family:'Work Sans',sans-serif;white-space:nowrap;}
+.btn-g{background:none;border:none;color:#6B7684;font-size:13px;font-weight:600;cursor:pointer;padding:6px;font-family:'Work Sans',sans-serif;}
+.navi{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:#4A5766;font-weight:600;font-size:14px;}
+.navi.on{background:#DCEFEE;color:#1F9997;}
+.lbl{font-size:11px;font-weight:700;color:#8A94A2;letter-spacing:0.06em;}
+.trend{display:inline-flex;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#DCEFEE;color:#1F9997;}
+.trend-n{display:inline-flex;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#EEF1F5;color:#6B7684;}
+.fld{font-family:'Work Sans',sans-serif;font-size:14px;color:#2E3C4C;background:#F2F4F8;border:1px solid transparent;border-radius:10px;padding:12px 14px;box-sizing:border-box;width:100%;}
+.sw{width:40px;height:22px;border-radius:999px;background:#D5DBE3;position:relative;flex-shrink:0;}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.sw.on{background:#1F9997;}
+.sw.on::after{left:21px;}
+.seg{display:inline-flex;background:#EEF1F5;border-radius:10px;padding:3px;gap:2px;}
+.seg span{font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;color:#6B7684;}
+.seg span.on{background:#FFFFFF;color:#2E3C4C;box-shadow:0 1px 3px rgba(46,60,76,0.12);}
+.stat{padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+.num{font-family:'Poppins',sans-serif;font-weight:700;font-size:28px;color:#2E3C4C;line-height:1;}
+
+</style>
+
+<div style="width:1440px;height:1340px;box-sizing:border-box;display:flex;background:#F2F4F8;">
+  <div style="width:248px;min-width:248px;background:#FFFFFF;border-right:1px solid #E6EAF0;box-sizing:border-box;padding:24px 16px;display:flex;flex-direction:column;gap:26px;">
+    <a href="Main.html" style="padding:0 8px;"><img src="../../../public/brand/trouvio-logo-horizontal.svg" alt="Trouvio" style="height:26px;width:auto;display:block;"></a>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <div class="lbl" style="padding:0 12px 8px 12px;">ESPACE</div>
+      <a href="Main.html" class="navi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/></svg>Fil d'offres<span style="margin-left:auto;background:#EEF1F5;color:#6B7684;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">4</span></a>
+      <a href="Suivi.html" class="navi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="4.5" height="14" rx="1.2"/><rect x="10.2" y="5" width="4.5" height="9" rx="1.2"/><rect x="16.5" y="5" width="4.5" height="11" rx="1.2"/></svg>Suivi<span style="margin-left:auto;background:#EEF1F5;color:#6B7684;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">6</span></a>
+      <a href="Statistiques.html" class="navi on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="14"/></svg>Statistiques</a>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <div class="lbl" style="padding:0 12px 8px 12px;">PARAMÈTRES</div>
+      <a href="Configuration.html" class="navi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="14" cy="7" r="2.2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="12" r="2.2"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="16" cy="17" r="2.2"/></svg>Configuration</a>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px;">
+      <div style="position:relative;overflow:hidden;background:linear-gradient(160deg,#1F9997 0%,#145F5D 100%);border-radius:16px;padding:16px;color:#FFFFFF;">
+        <div style="position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.12);"></div>
+        <div style="position:relative;font-size:10px;font-weight:700;letter-spacing:0.06em;opacity:0.85;">FORMULE ÉCONOMIQUE</div>
+        <div style="position:relative;font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;margin-top:6px;">3,12 € <span style="font-size:12px;font-weight:600;opacity:0.75;">ce mois</span></div>
+        <div style="position:relative;height:6px;background:rgba(255,255,255,0.22);border-radius:999px;margin-top:10px;"><div style="width:62%;height:6px;background:#FFFFFF;border-radius:999px;"></div></div>
+        <div style="position:relative;font-size:11px;opacity:0.8;margin-top:8px;">Plafond estimé : 5 €</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 8px 0 8px;border-top:1px solid #E6EAF0;">
+        <div style="width:36px;height:36px;border-radius:18px;background:#DCEFEE;color:#1F9997;display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;flex-shrink:0;">KA</div>
+        <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">Kwasi</div><div style="font-size:11px;color:#6B7684;">Dernière analyse 07:12</div></div>
+        <a href="Connexion.html" title="Se déconnecter" style="color:#8A94A2;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;box-sizing:border-box;padding:32px 40px;display:flex;flex-direction:column;gap:24px;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <div>
+        <h1 style="margin:0 0 4px 0;font-family:'Poppins',sans-serif;font-weight:700;font-size:26px;letter-spacing:-0.3px;">Statistiques</h1>
+        <div style="font-size:14px;color:#6B7684;">Ton activité de recherche sur les 30 derniers jours</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;"><div class="seg"><span>7 j</span><span class="on">30 j</span><span>90 j</span></div><button class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exporter CSV</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;">
+      <div class="card stat">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/></svg></div><span class="trend">+18%</span></div>
+        <div><div class="num" style="color:#2E3C4C;">142</div><div style="font-size:13px;color:#6B7684;margin-top:6px;">Offres reçues ce mois</div></div>
+      </div>
+      <div class="card stat">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div><span class="trend">+4 pts</span></div>
+        <div><div class="num" style="color:#1F9997;">68%</div><div style="font-size:13px;color:#6B7684;margin-top:6px;">Score moyen</div></div>
+      </div>
+      <div class="card stat">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><span class="trend">+5</span></div>
+        <div><div class="num" style="color:#2E3C4C;">12</div><div style="font-size:13px;color:#6B7684;margin-top:6px;">Candidatures envoyées</div></div>
+      </div>
+      <div class="card stat">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div><span class="trend-n">stable</span></div>
+        <div><div class="num" style="color:#2E3C4C;">25%</div><div style="font-size:13px;color:#6B7684;margin-top:6px;">Taux de réponse</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+      <div class="card" style="padding:24px 24px 16px 24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h2 class="h2">Offres reçues vs pertinentes</h2>
+          <div style="display:flex;gap:16px;font-size:12px;color:#6B7684;"><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:#1F9997;border-radius:2px;"></span>Pertinentes</span><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:#C3CCD6;border-radius:2px;"></span>Reçues</span></div></div>
+        <svg viewBox="0 0 640 220" style="width:100%;height:auto;display:block;">
+  <defs><linearGradient id="gS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F9997" stop-opacity="0.30"/><stop offset="1" stop-color="#1F9997" stop-opacity="0"/></linearGradient></defs>
+  <line x1="0" y1="20" x2="640" y2="20" stroke="#EEF1F5" stroke-dasharray="4 4"/><line x1="0" y1="73" x2="640" y2="73" stroke="#EEF1F5" stroke-dasharray="4 4"/><line x1="0" y1="127" x2="640" y2="127" stroke="#EEF1F5" stroke-dasharray="4 4"/><line x1="0" y1="180" x2="640" y2="180" stroke="#EEF1F5" stroke-dasharray="4 4"/>
+  <path d="M 25.0 80.4 C 84.0 80.4, 84.0 55.6, 143.0 55.6 C 202.0 55.6, 202.0 101.8, 261.0 101.8 C 320.0 101.8, 320.0 37.8, 379.0 37.8 C 438.0 37.8, 438.0 69.8, 497.0 69.8 C 556.0 69.8, 556.0 44.9, 615.0 44.9" fill="none" stroke="#C3CCD6" stroke-width="2.5" stroke-dasharray="6 5"/>
+  <path d="M 25.0 148.0 C 84.0 148.0, 84.0 133.8, 143.0 133.8 C 202.0 133.8, 202.0 155.1, 261.0 155.1 C 320.0 155.1, 320.0 123.1, 379.0 123.1 C 438.0 123.1, 438.0 144.4, 497.0 144.4 C 556.0 144.4, 556.0 130.2, 615.0 130.2 L 615 180 L 25 180 Z" fill="url(#gS)"/>
+  <path d="M 25.0 148.0 C 84.0 148.0, 84.0 133.8, 143.0 133.8 C 202.0 133.8, 202.0 155.1, 261.0 155.1 C 320.0 155.1, 320.0 123.1, 379.0 123.1 C 438.0 123.1, 438.0 144.4, 497.0 144.4 C 556.0 144.4, 556.0 130.2, 615.0 130.2" fill="none" stroke="#1F9997" stroke-width="3"/>
+  <circle cx="25.0" cy="148.0" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/><circle cx="143.0" cy="133.8" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/><circle cx="261.0" cy="155.1" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/><circle cx="379.0" cy="123.1" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/><circle cx="497.0" cy="144.4" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/><circle cx="615.0" cy="130.2" r="4" fill="#FFFFFF" stroke="#1F9997" stroke-width="2.5"/>
+  <rect x="523.0" y="86.2" width="104" height="28" rx="8" fill="#2E3C4C"/>
+  <text x="575.0" y="105.2" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF" font-family="Work Sans">14 pertinentes</text>
+  <text x="25" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S32</text><text x="143" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S33</text><text x="261" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S34</text><text x="379" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S35</text><text x="497" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S36</text><text x="615" y="208" text-anchor="middle" font-size="11" fill="#8A94A2" font-family="Work Sans">S37</text>
+</svg>
+      </div>
+      <div class="card" style="padding:24px;">
+        <h2 class="h2" style="margin-bottom:20px;">Répartition par source</h2>
+        <div style="display:flex;align-items:center;gap:26px;">
+          <div style="position:relative;width:150px;height:150px;flex-shrink:0;border-radius:50%;background:conic-gradient(#1F9997 0 45%, #6FBFBD 45% 75%, #C3CCD6 75% 100%);">
+            <div style="position:absolute;inset:22px;border-radius:50%;background:#FFFFFF;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div class="num" style="font-size:24px;">142</div><div style="font-size:11px;color:#6B7684;">offres</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;"><span style="width:10px;height:10px;border-radius:3px;background:#1F9997;"></span><span style="flex:1;">France Travail</span><strong>64</strong></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;"><span style="width:10px;height:10px;border-radius:3px;background:#6FBFBD;"></span><span style="flex:1;">Le Forem</span><strong>43</strong></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;"><span style="width:10px;height:10px;border-radius:3px;background:#C3CCD6;"></span><span style="flex:1;">Adzuna</span><strong>35</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+      <div class="card" style="padding:24px;display:flex;flex-direction:column;gap:12px;">
+        <h2 class="h2" style="margin-bottom:6px;">Entonnoir de recherche</h2>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:170px;font-size:13px;font-weight:600;">Offres analysées</div>
+          <div style="flex:1;background:#F2F4F8;border-radius:8px;height:30px;"><div style="width:100%;height:30px;border-radius:8px;background:#145F5D;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;box-sizing:border-box;color:#FFFFFF;font-size:12px;font-weight:700;">142</div></div>
+          <div style="width:44px;text-align:right;font-size:12px;color:#6B7684;font-weight:600;">100%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:170px;font-size:13px;font-weight:600;">Au-dessus du seuil</div>
+          <div style="flex:1;background:#F2F4F8;border-radius:8px;height:30px;"><div style="width:34%;height:30px;border-radius:8px;background:#1F9997;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;box-sizing:border-box;color:#FFFFFF;font-size:12px;font-weight:700;">48</div></div>
+          <div style="width:44px;text-align:right;font-size:12px;color:#6B7684;font-weight:600;">34%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:170px;font-size:13px;font-weight:600;">Ajoutées au suivi</div>
+          <div style="flex:1;background:#F2F4F8;border-radius:8px;height:30px;"><div style="width:13%;height:30px;border-radius:8px;background:#4FAFAD;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;box-sizing:border-box;color:#FFFFFF;font-size:12px;font-weight:700;">18</div></div>
+          <div style="width:44px;text-align:right;font-size:12px;color:#6B7684;font-weight:600;">13%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:170px;font-size:13px;font-weight:600;">Candidatures</div>
+          <div style="flex:1;background:#F2F4F8;border-radius:8px;height:30px;"><div style="width:8.5%;height:30px;border-radius:8px;background:#6FBFBD;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;box-sizing:border-box;color:#FFFFFF;font-size:12px;font-weight:700;">12</div></div>
+          <div style="width:44px;text-align:right;font-size:12px;color:#6B7684;font-weight:600;">8%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:170px;font-size:13px;font-weight:600;">Réponses reçues</div>
+          <div style="flex:1;background:#F2F4F8;border-radius:8px;height:30px;"><div style="width:4%;height:30px;border-radius:8px;background:#9AD2D0;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;box-sizing:border-box;color:#FFFFFF;font-size:12px;font-weight:700;">3</div></div>
+          <div style="width:44px;text-align:right;font-size:12px;color:#6B7684;font-weight:600;">2%</div>
+        </div>
+      </div>
+      <div class="card" style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+        <h2 class="h2">Score moyen par intitulé</h2>
+        <div style="display:flex;flex-direction:column;gap:6px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:600;">Développeur Laravel</span><span style="font-weight:700;color:#1F9997;">78%</span></div><div style="height:6px;background:#EEF1F5;border-radius:999px;"><div style="width:78%;height:6px;background:#1F9997;border-radius:999px;"></div></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:600;">Lead Developer</span><span style="font-weight:700;color:#1F9997;">74%</span></div><div style="height:6px;background:#EEF1F5;border-radius:999px;"><div style="width:74%;height:6px;background:#1F9997;border-radius:999px;"></div></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:600;">React / Next.js</span><span style="font-weight:700;color:#1F9997;">69%</span></div><div style="height:6px;background:#EEF1F5;border-radius:999px;"><div style="width:69%;height:6px;background:#1F9997;border-radius:999px;"></div></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:600;">Freelance / mission</span><span style="font-weight:700;color:#1F9997;">61%</span></div><div style="height:6px;background:#EEF1F5;border-radius:999px;"><div style="width:61%;height:6px;background:#1F9997;border-radius:999px;"></div></div></div>
+      </div>
+    </div>
+    <div class="card" style="padding:24px;">
+      <h2 class="h2" style="margin-bottom:16px;">Outils de gestion</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
+        <div style="border:1px solid #E6EAF0;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px;">
+          <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div style="font-size:14px;font-weight:700;">Exporter mes candidatures</div><div style="font-size:12px;color:#6B7684;line-height:1.5;flex:1;">Historique complet au format CSV, pour ton suivi ou ton conseiller emploi.</div><button class="btn-o" style="align-self:flex-start;padding:8px 14px;">Exporter</button>
+        </div>
+        <div style="border:1px solid #E6EAF0;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px;">
+          <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg></div><div style="font-size:14px;font-weight:700;">Réinitialiser les offres ignorées</div><div style="font-size:12px;color:#6B7684;line-height:1.5;flex:1;">Les offres marquées « pas pertinent » réapparaîtront dans le fil.</div><button class="btn-o" style="align-self:flex-start;padding:8px 14px;">Réinitialiser</button>
+        </div>
+        <div style="border:1px solid #E6EAF0;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px;">
+          <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><path d="M12 7v5l3 2"/></svg></div><div style="font-size:14px;font-weight:700;">Historique complet</div><div style="font-size:12px;color:#6B7684;line-height:1.5;flex:1;">Toutes les offres analysées depuis le début, pertinentes ou non.</div><button class="btn-o" style="align-self:flex-start;padding:8px 14px;">Consulter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

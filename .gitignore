@@ -1,0 +1,30 @@
+# dépendances / build
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets (seul .env.example est commité)
+.env
+.env.*
+!.env.example
+
+# tests
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+evals/results/
+
+# Claude Code — fichiers personnels
+.claude/settings.local.json
+CLAUDE.local.md
+.claude/state/
+
+# divers
+.DS_Store
+*.log

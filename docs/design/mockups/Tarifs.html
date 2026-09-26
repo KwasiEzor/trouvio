@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+
+<style>
+  body { margin: 0; font-family: 'Work Sans', system-ui, sans-serif; background: #FFFFFF; color: #2E3C4C; }
+  a { text-decoration: none; }
+</style>
+
+<div style="width:1440px; height:1720px; box-sizing:border-box; background:#FFFFFF; position:relative; overflow:hidden;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 56px; border-bottom:1px solid #E2E6EC; position:relative; z-index:10; background:#FFFFFF;">
+    <a href="Accueil.html"><img src="../../../public/brand/trouvio-logo-horizontal.svg" alt="Trouvio" style="height:24px; width:auto; display:block;"></a>
+    <nav style="display:flex; align-items:center; gap:36px;">
+      <a href="Fonctionnalites.html" style="color:#2E3C4C; font-weight:600; font-size:14px;">Fonctionnalités</a>
+      <a href="Tarifs.html" style="color:#1F9997; font-weight:600; font-size:14px;">Tarifs</a>
+      <a href="Contact.html" style="color:#2E3C4C; font-weight:600; font-size:14px;">Contact</a>
+    </nav>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <a href="Connexion.html" style="color:#2E3C4C; font-weight:600; font-size:14px;">Se connecter</a>
+      <a href="Inscription.html" style="background:#1F9997; color:#FFFFFF; font-weight:600; font-size:14px; padding:11px 22px; border-radius:8px;">Essayer gratuitement</a>
+    </div>
+  </div>
+
+  <!-- HERO + CARTES -->
+  <div style="position:relative; overflow:hidden; padding:88px 56px 72px 56px; background:linear-gradient(180deg, #F2F4F8 0%, #FFFFFF 75%);">
+    <div style="position:absolute; top:-160px; right:-140px; width:540px; height:540px; border-radius:50%; background:#1F9997; opacity:0.13; filter:blur(90px);"></div>
+    <div style="position:absolute; top:260px; left:-120px; width:360px; height:360px; border-radius:50%; background:#6FBFBD; opacity:0.12; filter:blur(80px);"></div>
+    <div aria-hidden="true" style="position:absolute; top:10px; left:0; right:0; text-align:center; font-family:'Poppins',sans-serif; font-weight:800; font-size:200px; line-height:1; color:#1F9997; opacity:0.05; letter-spacing:-4px; white-space:nowrap;">SIMPLE</div>
+
+    <div style="position:relative; z-index:2; text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px;">
+      <div style="background:#DCEFEE; color:#1F9997; font-size:12px; font-weight:700; padding:6px 14px; border-radius:999px; letter-spacing:0.02em;">TARIFS</div>
+      <h1 style="margin:0; font-family:'Poppins',sans-serif; font-weight:800; font-size:50px; line-height:1.1; letter-spacing:-1px;">Un prix simple,<br>sans surprise.</h1>
+      <p style="margin:0; max-width:520px; font-size:17px; color:#6B7684; line-height:1.6;">Facturation mensuelle, affichée d'avance. Aucun engagement, aucun prélèvement caché.</p>
+    </div>
+
+    <div style="position:relative; z-index:2; margin-top:64px; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:24px; align-items:center;">
+
+      <!-- Gratuit -->
+      <div style="background:#FFFFFF; border:1px solid #E2E6EC; border-radius:22px; padding:36px; display:flex; flex-direction:column; gap:22px; box-shadow:0 16px 40px rgba(46,60,76,0.07);">
+        <div>
+          <div style="font-size:13px; font-weight:700; color:#6B7684; letter-spacing:0.03em;">GRATUIT</div>
+          <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:44px; margin-top:8px; line-height:1;">0 €<span style="font-size:14px; font-weight:600; color:#6B7684;"> /mois</span></div>
+          <div style="font-size:13px; color:#6B7684; margin-top:10px;">Pour tester sans rien engager.</div>
+        </div>
+        <a href="Inscription.html" style="text-align:center; border:1.5px solid #1F9997; color:#1F9997; font-weight:600; font-size:14px; padding:13px; border-radius:10px;">Commencer</a>
+        <div style="height:1px; background:#E2E6EC;"></div>
+        <div style="display:flex; flex-direction:column; gap:13px; font-size:14px;">
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> France Travail, Forem, Adzuna</div>
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Scoring par modèle local</div>
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Digest quotidien Telegram</div>
+          <div style="display:flex; gap:10px; color:#A9B2BC;"><span>–</span> Suivi de candidatures avancé</div>
+        </div>
+      </div>
+
+      <!-- Économique (vedette) -->
+      <div style="position:relative; overflow:hidden; background:#2E3C4C; border-radius:24px; padding:44px 36px; display:flex; flex-direction:column; gap:22px; box-shadow:0 30px 70px rgba(31,153,151,0.30); transform:translateY(-14px);">
+        <div style="position:absolute; top:-90px; right:-70px; width:260px; height:260px; border-radius:50%; background:#1F9997; opacity:0.40; filter:blur(60px);"></div>
+        <div style="position:relative; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#6FD3D1; letter-spacing:0.03em;">ÉCONOMIQUE</div>
+          <div style="background:#1F9997; color:#FFFFFF; font-size:11px; font-weight:700; padding:5px 12px; border-radius:999px;">RECOMMANDÉ</div>
+        </div>
+        <div style="position:relative;">
+          <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:44px; color:#FFFFFF; line-height:1;">2-5 €<span style="font-size:14px; font-weight:600; color:rgba(255,255,255,0.6);"> /mois</span></div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.7); margin-top:10px;">Le meilleur rapport qualité, effort et prix.</div>
+        </div>
+        <a href="Inscription.html" style="position:relative; text-align:center; background:#1F9997; color:#FFFFFF; font-weight:600; font-size:14px; padding:14px; border-radius:10px; box-shadow:0 12px 26px rgba(31,153,151,0.45);">Commencer</a>
+        <div style="position:relative; height:1px; background:rgba(255,255,255,0.14);"></div>
+        <div style="position:relative; display:flex; flex-direction:column; gap:13px; font-size:14px; color:#FFFFFF;">
+          <div style="display:flex; gap:10px;"><span style="color:#6FD3D1; font-weight:700;">✓</span> Toutes les sources gratuites</div>
+          <div style="display:flex; gap:10px;"><span style="color:#6FD3D1; font-weight:700;">✓</span> Scoring par IA (Claude Haiku 4.5)</div>
+          <div style="display:flex; gap:10px;"><span style="color:#6FD3D1; font-weight:700;">✓</span> Digest Telegram, Email et Notion</div>
+          <div style="display:flex; gap:10px;"><span style="color:#6FD3D1; font-weight:700;">✓</span> Suivi de candidatures complet</div>
+        </div>
+      </div>
+
+      <!-- Confort -->
+      <div style="background:#FFFFFF; border:1px solid #E2E6EC; border-radius:22px; padding:36px; display:flex; flex-direction:column; gap:22px; box-shadow:0 16px 40px rgba(46,60,76,0.07);">
+        <div>
+          <div style="font-size:13px; font-weight:700; color:#6B7684; letter-spacing:0.03em;">CONFORT</div>
+          <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:44px; margin-top:8px; line-height:1;">15-25 €<span style="font-size:14px; font-weight:600; color:#6B7684;"> /mois</span></div>
+          <div style="font-size:13px; color:#6B7684; margin-top:10px;">Pour une couverture plus large.</div>
+        </div>
+        <a href="Inscription.html" style="text-align:center; border:1.5px solid #1F9997; color:#1F9997; font-weight:600; font-size:14px; padding:13px; border-radius:10px;">Commencer</a>
+        <div style="height:1px; background:#E2E6EC;"></div>
+        <div style="display:flex; flex-direction:column; gap:13px; font-size:14px;">
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Tout le plan Économique</div>
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Couverture LinkedIn/Indeed élargie</div>
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Scoring affiné sur les cas ambigus</div>
+          <div style="display:flex; gap:10px;"><span style="color:#1F9997; font-weight:700;">✓</span> Support prioritaire</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ENGAGEMENT -->
+  <div style="padding:0 56px;">
+    <div style="display:flex; justify-content:center; gap:14px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:1px solid #E2E6EC; border-radius:999px; padding:10px 18px 10px 10px;">
+        <div style="width:30px; height:30px; border-radius:50%; background:#DCEFEE; display:flex; align-items:center; justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F9997" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div style="font-size:13px; font-weight:600;">Sans carte bancaire pour l'offre gratuite</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:1px solid #E2E6EC; border-radius:999px; padding:10px 18px 10px 10px;">
+        <div style="width:30px; height:30px; border-radius:50%; background:#DCEFEE; display:flex; align-items:center; justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F9997" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div style="font-size:13px; font-weight:600;">Résiliable en un clic</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:1px solid #E2E6EC; border-radius:999px; padding:10px 18px 10px 10px;">
+        <div style="width:30px; height:30px; border-radius:50%; background:#DCEFEE; display:flex; align-items:center; justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F9997" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div style="font-size:13px; font-weight:600;">Aucune facturation à la semaine</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div style="padding:88px 56px 0 56px;">
+    <h2 style="margin:0 0 32px 0; text-align:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:30px;">Questions fréquentes</h2>
+    <div style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:20px;">
+      <div style="border:1px solid #E2E6EC; border-radius:18px; padding:26px 28px;">
+        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Pourquoi une fourchette de prix ?</div>
+        <div style="font-size:14px; color:#6B7684; line-height:1.6;">Le coût dépend du nombre d'offres analysées par l'IA chaque mois. Tu vois ton montant exact avant chaque facturation.</div>
+      </div>
+      <div style="border:1px solid #E2E6EC; border-radius:18px; padding:26px 28px;">
+        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Trouvio peut-il postuler à ma place ?</div>
+        <div style="font-size:14px; color:#6B7684; line-height:1.6;">Non, volontairement. Trouvio trie et explique ; la candidature reste toujours ta décision.</div>
+      </div>
+      <div style="border:1px solid #E2E6EC; border-radius:18px; padding:26px 28px;">
+        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Puis-je changer de formule ?</div>
+        <div style="font-size:14px; color:#6B7684; line-height:1.6;">Oui, à tout moment depuis ta configuration. Le changement prend effet au mois suivant.</div>
+      </div>
+      <div style="border:1px solid #E2E6EC; border-radius:18px; padding:26px 28px;">
+        <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Mes données sont-elles revendues ?</div>
+        <div style="font-size:14px; color:#6B7684; line-height:1.6;">Jamais. Ton profil et tes candidatures ne sont partagés avec aucun tiers.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="position:relative; overflow:hidden; margin:72px 56px 0 56px; background:#2E3C4C; border-radius:22px; padding:48px 56px; display:flex; align-items:center; justify-content:space-between;">
+    <div style="position:absolute; top:-80px; right:60px; width:260px; height:260px; border-radius:50%; background:#1F9997; opacity:0.25; filter:blur(60px);"></div>
+    <div style="position:relative;">
+      <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:24px; color:#FFFFFF;">Commence gratuitement, décide ensuite.</div>
+      <div style="font-size:14px; color:rgba(255,255,255,0.7); margin-top:6px;">Aucune carte bancaire requise.</div>
+    </div>
+    <a href="Inscription.html" style="position:relative; background:#1F9997; color:#FFFFFF; font-weight:600; font-size:15px; padding:15px 30px; border-radius:10px; white-space:nowrap;">Créer mon compte</a>
+  </div>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:40px 56px 32px 56px;">
+    <img src="../../../public/brand/trouvio-logo-horizontal.svg" alt="Trouvio" style="height:20px; width:auto; opacity:0.7;">
+    <div style="display:flex; gap:28px; font-size:13px;">
+      <a href="Fonctionnalites.html" style="color:#6B7684;">Fonctionnalités</a>
+      <a href="Tarifs.html" style="color:#6B7684;">Tarifs</a>
+      <a href="Contact.html" style="color:#6B7684;">Contact</a>
+    </div>
+    <div style="font-size:12px; color:#6B7684;">© 2026 Trouvio</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+
+<style>
+  body { margin: 0; font-family: 'Work Sans', system-ui, sans-serif; background: #FFFFFF; color: #2E3C4C; }
+  a { text-decoration: none; }
+  .fld { font-family: 'Work Sans', sans-serif; font-size: 14px; color: #2E3C4C; background:#F2F4F8; border: 1px solid transparent; border-radius: 10px; padding: 14px; box-sizing: border-box; width: 100%; }
+</style>
+
+<div style="width:1440px; height:900px; box-sizing:border-box; display:flex; background:#FFFFFF;">
+
+  <!-- Panneau marque -->
+  <div style="position:relative; overflow:hidden; width:640px; flex-shrink:0; background:#2E3C4C; padding:48px 56px; box-sizing:border-box; display:flex; flex-direction:column;">
+    <div style="position:absolute; top:-140px; right:-120px; width:420px; height:420px; border-radius:50%; background:#1F9997; opacity:0.35; filter:blur(80px);"></div>
+    <div style="position:absolute; bottom:-140px; left:-100px; width:340px; height:340px; border-radius:50%; background:#1F9997; opacity:0.18; filter:blur(70px);"></div>
+    <div aria-hidden="true" style="position:absolute; bottom:-30px; left:20px; font-family:'Poppins',sans-serif; font-weight:800; font-size:180px; line-height:1; color:#FFFFFF; opacity:0.05; letter-spacing:-4px; white-space:nowrap;">TROUVIO</div>
+
+    <a href="Accueil.html" style="position:relative;"><img src="../../../public/brand/trouvio-logo-horizontal.svg" alt="Trouvio" style="height:24px; width:auto; display:block; filter:brightness(0) invert(1);"></a>
+
+    <div style="position:relative; margin-top:88px;">
+      <h2 style="margin:0; font-family:'Poppins',sans-serif; font-weight:800; font-size:42px; line-height:1.12; color:#FFFFFF; letter-spacing:-0.5px;">Deux minutes.<br>Ensuite, elle trie.</h2>
+      <p style="margin:16px 0 0 0; font-size:16px; color:rgba(255,255,255,0.75); line-height:1.6; max-width:420px;">Crée ton compte, décris ce que tu cherches, et reçois ton premier digest dès demain matin.</p>
+    </div>
+
+    <div style="position:relative; margin-top:44px; display:flex; flex-direction:column; gap:14px; width:420px;">
+      <div style="display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding:14px 16px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:#1F9997; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:14px;">1</div>
+        <div style="font-size:14px; color:#FFFFFF; font-weight:600;">Crée ton compte</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px 16px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.12); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:14px;">2</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.75); font-weight:600;">Configure tes critères de recherche</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px 16px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.12); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:14px;">3</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.75); font-weight:600;">Reçois ton premier digest</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulaire -->
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:48px; background:#FFFFFF;">
+    <div style="width:400px; display:flex; flex-direction:column; gap:20px;">
+      <div>
+        <div style="font-size:12px; color:#1F9997; font-weight:700; letter-spacing:0.03em; margin-bottom:8px;">ÉTAPE 1 SUR 3</div>
+        <h1 style="margin:0 0 8px 0; font-family:'Poppins',sans-serif; font-weight:800; font-size:32px; letter-spacing:-0.5px;">Crée ton compte</h1>
+        <p style="margin:0; font-size:15px; color:#6B7684;">Gratuit, sans carte bancaire.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:13px; font-weight:600;" for="nom">Nom complet</label>
+        <input id="nom" class="fld" type="text" placeholder="Kwasi A.">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:13px; font-weight:600;" for="email2">Adresse email</label>
+        <input id="email2" class="fld" type="email" placeholder="toi@exemple.be">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:13px; font-weight:600;" for="pwd2">Mot de passe</label>
+        <input id="pwd2" class="fld" type="password" placeholder="8 caractères minimum">
+        <div style="display:flex; gap:4px; margin-top:4px;">
+          <div style="flex:1; height:4px; border-radius:999px; background:#1F9997;"></div>
+          <div style="flex:1; height:4px; border-radius:999px; background:#1F9997;"></div>
+          <div style="flex:1; height:4px; border-radius:999px; background:#E2E6EC;"></div>
+          <div style="flex:1; height:4px; border-radius:999px; background:#E2E6EC;"></div>
+        </div>
+      </div>
+      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:#6B7684; line-height:1.5;">
+        <input type="checkbox" checked style="accent-color:#1F9997; margin-top:2px;">
+        J'accepte que mes données de recherche restent privées et ne soient jamais partagées à un tiers.
+      </label>
+      <a href="Configuration.html" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#1F9997; color:#FFFFFF; font-size:15px; font-weight:600; padding:15px; border-radius:10px; box-shadow:0 12px 26px rgba(31,153,151,0.32);">Continuer
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <div style="text-align:center; font-size:14px; color:#6B7684;">Déjà un compte ? <a href="Connexion.html" style="color:#1F9997; font-weight:600;">Se connecter</a></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
