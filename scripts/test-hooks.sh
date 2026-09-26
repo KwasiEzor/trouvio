@@ -80,6 +80,19 @@ check allow guard-code.sh "mot any en texte"          "$(edit_ev src/lib/a.ts '/
 check allow guard-code.sh "unknown"                   "$(edit_ev src/lib/a.ts 'const f = (x: unknown) => x')"
 check allow guard-code.sh "fichier md ignoré"         "$(write_ev docs/x.md 'x: any')"
 
+# --- Magic UI (ADR 0007) ---
+check allow guard-bash.sh "magicui avec --path"       "$(bash_ev 'pnpm dlx shadcn@latest add @magicui/marquee --path src/components/magicui')"
+check deny  guard-bash.sh "magicui sans --path"       "$(bash_ev 'pnpm dlx shadcn@latest add @magicui/marquee')"
+check deny  guard-bash.sh "magicui globe"             "$(bash_ev 'pnpm dlx shadcn@latest add @magicui/globe --path src/components/magicui')"
+check allow guard-bash.sh "shadcn classique"          "$(bash_ev 'pnpm dlx shadcn@latest add button')"
+check allow guard-code.sh "marquee sur site public"   "$(edit_ev 'src/app/(public)/page.tsx' 'import { Marquee } from "@/components/magicui/marquee"')"
+check deny  guard-code.sh "particles sur site public" "$(edit_ev 'src/app/(public)/page.tsx' 'import { Particles } from "@/components/magicui/particles"')"
+check allow guard-code.sh "number-ticker dans l'app"  "$(edit_ev 'src/app/(app)/statistiques/page.tsx' 'import { NumberTicker } from "@/components/magicui/number-ticker"')"
+check deny  guard-code.sh "marquee dans l'app"        "$(edit_ev 'src/app/(app)/fil/page.tsx' 'import { Marquee } from "@/components/magicui/marquee"')"
+check allow guard-code.sh "app sans magicui"          "$(edit_ev 'src/app/(app)/fil/page.tsx' 'import { Button } from "@/components/ui/button"')"
+check deny  guard-code.sh "couleur défaut magicui"    "$(edit_ev src/components/magicui/border-beam.tsx 'colorFrom = "#ffaa40",')"
+check allow guard-code.sh "token dans magicui"        "$(edit_ev src/components/magicui/border-beam.tsx 'colorFrom = "var(--brand)",')"
+
 # --- session-context ---
 out="$(echo '{"source":"startup"}' | "$H/session-context.sh")"
 if jq -e '.hookSpecificOutput.additionalContext | test("Trouvio")' <<<"$out" >/dev/null; then pass=$((pass+1)); else fail=$((fail+1)); echo "ÉCHEC session-context : $out"; fi

@@ -9,7 +9,7 @@ Références (lire **seulement** celles utiles à la tâche en cours) :
 `docs/ROADMAP.md` (source de vérité de l'avancement) · `docs/PRD.md` · `docs/ARCHITECTURE.md` · `docs/SECURITY.md` · `docs/TESTING.md` · `docs/adr/` (ne pas contredire sans nouvel ADR) · `docs/design/` · `docs/plans/<ID>.md` (plan validé de chaque tâche).
 
 ## 2. Stack
-Next.js App Router + TypeScript strict · Neon Postgres + Drizzle (`node-postgres`) · Better Auth · Tailwind + shadcn/ui (thème = `docs/design/tokens.json`) · Zod à chaque frontière · Anthropic SDK (`claude-haiku-4-5-20251001`, configurable par env) · Vitest + Testing Library + MSW · Playwright · Sentry · GitHub Actions · Hostinger VPS (Docker) · **pnpm uniquement**.
+Next.js App Router + TypeScript strict · Neon Postgres + Drizzle (`node-postgres`) · Better Auth · Tailwind + shadcn/ui (thème = `docs/design/tokens.json`) + Magic UI pour les effets, périmètre limité (ADR 0007) · Zod à chaque frontière · Anthropic SDK (`claude-haiku-4-5-20251001`, configurable par env) · Vitest + Testing Library + MSW · Playwright · Sentry · GitHub Actions · Hostinger VPS (Docker) · **pnpm uniquement**.
 
 ## 3. Commandes
 ```bash
