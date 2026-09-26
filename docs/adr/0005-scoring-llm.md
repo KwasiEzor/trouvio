@@ -2,7 +2,7 @@
 **Statut** : accepté
 
 ## Contexte
-Le scoring est une tâche de classification/extraction structurée, répétée sur des dizaines d'offres par jour et par utilisateur, sous contrainte de coût (≤ 5 €/mois/utilisateur).
+Le scoring est une tâche de classification/extraction structurée, répétée sur des dizaines d'offres par jour et par utilisateur, sous contrainte de coût (≤ 30 % du prix de la formule de l'utilisateur, voir PRD §6 ; initialement 5 €/mois, revu en P0-00b).
 
 ## Décision
 Modèle par défaut `claude-haiku-4-5-20251001` (variable `ANTHROPIC_MODEL_SCORING`). Prompts versionnés dans `prompts/`, sortie JSON validée par Zod, évaluation automatique sur un jeu de référence avant tout changement.

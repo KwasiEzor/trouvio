@@ -19,10 +19,13 @@ Collecte quotidienne (France Travail, Forem, Adzuna) → dédoublonnage → scor
 Comptes utilisateurs, configuration dans l'app, fil d'offres, détail d'offre, suivi kanban, statistiques, digest email, site public (accueil, fonctionnalités, tarifs, contact), pages légales.
 
 ### Lancement (jalon M3)
-Administration, facturation Stripe (Gratuit / Économique / Confort), Notion, durcissement sécurité, runbook d'exploitation.
+Administration, facturation Stripe (Gratuit / Économique / Confort), durcissement sécurité, runbook d'exploitation.
 
 ### Hors périmètre (volontairement)
 Candidature automatique, scraping de LinkedIn/Indeed, application mobile native, lettres envoyées sans relecture.
+
+### Après le lancement (reporté)
+Canal Notion ; thème sombre.
 
 ## 5. Exigences fonctionnelles
 | ID | Exigence | Priorité |
@@ -38,7 +41,7 @@ Candidature automatique, scraping de LinkedIn/Indeed, application mobile native,
 | F9 | Export CSV des candidatures | Could |
 
 ## 6. Exigences non fonctionnelles
-- **Coût** : coût IA ≤ 5 €/utilisateur/mois en formule Économique ; alerte admin au-delà.
+- **Coût** : coût IA ≤ **30 % du prix de la formule** de l'utilisateur (mesuré en P3-03, vérifié à la porte P3) ; alerte admin au-delà. Formule Gratuite : plafond fixe par utilisateur, défini en P9-03.
 - **Fiabilité** : l'échec d'une source n'empêche pas le digest des autres ; job idempotent (relancer ne double pas les envois).
 - **Sécurité & vie privée** : RGPD (utilisateurs en Belgique), données minimales envoyées au LLM, suppression de compte effective.
 - **Performance** : pages de l'app < 2 s (LCP) en 4G ; digest généré en < 5 min pour 100 utilisateurs.

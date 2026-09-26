@@ -18,3 +18,5 @@
 Les maquettes sont une **référence visuelle** (hiérarchie, espacements, états, contenus). Elles ne sont pas à copier telles quelles : l'implémentation passe par les composants shadcn/ui et le thème Tailwind.
 
 Règles de marque : le symbole tient lieu de « T » dans le logo horizontal ; en texte, écrire « Trouvio ». Turquoise `#1F9997` = seule couleur vive, à utiliser avec parcimonie. Polices : Poppins (titres), Work Sans (texte).
+
+Thème : **clair uniquement** jusqu'au lancement (M3). Le thème sombre est reporté après le lancement ; les tokens restent structurés par thème (`value.light`) pour l'ajouter sans refonte.

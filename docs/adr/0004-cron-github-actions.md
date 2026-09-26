@@ -1,5 +1,5 @@
 # ADR 0004 — Déclenchement du job via GitHub Actions
-**Statut** : accepté
+**Statut** : remplacé en partie par l'ADR 0008 (le workflow exécute le job lui-même en M1 ; l'appel HTTP ci-dessous devient possible après déploiement)
 
 ## Contexte
 Le job quotidien doit tourner sans machine allumée en permanence côté développeur, sans coût additionnel.

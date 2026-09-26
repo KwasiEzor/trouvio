@@ -11,7 +11,7 @@ arguments: [phase]
 
 ## Procédure
 1. Toutes les tâches de `$phase` sont cochées ; sinon lister les restantes et s'arrêter.
-2. Pour chaque critère de la **porte** de `$phase`, produire une preuve vérifiable (sortie de commande, rapport, mesure). Ce qui exige une action humaine (collecte réelle, 7 jours de digest, préproduction) est listé comme « à confirmer par l'utilisateur », jamais présumé.
+2. Pour chaque critère de la **porte** de `$phase`, produire une preuve vérifiable (sortie de commande, rapport, mesure). Ce qui exige une action humaine (collecte réelle, 7 jours de digest, réception d'un message) est listé comme « à confirmer par l'utilisateur », jamais présumé.
 3. `pnpm verify` + `pnpm test:e2e` sur `main`.
 4. Sous-agent `security-reviewer` sur l'ensemble du code de la phase (pas seulement le dernier diff).
 5. Relecture de cohérence : `docs/ARCHITECTURE.md`, ADR et ROADMAP reflètent ce qui a été construit ; proposer les corrections.

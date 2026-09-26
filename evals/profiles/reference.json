@@ -1,0 +1,13 @@
+{
+  "_note": "Profil de référence de l'évaluation. Critères de recherche uniquement, aucune identité. VALEURS PROVISOIRES : à corriger par Kwasi en P3-04.",
+  "titles": ["Développeur web senior", "Développeur full-stack", "Architecte technique web"],
+  "skills": ["PHP", "Laravel", "Filament", "MySQL", "React", "TypeScript", "AWS"],
+  "years_exp": 8,
+  "languages": ["français", "anglais"],
+  "zone": "Wallonie (Liège, Namur, Charleroi) et Bruxelles",
+  "remote_mode": "présentiel, hybride ou 100 % télétravail",
+  "contracts": ["CDI", "Freelance"],
+  "min_salary": 45000,
+  "excluded_keywords": [],
+  "excluded_companies": []
+}

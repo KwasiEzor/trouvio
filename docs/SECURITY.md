@@ -12,7 +12,8 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Vol de session | XSS, cookie mal configuré | Cookies HttpOnly/Secure/SameSite=Lax, CSP stricte, pas de `dangerouslySetInnerHTML` sur contenu d'offre |
 | Injection de prompt | Texte d'offre piégé | Contenu délimité et déclaré non fiable, sortie validée Zod, aucun outil exposé au modèle |
 | XSS stockée | Description d'offre affichée | Rendu texte brut ou sanitisation (liste blanche) ; jamais de HTML brut |
-| Déclenchement abusif du job | Appel public de `/api/cron/run` | Secret Bearer, comparaison à temps constant, verrou |
+| Déclenchement abusif du job | Appel public de `/api/cron/run` (après déploiement) | Secret Bearer, comparaison à temps constant, verrou `pg_advisory_lock` |
+| Fuite des secrets du job | Workflow GitHub Actions qui exécute le job (ADR 0008) | Environnement GitHub `production` limité au workflow du job, aucun secret exposé aux PR ni aux forks, pas d'`echo` de variables, journaux relus |
 | Explosion des coûts IA | Boucle, abus | Filtre dur avant IA, plafonds par utilisateur/jour, alerte admin |
 | Brute force / spam | Formulaires auth/contact | Rate limiting, lien magique à usage unique et expirant |
 | Fuite de secrets | Commit, logs | gitleaks en CI, logger sans PII ni secrets, `.env*` bloqué par hook |
@@ -25,7 +26,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - Server Actions et routes API : vérification d'auth + d'appartenance en première ligne.
 - Mots de passe : hachage géré par Better Auth (algorithme moderne), longueur minimale 8, vérification contre les mots de passe compromis si possible.
 - Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes.
-- Principe du moindre privilège : rôle DB applicatif sans droits DDL en production.
+- Principe du moindre privilège : rôle DB applicatif sans droits DDL en production ; le job GitHub Actions utilise ce même rôle, jamais le propriétaire de la base.
 
 ## 4. RGPD (Belgique — autorité : APD)
 - Base légale : exécution du contrat (service) ; consentement pour tout traceur non essentiel.

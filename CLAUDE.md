@@ -3,7 +3,7 @@
 > Chargé à chaque session. Court par design : les règles de domaine vivent dans `.claude/rules/` (chargées seulement quand tu touches les fichiers concernés), les procédures dans `.claude/skills/`.
 
 ## 1. Produit
-Trouvio collecte chaque jour des offres d'emploi depuis des **sources officielles** (France Travail, Le Forem, Adzuna), les **note avec l'IA** selon le profil de l'utilisateur, et lui envoie un **digest** (Telegram, email, Notion). **L'agent trie, il ne postule jamais seul.** Non négociable, y compris dans le code : aucune fonctionnalité d'envoi automatique de candidature.
+Trouvio collecte chaque jour des offres d'emploi depuis des **sources officielles** (France Travail, Le Forem, Adzuna), les **note avec l'IA** selon le profil de l'utilisateur, et lui envoie un **digest** (Telegram, email ; Notion après le lancement). **L'agent trie, il ne postule jamais seul.** Non négociable, y compris dans le code : aucune fonctionnalité d'envoi automatique de candidature.
 
 Références (lire **seulement** celles utiles à la tâche en cours) :
 `docs/ROADMAP.md` (source de vérité de l'avancement) · `docs/PRD.md` · `docs/ARCHITECTURE.md` · `docs/SECURITY.md` · `docs/TESTING.md` · `docs/adr/` (ne pas contredire sans nouvel ADR) · `docs/design/` · `docs/plans/<ID>.md` (plan validé de chaque tâche).
