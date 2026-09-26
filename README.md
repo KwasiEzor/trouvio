@@ -28,14 +28,15 @@ Ce dépôt ne contient pas encore de code applicatif : il contient **tout ce qu'
 # 1. Créer le dépôt privé et y déposer ce kit
 gh repo create trouvio --private --clone && cd trouvio
 # (copier le contenu du kit ici, y compris les dossiers cachés .claude et .github)
-chmod +x .claude/hooks/*.sh
+chmod +x .claude/hooks/*.sh .githooks/*
+git config core.hooksPath .githooks   # active le hook pre-push (refus de tout push direct sur main)
 git add -A && git commit -m "chore: kit de démarrage Trouvio" && git push -u origin main
 
 # 2. Secrets locaux
 cp .env.example .env.local   # remplir les valeurs (jamais commité)
 ```
 3. **Secrets GitHub** (Settings → Secrets and variables → Actions) : `ANTHROPIC_API_KEY`, `APP_URL`, `CRON_SECRET` (+ plus tard les secrets de déploiement).
-4. **Protection de `main`** (Settings → Branches) : PR obligatoire, checks `CI / quality`, `CI / e2e`, `Security` requis, pas de push direct.
+4. **Protection de `main`** : GitHub ne la propose pas sur un dépôt privé en compte gratuit. Elle est assurée localement par `.githooks/pre-push` (refuse tout push qui modifie ou supprime `main`), à activer dans chaque clone avec `git config core.hooksPath .githooks`, et côté Claude par `.claude/hooks/guard-bash.sh`. Dérogation exceptionnelle, par toi seulement : `TROUVIO_ALLOW_PUSH_MAIN=1 git push …`. Tests : `bash scripts/test-githooks.sh`. Avec GitHub Pro ou un dépôt public : activer en plus la vraie protection (Settings → Branches : PR obligatoire, checks `CI / quality`, `CI / e2e`, `Security` requis).
 5. Ouvre le dossier dans Claude Code et **accepte la confiance de l'espace de travail** (nécessaire pour que les hooks du projet s'exécutent).
 6. Colle le contenu de `PROMPT-DE-DEMARRAGE.md` comme premier message.
 

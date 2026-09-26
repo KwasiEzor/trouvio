@@ -25,7 +25,7 @@ if [[ "$rel" =~ ^prompts/scoring\.v[0-9]+\.md$ ]] && git -C "$PROJECT_DIR" ls-fi
 fi
 
 # Garde-fous eux-mêmes : modification possible mais jamais silencieuse.
-if [[ "$rel" == .claude/hooks/* || "$rel" == .claude/settings.json || "$rel" == .github/workflows/* ]]; then
+if [[ "$rel" == .claude/hooks/* || "$rel" == .claude/settings.json || "$rel" == .github/workflows/* || "$rel" == .githooks/* ]]; then
   ask "Modification d'un garde-fou ($rel) : confirmation humaine requise."
 fi
 

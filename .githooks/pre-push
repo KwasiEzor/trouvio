@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Hook git pre-push : refuse tout push qui met à jour ou supprime la branche main sur le dépôt distant.
+# Remplace la protection de branche GitHub, indisponible sur un dépôt privé en compte gratuit.
+#
+# Activation (une fois par clone) : git config core.hooksPath .githooks
+# Dérogation exceptionnelle, par l'utilisateur uniquement : TROUVIO_ALLOW_PUSH_MAIN=1 git push ...
+set -uo pipefail
+
+remote_name="${1:-origin}"
+protected="refs/heads/main"
+
+if [[ "${TROUVIO_ALLOW_PUSH_MAIN:-}" == "1" ]]; then
+  echo "pre-push : dérogation TROUVIO_ALLOW_PUSH_MAIN=1, push vers main autorisé." >&2
+  exit 0
+fi
+
+# stdin : une ligne par référence poussée — <ref locale> <sha local> <ref distante> <sha distant>
+while read -r local_ref _local_sha remote_ref _remote_sha; do
+  if [[ "$remote_ref" == "$protected" ]]; then
+    if [[ "$local_ref" == "(delete)" ]]; then
+      action="supprimer"
+    else
+      action="pousser directement sur"
+    fi
+    cat >&2 <<EOF
+✋ pre-push : impossible de $action main sur '$remote_name'.
+   main ne change que par une PR fusionnée sur GitHub.
+   → git switch -c <type>/<ID>-<slug>, pousse cette branche, puis ouvre une PR.
+EOF
+    exit 1
+  fi
+done
+
+exit 0

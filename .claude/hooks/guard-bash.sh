@@ -20,8 +20,11 @@ fi
 if printf '%s' "$cmd" | grep -Eq 'git[[:space:]]+push[^;&|]*[[:space:]](origin[[:space:]]+)?(HEAD:)?main([[:space:]]|$)'; then
   deny "Push direct sur main interdit : passer par une branche et une PR."
 fi
-if printf '%s' "$cmd" | grep -Eq -- '--no-verify|-c[[:space:]]+core\.hooksPath'; then
-  deny "Contourner les hooks git est interdit (CLAUDE.md §6)."
+if printf '%s' "$cmd" | grep -Eq -- '--no-verify|core\.hooksPath|\.githooks/pre-push'; then
+  deny "Contourner ou modifier les hooks git est interdit (CLAUDE.md §6)."
+fi
+if printf '%s' "$cmd" | grep -Eq 'TROUVIO_ALLOW_PUSH_MAIN'; then
+  deny "La dérogation de push sur main est réservée à l'utilisateur."
 fi
 if printf '%s' "$cmd" | grep -Eq 'git[[:space:]]+(reset[[:space:]]+--hard|clean[[:space:]]+-[a-zA-Z]*f|checkout[[:space:]]+--[[:space:]]+\.|restore[[:space:]]+\.)'; then
   ask "Commande git qui détruit des modifications locales : confirmation requise."
