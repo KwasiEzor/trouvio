@@ -26,6 +26,7 @@
 - [ ] **P1-02** Better Auth (email + mot de passe, lien magique), sessions en base, rôles `user`/`admin`. *Accept.* : inscription, connexion, déconnexion testées en E2E.
 - [ ] **P1-03** Helpers d'autorisation (`requireUser`, `requireAdmin`, requêtes scopées par `userId`). *Accept.* : tests IDOR — un utilisateur ne peut lire/modifier aucune ressource d'un autre.
 - [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429.
+- [ ] **P1-05** En-têtes de sécurité (SECURITY §3) : CSP avec nonce (via `proxy.ts`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`. *Accept.* : test vérifiant chaque en-tête sur une page et une route API ; aucun script autorisé par `unsafe-inline`.
 **Porte P1** : tests d'autorisation verts, revue `security-reviewer` sans point bloquant.
 
 ## P2 — Collecte des offres

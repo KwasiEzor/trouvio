@@ -1,0 +1,1 @@
+- [Pieges outillage](project_tooling-gotchas.md) — guard-bash bloque la cle hooksPath ; next dev reecrit CLAUDE.md sauf agentRules:false ; TS<6.1/ESLint 9
