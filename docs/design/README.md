@@ -1,6 +1,6 @@
 # Design — Trouvio
 
-- `tokens.json` : couleurs, typographies, espacements et rayons officiels. **Source unique** du thème Tailwind (tâche P0-05).
+- `tokens.json` : couleurs, typographies, espacements et rayons officiels. **Source unique** du thème Tailwind (tâche P0-05). Thème **clair uniquement** jusqu'au lancement (M3) ; le thème sombre est reporté, les tokens restent structurés par thème (`value.light`) pour l'ajouter sans refonte.
 - `../../public/brand/` : logos (symbole, icône d'app, logo horizontal, wordmark) en SVG.
 - `mockups/` : maquettes HTML statiques de tous les écrans, à ouvrir dans un navigateur (les liens entre pages fonctionnent).
 
