@@ -42,6 +42,7 @@
       "Bash(head *)",
       "Bash(awk *)",
       "Bash(bash scripts/test-hooks.sh*)",
+      "Bash(bash scripts/test-githooks.sh*)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:docs.claude.com)",
       "WebFetch(domain:platform.claude.com)",
