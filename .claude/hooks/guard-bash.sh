@@ -45,6 +45,16 @@ if printf '%s' "$cmd" | grep -Eqi '(DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)|TRUN
   ask "Commande SQL destructive : confirmation et plan de retour arrière requis."
 fi
 
+# Magic UI (ADR 0007) : composants interdits, installation dans src/components/magicui uniquement.
+if printf '%s' "$cmd" | grep -Eq 'shadcn(@[^[:space:]]+)?[[:space:]]+add[^;&|]*@magicui/'; then
+  if printf '%s' "$cmd" | grep -Eq '@magicui/(globe|particles|meteors|confetti|cool-mode|aurora-text|rainbow-button|warp-background)([[:space:]]|$)'; then
+    deny "Composant Magic UI interdit par l'ADR 0007 (performance, accessibilité, charte)."
+  fi
+  if ! printf '%s' "$cmd" | grep -Eq -- '(--path|-p)[[:space:]=]+src/components/magicui([[:space:]]|$)'; then
+    deny "Installer Magic UI avec --path src/components/magicui (ADR 0007)."
+  fi
+fi
+
 # Gestionnaire de paquets : pnpm uniquement.
 if printf '%s' "$cmd" | grep -Eq '(^|[;&|][[:space:]]*)(npm[[:space:]]+(i|install|ci|add)|yarn([[:space:]]|$)|bun[[:space:]]+(add|install|i))'; then
   deny "Le projet utilise pnpm uniquement (CLAUDE.md §2)."

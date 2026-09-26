@@ -46,6 +46,7 @@ src/
     billing/             Stripe (phase 9)
   lib/                   db, env, llm, logger, auth, rate-limit, http
   components/ui/         shadcn
+  components/magicui/    effets Magic UI, liste fermée (ADR 0007)
 db/                      schema.ts, migrations/
 prompts/                 scoring.v1.md, ...
 evals/                   jeu de référence + script d'évaluation

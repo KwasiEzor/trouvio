@@ -31,6 +31,17 @@ if [[ "$rel" == *.tsx ]]; then
   grep -Eq '(bg|text|border|fill|stroke|from|via|to|ring|outline|shadow|decoration)-\[#[0-9a-fA-F]{3,8}\]|(color|background|backgroundColor|borderColor|fill|stroke)[[:space:]]*:[[:space:]]*["'\'']#[0-9a-fA-F]{3,8}' <<<"$new" \
     && problems+=("couleur en dur (utiliser les tokens du thème)")
 fi
+# Magic UI (ADR 0007) : liste fermée, périmètre limité dans l'app, pas de couleur par défaut en dur.
+magic_forbidden='globe|particles|meteors|confetti|cool-mode|aurora-text|rainbow-button|warp-background'
+magic_app_allowed='number-ticker|border-beam'
+grep -Eq "components/magicui/($magic_forbidden)['\"]" <<<"$new" && problems+=("composant Magic UI interdit (ADR 0007)")
+if [[ "$rel" == "src/app/(app)/"* ]]; then
+  grep -Eo "components/magicui/[a-z0-9-]+" <<<"$new" | sed 's#.*/##' | grep -Evq "^($magic_app_allowed)$" \
+    && problems+=("composant Magic UI hors number-ticker/border-beam dans l'app (ADR 0007)")
+fi
+if [[ "$rel" == src/components/magicui/* ]]; then
+  grep -Eq "=[[:space:]]*[\"'](#[0-9a-fA-F]{3,8}|rgba?\()" <<<"$new" && problems+=("couleur par défaut en dur dans un composant Magic UI (utiliser les tokens)")
+fi
 if [[ "$is_test" == true ]]; then
   grep -Eq '\b(it|test|describe)\.(only|skip)\(|\bx(it|describe)\(' <<<"$new" && problems+=(".only / .skip dans un test")
 fi
