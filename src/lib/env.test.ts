@@ -188,6 +188,31 @@ describe("parseEnv — cas négatifs", () => {
     expect(err.issues).toContainEqual({ name, reason: "invalide" });
   });
 
+  it("exige HTTPS pour APP_URL en production", () => {
+    const err = capture(() =>
+      parseEnv("core", {
+        NODE_ENV: "production",
+        APP_URL: "http://trouvio.example",
+      }),
+    );
+    expect(err.issues).toEqual([{ name: "APP_URL", reason: "invalide" }]);
+  });
+
+  it.each(["http://localhost:3100", "http://127.0.0.1:3000"])(
+    "accepte %s en production (serveur local)",
+    (url) => {
+      expect(
+        parseEnv("core", { NODE_ENV: "production", APP_URL: url }).APP_URL,
+      ).toBe(url);
+    },
+  );
+
+  it("accepte HTTP hors production", () => {
+    expect(
+      parseEnv("core", { APP_URL: "http://trouvio.example" }).APP_URL,
+    ).toBe("http://trouvio.example");
+  });
+
   it("signale les variables requises absentes comme manquantes", () => {
     const err = capture(() => parseEnv("franceTravail", {}));
     expect(err.issues).toEqual([

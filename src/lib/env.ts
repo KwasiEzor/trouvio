@@ -18,6 +18,7 @@ export type EnvIssue = {
 
 const DEFAULT_APP_URL = "http://localhost:3000";
 const DEFAULT_SCORING_MODEL = "claude-haiku-4-5-20251001";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
@@ -58,11 +59,23 @@ export type EnvDomain = keyof typeof shapes;
 const core = z
   .object(shapes.core)
   .superRefine((value, ctx) => {
-    if (value.NODE_ENV === "production" && value.APP_URL === undefined) {
+    if (value.NODE_ENV !== "production") return;
+    if (value.APP_URL === undefined) {
       ctx.addIssue({
         code: "custom",
         path: ["APP_URL"],
         message: "requise en production",
+      });
+      return;
+    }
+    // En production : HTTPS obligatoire (cookies Secure, liens magiques, liens des digests),
+    // sauf pour un serveur local lancé avec `next start`.
+    const { protocol, hostname } = new URL(value.APP_URL);
+    if (protocol !== "https:" && !LOCAL_HOSTS.has(hostname)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["APP_URL"],
+        message: "HTTPS requis en production",
       });
     }
   })
