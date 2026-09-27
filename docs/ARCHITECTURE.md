@@ -55,11 +55,12 @@ src/
   lib/                   db, env, llm, logger, auth, rate-limit, http
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
+  test/                  harnais de tests : setup Vitest, serveur MSW partagé
 db/                      schema.ts, migrations/
 scripts/                 job-run.ts (point d'entrée CLI du job), test-hooks.sh
 prompts/                 scoring.v1.md, ...
 evals/                   jeu de référence + script d'évaluation
-tests/e2e/               Playwright
+tests/e2e/               Playwright (build de production, axe)
 ```
 
 ## 4. Interface des sources

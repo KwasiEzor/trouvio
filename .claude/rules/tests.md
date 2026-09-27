@@ -16,4 +16,6 @@ paths:
 - Un test = un comportement, nom en français décrivant l'attendu (`it("ignore une offre déjà vue sur une autre source")`).
 - Interdit : `.skip`, `.only`, `expect(true)`, assouplir une assertion pour faire passer. Un test instable se corrige, il ne se désactive pas.
 - Chaque bug corrigé ajoute un test de non-régression.
+- Convention : `*.test.ts` s'exécute en environnement node, `*.test.tsx` en jsdom (Testing Library) ; tests colocalisés ; E2E dans `tests/e2e/*.spec.ts`.
+- Réseau simulé avec le serveur MSW partagé (`src/test/msw/server.ts`) : chaque test déclare ses réponses avec `server.use(...)` ; une requête non simulée fait échouer le test.
 - E2E : comptes créés par seed, jamais de données réelles.
