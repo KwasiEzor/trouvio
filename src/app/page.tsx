@@ -1,3 +1,5 @@
+const variableInutilisee = 1;
+
 export default function Home() {
   return (
     <main>
