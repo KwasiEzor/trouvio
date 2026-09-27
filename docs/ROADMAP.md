@@ -13,7 +13,7 @@
 ## P0 — Fondations
 - [x] **P0-00** Outillage Claude Code : `CLAUDE.md` allégé, règles `.claude/rules/` par chemin, sous-agents, commandes du workflow, hooks de garde et de validation, permissions. *Accept.* : `bash scripts/test-hooks.sh` vert. Plan : `docs/plans/P0-00.md`.
 - [x] **P0-00b** Cohérence des documents avant de coder (job M1 sans serveur, exclusions, dédoublonnage, bandes d'éval, seed hors dépôt, plafond de coût, étude des sources, Notion reporté). *Accept.* : aucune contradiction restante entre les documents. Plan : `docs/plans/P0-00b.md`.
-- [ ] **P0-01** Initialiser Next.js (App Router, TS strict, `src/`), pnpm, ESLint, Prettier. *Accept.* : `pnpm dev` et `pnpm build` passent.
+- [x] **P0-01** Initialiser Next.js (App Router, TS strict, `src/`), pnpm, ESLint, Prettier. *Accept.* : `pnpm dev` et `pnpm build` passent.
 - [ ] **P0-02** `src/lib/env.ts` : validation Zod de toutes les variables (`.env.example` à jour). *Accept.* : démarrage refusé si une variable requise manque, test unitaire à l'appui.
 - [ ] **P0-03** Vitest + Testing Library + MSW, Playwright, script `pnpm verify`. *Accept.* : un test de chaque type passe.
 - [ ] **P0-04** CI GitHub Actions (`ci.yml`, `security.yml`), Dependabot, protection de branche `main`. *Accept.* : une PR factice déclenche tous les contrôles.
