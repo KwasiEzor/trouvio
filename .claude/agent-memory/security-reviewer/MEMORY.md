@@ -1,0 +1,1 @@
+- [Faits revue env P0-02](project_env-review-facts.md) — standalone ignore next.config.ts ; contournements ESLint/hook ; tests sentinelles sans fichier de secrets

@@ -1,1 +1,2 @@
 - [Pieges outillage](project_tooling-gotchas.md) — guard-bash bloque la cle hooksPath ; next dev reecrit CLAUDE.md sauf agentRules:false ; TS<6.1/ESLint 9
+- [Faits env/runtime](project_env-and-runtime-facts.md) — server-only throw hors RSC ; register() hors build, exit 1 en start ; VAR= vide ; Zod 4 ; Vitest 5 + vite peer

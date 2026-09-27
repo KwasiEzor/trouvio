@@ -14,8 +14,8 @@
 - [x] **P0-00** Outillage Claude Code : `CLAUDE.md` allégé, règles `.claude/rules/` par chemin, sous-agents, commandes du workflow, hooks de garde et de validation, permissions. *Accept.* : `bash scripts/test-hooks.sh` vert. Plan : `docs/plans/P0-00.md`.
 - [x] **P0-00b** Cohérence des documents avant de coder (job M1 sans serveur, exclusions, dédoublonnage, bandes d'éval, seed hors dépôt, plafond de coût, étude des sources, Notion reporté). *Accept.* : aucune contradiction restante entre les documents. Plan : `docs/plans/P0-00b.md`.
 - [x] **P0-01** Initialiser Next.js (App Router, TS strict, `src/`), pnpm, ESLint, Prettier. *Accept.* : `pnpm dev` et `pnpm build` passent.
-- [ ] **P0-02** `src/lib/env.ts` : validation Zod de toutes les variables (`.env.example` à jour). *Accept.* : démarrage refusé si une variable requise manque, test unitaire à l'appui.
-- [ ] **P0-03** Vitest + Testing Library + MSW, Playwright, script `pnpm verify`. *Accept.* : un test de chaque type passe.
+- [x] **P0-02** `src/lib/env.ts` : validation Zod de toutes les variables (`.env.example` à jour) ; installe Vitest minimal et `pnpm test`. *Accept.* : démarrage refusé si une variable requise manque, test unitaire à l'appui. Plan : `docs/plans/P0-02.md`.
+- [ ] **P0-03** Testing Library + MSW, Playwright, couverture (Vitest installé en P0-02) ; `pnpm verify` complet. *Accept.* : un test de chaque type passe.
 - [ ] **P0-04** CI GitHub Actions (`ci.yml`, `security.yml`), Dependabot, protection de branche `main`. *Accept.* : une PR factice déclenche tous les contrôles.
 - [ ] **P0-05** Tailwind + shadcn/ui avec thème issu de `docs/design/tokens.json`, polices Poppins/Work Sans, logos dans `public/brand`. *Accept.* : page `/styleguide` affichant couleurs, typos, boutons.
 - [ ] **P0-06** `lib/logger` (JSON structuré, sans PII) et Sentry. *Accept.* : une erreur volontaire lancée en local remonte dans le projet Sentry de développement.
@@ -87,7 +87,7 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 
 ## P10 — Durcissement & lancement
 - [ ] **P10-01** Audit sécurité final (`/security-audit`), correction de tous les points hauts.
-- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy.
+- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy ; point d'entrée qui valide l'environnement avant `server.js` (ARCHITECTURE §8). *Accept.* : conteneur lancé sans `APP_URL` → sortie code 1, noms des variables manquantes affichés sans valeur.
 - [ ] **P10-03** Sauvegardes (Neon PITR + export), runbook incident (`docs/RUNBOOK.md`).
 - [ ] **P10-04** Tests de charge légers (100 utilisateurs simulés sur le job quotidien).
 - [ ] **P10-05** Route `POST /api/cron/run` sur le serveur déployé (secret, temps constant, même verrou que `pnpm job:run`) et décision d'y basculer le job ou de le garder dans GitHub Actions (ADR 0008). *Accept.* : 401 sans secret, 409 si déjà en cours.

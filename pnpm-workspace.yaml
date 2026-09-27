@@ -3,6 +3,9 @@
 engineStrict: true
 # strictDepBuilds : échoue si une dépendance veut exécuter un script d'installation non tranché ci-dessous.
 strictDepBuilds: true
+# Refuse une version publiée depuis moins de 24 h (en minutes) : laisse le temps de détecter
+# une version compromise avant de l'installer (chaîne d'approvisionnement).
+minimumReleaseAge: 1440
 # Décision explicite par paquet ayant un script d'installation (défaut : refusé).
 allowBuilds:
   # Script de repli qui télécharge un binaire natif ; le binaire précompilé est déjà fourni par une dépendance optionnelle.

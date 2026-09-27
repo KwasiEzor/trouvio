@@ -13,3 +13,4 @@ metadata:
 **Why:** decouvert en planifiant P0-01 ; un appel Bash a ete bloque et next dev aurait modifie CLAUDE.md en silence.
 **How to apply:** dans chaque plan touchant le hook git, next dev, ou les versions TS/ESLint, prevoir ces contournements et verifications. Decisions validees de P0-01 : docs/plans/P0-01.md.
 - Sondes ESLint par stdin : `--stdin-filename` doit viser un fichier EXISTANT couvert par tsconfig (ex. src/app/page.tsx), sinon "not found by the project service" sur tout code ; verifier l'identifiant de regle dans la sortie (grep no-explicit-any), pas seulement le code de sortie.
+- Sondes ESLint hors src/ (scripts/, db/) : aucun .ts existant dans ces dossiers au 2026-09-27 -> creer un vrai fichier temporaire (puis le supprimer, git status vide) ; guard-code refusera un Write contenant process.env dans ces dossiers apres P0-02, passer par printf en Bash.

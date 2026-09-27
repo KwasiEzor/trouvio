@@ -32,9 +32,10 @@ pnpm install           # dépendances + active le hook pre-push via le script «
 git rev-parse --git-path hooks   # doit afficher .githooks ; sinon : git config core.hooksPath .githooks
 
 # 2. Secrets locaux
-cp .env.example .env.local   # remplir les valeurs (jamais commité)
+cp .env.example .env.local   # remplir au fil des phases (jamais commité)
 ```
-3. **Secrets GitHub** (Settings → Secrets and variables → Actions) : `ANTHROPIC_API_KEY`, `APP_URL`, `CRON_SECRET` (+ plus tard les secrets de déploiement).
+   `pnpm dev` et `pnpm build` fonctionnent sans aucun secret. `pnpm start` exige `APP_URL`. Chaque variable indique dans `.env.example` la phase où elle devient requise ; au démarrage, les noms manquants sont listés (jamais les valeurs). Détail : `docs/ARCHITECTURE.md` §8.
+3. **Secrets GitHub** : à partir de P5-02, dans un environnement GitHub `production` réservé au workflow du job (ADR 0008) ; noms identiques à `.env.example`.
 4. **Protection de `main`** : GitHub ne la propose pas sur un dépôt privé en compte gratuit. Elle est assurée localement par `.githooks/pre-push` (refuse tout push qui modifie ou supprime `main`), activé automatiquement par `pnpm install` (script `prepare`, repli manuel : `git config core.hooksPath .githooks`), et côté Claude par `.claude/hooks/guard-bash.sh`. Dérogation exceptionnelle, par toi seulement : `TROUVIO_ALLOW_PUSH_MAIN=1 git push …`. Tests : `bash scripts/test-githooks.sh`. Avec GitHub Pro ou un dépôt public : activer en plus la vraie protection (Settings → Branches : PR obligatoire, checks `CI / quality`, `CI / e2e`, `Security` requis).
 5. Ouvre le dossier dans Claude Code et **accepte la confiance de l'espace de travail** (nécessaire pour que les hooks du projet s'exécutent).
 6. Colle le contenu de `PROMPT-DE-DEMARRAGE.md` comme premier message.

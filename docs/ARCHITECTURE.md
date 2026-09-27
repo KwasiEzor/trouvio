@@ -96,3 +96,11 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 
 ## 7. Sécurité (résumé — détail dans SECURITY.md)
 Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécurité (CSP, HSTS), rate limiting sur auth/contact/API, secrets uniquement en variables d'environnement, dépendances surveillées (Dependabot + audit), scan de secrets (gitleaks), analyse statique (CodeQL).
+
+## 8. Configuration (variables d'environnement)
+- **Seul point d'accès** : `src/lib/env.ts` (interdit ailleurs par ESLint et par le hook `guard-code`).
+- **Domaines** : `core`, `database`, `auth`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
+- **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : aujourd'hui `core` pour `web` et `job`. **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
+- **Où** : `next.config.ts`, uniquement pour les phases serveur (`next start`, `next dev`) ; futur CLI du job (`scripts/job-run.ts`) : première instruction. Le **build n'exige aucun secret**. (`instrumentation.ts` ne convient pas : chargé après « Ready », une erreur y laisse le processus vivant.)
+- **Limite `standalone` (production, ADR 0006)** : le `server.js` généré embarque la config figée au build et **n'évalue pas** `next.config.ts` au démarrage. Le point d'entrée du conteneur doit donc appeler `assertStartupEnv("web")` avant de charger `server.js` (P10-02).
+- **Erreurs** : noms des variables manquantes ou invalides, jamais leurs valeurs.
