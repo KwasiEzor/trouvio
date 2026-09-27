@@ -105,11 +105,14 @@ describe("parseEnv — cas nominaux", () => {
 });
 
 describe("parseEnv — limites", () => {
-  it("traite une chaîne vide ou faite d'espaces comme une variable absente", () => {
+  it("traite une chaîne faite d'espaces comme une variable absente", () => {
     const err = capture(() =>
       parseEnv("core", { NODE_ENV: "production", APP_URL: "   " }),
     );
     expect(err.issues).toEqual([{ name: "APP_URL", reason: "manquante" }]);
+  });
+
+  it("applique la valeur par défaut quand la variable est vide", () => {
     expect(
       parseEnv("anthropic", {
         ANTHROPIC_API_KEY: "cle",
@@ -218,6 +221,12 @@ describe("createEnvReader", () => {
 
   it("lève une erreur au premier accès à un domaine invalide", () => {
     const getEnv = createEnvReader(() => ({}));
+    expect(() => getEnv("database")).toThrow(EnvValidationError);
+  });
+
+  it("ne met jamais une erreur en cache : chaque accès revalide", () => {
+    const getEnv = createEnvReader(() => ({}));
+    expect(() => getEnv("database")).toThrow(EnvValidationError);
     expect(() => getEnv("database")).toThrow(EnvValidationError);
   });
 

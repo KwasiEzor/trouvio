@@ -87,7 +87,7 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 
 ## P10 — Durcissement & lancement
 - [ ] **P10-01** Audit sécurité final (`/security-audit`), correction de tous les points hauts.
-- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy.
+- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy ; point d'entrée qui valide l'environnement avant `server.js` (ARCHITECTURE §8). *Accept.* : conteneur lancé sans `APP_URL` → sortie code 1, noms des variables manquantes affichés sans valeur.
 - [ ] **P10-03** Sauvegardes (Neon PITR + export), runbook incident (`docs/RUNBOOK.md`).
 - [ ] **P10-04** Tests de charge légers (100 utilisateurs simulés sur le job quotidien).
 - [ ] **P10-05** Route `POST /api/cron/run` sur le serveur déployé (secret, temps constant, même verrou que `pnpm job:run`) et décision d'y basculer le job ou de le garder dans GitHub Actions (ADR 0008). *Accept.* : 401 sans secret, 409 si déjà en cours.
