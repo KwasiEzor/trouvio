@@ -22,3 +22,19 @@
 - Métriques : taux d'accord de bande, nombre d'inversions (`high` prédit `low` ou l'inverse → doit être 0), coût moyen par offre, taux de sorties invalides.
 - Déclenchement : à chaque modification de `prompts/` ou `features/scoring/` (filtre de chemins en CI), résultat collé dans la PR.
 - Le jeu s'enrichit pendant l'auto-test : chaque désaccord entre Kwasi et l'IA devient une nouvelle ligne.
+
+## Commandes et conventions (P0-03)
+| Commande | Rôle |
+|---|---|
+| `pnpm test` | Vitest, deux projets : `node` (`*.test.ts`) et `dom` (`*.test.tsx`, jsdom + Testing Library) |
+| `pnpm test:coverage` | idem + couverture v8 et seuils (inclus dans `pnpm verify`) |
+| `pnpm test:e2e` | Playwright (chromium) sur un **build de production** (`next build` + `next start` sur le port 3100, `APP_URL` fourni par la config, aucun fichier `.env`) ; contrôle d'accessibilité axe (WCAG A/AA) |
+| `pnpm exec vitest run --project dom` | un seul projet |
+
+- **Tests colocalisés**, `globals: false` (imports explicites depuis `vitest`).
+- **Composants** : Testing Library pour les composants synchrones ; Server Components `async`, layouts et parcours complets en E2E (recommandation Next).
+- **Réseau** : serveur MSW partagé (`src/test/msw/server.ts`) démarré pour tous les tests, **sans handler par défaut** ; chaque test déclare ses réponses (`server.use(http.get(...))`) avec des URL en `.test` ; une requête non simulée échoue (`onUnhandledRequest: "error"`). Futures sources : fixtures dans `src/features/sources/<id>/__fixtures__/`, fabriques de handlers partagées au même endroit si besoin ; Anthropic simulé de la même façon (le SDK passe par `fetch`).
+- **Couverture** : tous les fichiers de `src/` comptent (même jamais chargés) ; seuils 80 % agrégés sur `src/lib/**`, 80 % **par fichier** sur `src/features/*/core/**` ; pas de seuil sur `src/app` (couvert par l'E2E). Un seuil ne s'abaisse jamais pour faire passer.
+- **E2E** : `retries: 0` (un test instable se corrige) ; trace conservée en cas d'échec ; rapports dans `playwright-report/` et `test-results/` (ignorés par git).
+- **Navigateur** : `pnpm exec playwright install --only-shell chromium` (une fois par poste, hors dépôt ; en CI en P0-04).
+- **Interdits appliqués par ESLint** (et par le hook de Claude) : `.only`, `.skip`, `.fixme`, `expect` conditionnel, `process.env` dans les tests.
