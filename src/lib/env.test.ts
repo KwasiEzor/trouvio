@@ -321,9 +321,9 @@ describe("sécurité", () => {
     expect(exampleNames).toEqual(declared);
 
     const nonSecrets = new Set(["APP_URL", "ANTHROPIC_MODEL_SCORING"]);
-    for (const [name, value] of entries) {
-      if (!nonSecrets.has(name))
-        expect(value, `${name} doit rester vide`).toBe("");
-    }
+    const secretsRemplis = entries
+      .filter(([name, value]) => !nonSecrets.has(name) && value !== "")
+      .map(([name]) => name);
+    expect(secretsRemplis).toEqual([]);
   });
 });

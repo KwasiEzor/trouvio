@@ -2,6 +2,8 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import vitest from "@vitest/eslint-plugin";
+import playwright from "eslint-plugin-playwright";
 
 const ENV_MESSAGE =
   "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
@@ -119,6 +121,28 @@ const eslintConfig = defineConfig([
             },
           ],
         },
+      ],
+    },
+  },
+  // Tests Vitest : .only et .skip interdits pour tous (humains, CI), pas seulement pour Claude.
+  {
+    files: ["src/**/*.test.{ts,tsx}"],
+    plugins: { vitest },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      "vitest/no-focused-tests": "error",
+      "vitest/no-disabled-tests": "error",
+    },
+  },
+  // Tests E2E Playwright : idem, fixme compris.
+  {
+    files: ["tests/e2e/**/*.ts"],
+    extends: [playwright.configs["flat/recommended"]],
+    rules: {
+      "playwright/no-focused-test": "error",
+      "playwright/no-skipped-test": [
+        "error",
+        { allowConditional: false, disallowFixme: true },
       ],
     },
   },

@@ -35,7 +35,9 @@ test.describe("page d'accueil (build de production)", () => {
     page.on("pageerror", (error) => erreurs.push(error.message));
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    // Attendre la fin du chargement et que la page soit rendue (hydratation comprise).
+    await page.waitForLoadState("load");
+    await expect(page.getByText("Elle trie. Tu décides.")).toBeVisible();
 
     expect(erreurs).toEqual([]);
   });
