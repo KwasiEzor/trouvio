@@ -9,8 +9,7 @@ coverage/
 next-env.d.ts
 
 # secrets (seul .env.example est commité)
-.env
-.env.*
+.env*
 !.env.example
 
 # tests

@@ -27,11 +27,12 @@ if [[ "$rel" == src/* && "$is_test" == false ]]; then
   grep -Eq 'dangerouslySetInnerHTML' <<<"$new" && problems+=("dangerouslySetInnerHTML (contenu externe non fiable)")
 fi
 # Variables d'environnement : uniquement via src/lib/env.ts, dans tout le code couvert (tests compris),
-# sous toutes leurs formes (aligné sur eslint.config.mjs). Les *.config.* racine ne passent pas ici.
+# sous leurs formes courantes. Les *.config.* racine ne passent pas ici. Analyse ligne par ligne :
+# filet de confort ; la vraie barrière est ESLint (formes multi-lignes, alias, commentaires).
 if [[ "$rel" != src/lib/env.ts ]]; then
   w='[^A-Za-z0-9_]'
-  if grep -Eq "process(\.|\[[[:space:]]*['\"])env($w|\$)" <<<"$new" \
-     || grep -Eq "\{[^}]*(^|$w)env($w|\$)[^}]*\}[[:space:]]*=[[:space:]]*((globalThis|global)\.)?process($w|\$)" <<<"$new" \
+  if grep -Eq "(^|[^A-Za-z0-9_.]|(globalThis|global)\.)process(\??\.|\[[[:space:]]*['\"])env($w|\$)" <<<"$new" \
+     || grep -Eq "\{([^}]*$w)?env([^A-Za-z0-9_}][^}]*)?\}[[:space:]]*=[[:space:]]*((globalThis|global)\.)?process($w|\$)" <<<"$new" \
      || grep -Eq "import[^;]*(^|$w)env($w|\$)[^;]*from[[:space:]]*['\"](node:)?process['\"]" <<<"$new"; then
     problems+=("variables d'environnement hors src/lib/env.ts")
   fi

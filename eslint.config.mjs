@@ -82,6 +82,30 @@ const eslintConfig = defineConfig([
             "MemberExpression[property.name='env'][object.type='MemberExpression'][object.property.name='process']",
           message: ENV_MESSAGE,
         },
+        {
+          // globalThis.process["env"]
+          selector:
+            "MemberExpression[object.property.name='process'][property.value='env']",
+          message: ENV_MESSAGE,
+        },
+        {
+          // globalThis["process"]
+          selector:
+            "MemberExpression[object.name=/^(globalThis|global)$/][property.value='process']",
+          message: ENV_MESSAGE,
+        },
+        {
+          // const { env } = globalThis.process
+          selector:
+            "VariableDeclarator[init.type='MemberExpression'][init.property.name='process'] > ObjectPattern > Property[key.name='env']",
+          message: ENV_MESSAGE,
+        },
+        {
+          // Reflect.get(process, "env")
+          selector:
+            "CallExpression[callee.object.name='Reflect'][arguments.0.name='process']",
+          message: ENV_MESSAGE,
+        },
       ],
       "no-restricted-imports": [
         "error",
