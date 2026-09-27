@@ -1,7 +1,6 @@
 ---
 name: ship-check
-description: Vérification finale d'une branche avant PR — portes de qualité complètes, Definition of Done, recherche de secrets, texte de PR prêt à coller.
-disable-model-invocation: true
+description: Vérification finale d'une branche avant PR — portes de qualité complètes, Definition of Done, recherche de secrets, texte de PR prêt à coller. Claude ne la lance que sur demande explicite de l'utilisateur ; elle ne pousse jamais et n'ouvre jamais de PR d'elle-même.
 ---
 
 ## Contexte
