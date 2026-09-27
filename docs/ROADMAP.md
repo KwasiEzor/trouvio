@@ -13,7 +13,7 @@
 ## P0 — Fondations
 - [x] **P0-00** Outillage Claude Code : `CLAUDE.md` allégé, règles `.claude/rules/` par chemin, sous-agents, commandes du workflow, hooks de garde et de validation, permissions. *Accept.* : `bash scripts/test-hooks.sh` vert. Plan : `docs/plans/P0-00.md`.
 - [x] **P0-00b** Cohérence des documents avant de coder (job M1 sans serveur, exclusions, dédoublonnage, bandes d'éval, seed hors dépôt, plafond de coût, étude des sources, Notion reporté). *Accept.* : aucune contradiction restante entre les documents. Plan : `docs/plans/P0-00b.md`.
-- [ ] **P0-01** Initialiser Next.js (App Router, TS strict, `src/`), pnpm, ESLint, Prettier. *Accept.* : `pnpm dev` et `pnpm build` passent.
+- [x] **P0-01** Initialiser Next.js (App Router, TS strict, `src/`), pnpm, ESLint, Prettier. *Accept.* : `pnpm dev` et `pnpm build` passent.
 - [ ] **P0-02** `src/lib/env.ts` : validation Zod de toutes les variables (`.env.example` à jour). *Accept.* : démarrage refusé si une variable requise manque, test unitaire à l'appui.
 - [ ] **P0-03** Vitest + Testing Library + MSW, Playwright, script `pnpm verify`. *Accept.* : un test de chaque type passe.
 - [ ] **P0-04** CI GitHub Actions (`ci.yml`, `security.yml`), Dependabot, protection de branche `main`. *Accept.* : une PR factice déclenche tous les contrôles.
@@ -26,6 +26,7 @@
 - [ ] **P1-02** Better Auth (email + mot de passe, lien magique), sessions en base, rôles `user`/`admin`. *Accept.* : inscription, connexion, déconnexion testées en E2E.
 - [ ] **P1-03** Helpers d'autorisation (`requireUser`, `requireAdmin`, requêtes scopées par `userId`). *Accept.* : tests IDOR — un utilisateur ne peut lire/modifier aucune ressource d'un autre.
 - [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429.
+- [ ] **P1-05** En-têtes de sécurité (SECURITY §3) : CSP avec nonce (via `proxy.ts`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`. *Accept.* : test vérifiant chaque en-tête sur une page et une route API ; aucun script autorisé par `unsafe-inline`.
 **Porte P1** : tests d'autorisation verts, revue `security-reviewer` sans point bloquant.
 
 ## P2 — Collecte des offres

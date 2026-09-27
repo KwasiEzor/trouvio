@@ -1,0 +1,17 @@
+# Généré
+pnpm-lock.yaml
+.next/
+coverage/
+next-env.d.ts
+
+# Documents et prose : tableaux et mise en forme maintenus à la main
+*.md
+docs/
+evals/
+public/
+
+# Immuables ou garde-fous (modifiés uniquement avec confirmation)
+prompts/
+.claude/
+.githooks/
+db/migrations/

@@ -1,7 +1,6 @@
 ---
 name: implement-task
-description: Implémente une tâche de la ROADMAP dont le plan est validé — branche, tests d'abord, code, portes de qualité, revues, ROADMAP cochée, commits.
-disable-model-invocation: true
+description: Implémente une tâche de la ROADMAP dont le plan est validé — branche, tests d'abord, code, portes de qualité, revues, ROADMAP cochée, commits. Claude ne la lance que sur demande explicite de l'utilisateur et seulement si docs/plans/<ID>.md porte « Statut : validé ».
 argument-hint: "<ID, ex. P2-03>"
 arguments: [id]
 ---

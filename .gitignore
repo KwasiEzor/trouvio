@@ -31,3 +31,7 @@ CLAUDE.local.md
 
 # seed personnel (profil réel, jamais commité)
 db/seed.local.json
+
+# certificats locaux et journaux pnpm
+*.pem
+.pnpm-debug.log*
