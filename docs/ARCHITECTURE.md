@@ -96,7 +96,7 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 5. Clôture du `job_runs` avec statistiques (offres collectées, scorées, coût, erreurs).
 
 ## 7. Sécurité (résumé — détail dans SECURITY.md)
-Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécurité (CSP, HSTS), rate limiting sur auth/contact/API, secrets uniquement en variables d'environnement, dépendances surveillées (Dependabot + audit), scan de secrets (gitleaks), analyse statique (CodeQL).
+Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécurité (CSP, HSTS), rate limiting sur auth/contact/API, secrets uniquement en variables d'environnement, dépendances surveillées (Dependabot, audit, dependency-review), scan de secrets (push protection GitHub + gitleaks), analyse statique (CodeQL) — détail dans SECURITY §6.
 
 ## 8. Configuration (variables d'environnement)
 - **Seul point d'accès** : `src/lib/env.ts` (interdit ailleurs par ESLint et par le hook `guard-code`).

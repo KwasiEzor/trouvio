@@ -16,8 +16,8 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Fuite des secrets du job | Workflow GitHub Actions qui exécute le job (ADR 0008) | Environnement GitHub `production` limité au workflow du job, aucun secret exposé aux PR ni aux forks, pas d'`echo` de variables, journaux relus |
 | Explosion des coûts IA | Boucle, abus | Filtre dur avant IA, plafonds par utilisateur/jour, alerte admin |
 | Brute force / spam | Formulaires auth/contact | Rate limiting, lien magique à usage unique et expirant |
-| Fuite de secrets | Commit, logs | gitleaks en CI, logger sans PII ni secrets, `.env*` bloqué par hook |
-| Dépendance compromise | Supply chain | Lockfile, Dependabot, `pnpm audit`, CodeQL |
+| Fuite de secrets | Commit, logs | Push protection GitHub (blocage au push), gitleaks en CI (tout l'historique), logger sans PII ni secrets, `.env*` bloqué par hook |
+| Dépendance compromise | Supply chain | Lockfile, `minimumReleaseAge` 24 h, `strictDepBuilds`, Dependabot (délai 7 j), `pnpm audit`, dependency-review, CodeQL |
 | Webhooks falsifiés | Stripe/Telegram | Vérification de signature/secret, idempotence |
 
 ## 3. Contrôles techniques obligatoires
@@ -43,3 +43,18 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - [ ] Rate limiting présent si la route est publique
 - [ ] Tests négatifs ajoutés (accès refusé, entrée invalide, dépassement)
 - [ ] Impact coût IA évalué si la PR modifie le scoring
+
+## 6. Contrôles automatiques en place (P0-04, dépôt public — ADR 0009)
+| Contrôle | Où | Bloquant |
+|---|---|---|
+| `pnpm verify` (lint typé, typecheck, tests + couverture, format, build) | CI `quality` | oui (check requis) |
+| E2E Playwright + axe sur build de production | CI `e2e` | oui |
+| gitleaks v8.30.1 (binaire vérifié), tout l'historique | Security `gitleaks` | oui |
+| `pnpm audit --audit-level high` (prod + dev), aussi chaque lundi | Security `audit` | oui |
+| dependency-review (nouvelle dépendance vulnérable, gravité haute) | Security `dependency-review` (PR) | oui |
+| CodeQL `security-extended` (JS/TS), aussi chaque lundi | CodeQL | oui |
+| Secret scanning + push protection | GitHub | blocage au push |
+| Dependabot : alertes, correctifs de sécurité, mises à jour groupées | GitHub | — |
+| Protection de `main` : PR obligatoire, checks requis, force-push et suppression interdits | GitHub | oui |
+| Hooks locaux (pre-push, garde-fous de Claude) | poste | oui |
+Workflows : permissions en lecture seule par défaut, actions épinglées par SHA (obligatoire au niveau du dépôt), aucun `pull_request_target`, aucun secret. Vérifiés par zizmor.

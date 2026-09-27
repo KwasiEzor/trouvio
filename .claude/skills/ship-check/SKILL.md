@@ -11,7 +11,7 @@ description: Vérification finale d'une branche avant PR — portes de qualité 
 ## Procédure
 1. Refuser sur `main`. Arbre de travail propre (sinon, lister et demander).
 2. Lancer et citer le résultat : `pnpm verify` ; `pnpm test:e2e` si `src/app` ou un parcours est touché ; `pnpm eval:scoring --ci` si `prompts/` ou `src/features/scoring` est touché.
-3. Secrets : chercher dans `git diff main...HEAD` des motifs de clés/tokens (`sk-`, `ghp_`, `AKIA`, `-----BEGIN`, `password=`, `Bearer `) et tout fichier `.env*` autre que `.env.example`. `gitleaks detect` si installé.
+3. Secrets : chercher dans `git diff main...HEAD` des motifs de clés/tokens (`sk-`, `ghp_`, `AKIA`, `-----BEGIN`, `password=`, `Bearer `) et tout fichier `.env*` autre que `.env.example`. `gitleaks git` si installé (la CI le lance de toute façon).
 4. Qualité : aucun `.only`/`.skip`, `console.log`, `any`, `@ts-ignore`, `TODO` sans ticket dans le diff.
 5. Definition of Done (`CLAUDE.md` §8) : cocher chaque point avec sa preuve. Checklist `docs/SECURITY.md` §5 si concernée.
 6. ROADMAP cochée et plan `docs/plans/<ID>.md` au statut `terminé`.

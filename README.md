@@ -15,7 +15,7 @@ Ce dépôt contient l'application Trouvio (Next.js, en construction — avanceme
 | `.claude/agents/` | 6 sous-agents : architect, code-reviewer, security-reviewer (Opus, lecture seule) ; test-engineer, ui-implementer, ai-eval-engineer (Sonnet). |
 | `.claude/skills/` | 7 commandes : `/next-task`, `/implement-task`, `/ship-check`, `/phase-gate`, `/security-audit`, `/eval-scoring`, `/new-adr`. |
 | `.claude/settings.json` + `hooks/` | Permissions + garde-fous **déterministes** : blocage des commandes dangereuses, protection des `.env`, migrations et prompts publiés, refus de `any`/`console.log`/couleurs en dur, formatage auto, typecheck + tests liés en fin de tour, état de travail injecté au démarrage. Testés par `bash scripts/test-hooks.sh`. |
-| `.github/` | CI (lint, types, tests, build, E2E), sécurité (gitleaks, CodeQL, audit), éval du prompt, cron quotidien, Dependabot, modèle de PR. |
+| `.github/` | Workflows `CI` (quality = `pnpm verify`, e2e), `Security` (gitleaks, audit, dependency-review), `CodeQL` ; Dependabot. À venir : évaluation du prompt (P3), job quotidien (P5). |
 | `prompts/` · `evals/` | Prompt de scoring v1 (résistant à l'injection) + amorce du jeu de référence. |
 
 ## 1. Prérequis (une fois)
@@ -25,7 +25,7 @@ Ce dépôt contient l'application Trouvio (Next.js, en construction — avanceme
 
 ## 2. Mise en place (15 minutes)
 ```bash
-# 1. Cloner le dépôt (privé) et installer
+# 1. Cloner le dépôt (public) et installer
 gh repo clone KwasiEzor/trouvio && cd trouvio
 nvm use                # Node 22 (.nvmrc)
 pnpm install           # dépendances + active le hook pre-push via le script « prepare »
@@ -36,7 +36,7 @@ cp .env.example .env.local   # remplir au fil des phases (jamais commité)
 ```
    `pnpm dev` et `pnpm build` fonctionnent sans aucun secret. `pnpm start` exige `APP_URL`. Chaque variable indique dans `.env.example` la phase où elle devient requise ; au démarrage, les noms manquants sont listés (jamais les valeurs). Détail : `docs/ARCHITECTURE.md` §8.
 3. **Secrets GitHub** : à partir de P5-02, dans un environnement GitHub `production` réservé au workflow du job (ADR 0008) ; noms identiques à `.env.example`.
-4. **Protection de `main`** : GitHub ne la propose pas sur un dépôt privé en compte gratuit. Elle est assurée localement par `.githooks/pre-push` (refuse tout push qui modifie ou supprime `main`), activé automatiquement par `pnpm install` (script `prepare`, repli manuel : `git config core.hooksPath .githooks`), et côté Claude par `.claude/hooks/guard-bash.sh`. Dérogation exceptionnelle, par toi seulement : `TROUVIO_ALLOW_PUSH_MAIN=1 git push …`. Tests : `bash scripts/test-githooks.sh`. Avec GitHub Pro ou un dépôt public : activer en plus la vraie protection (Settings → Branches : PR obligatoire, checks `CI / quality`, `CI / e2e`, `Security` requis).
+4. **Protection de `main`** (dépôt public, ADR 0009) : protection GitHub native — PR obligatoire, checks requis `quality`, `e2e`, `gitleaks`, `audit`, `CodeQL`, branche à jour, force-push et suppression interdits. En complément, en local : `.githooks/pre-push` (refuse tout push qui modifie ou supprime `main`), activé par `pnpm install` (script `prepare`, repli manuel : `git config core.hooksPath .githooks`), et côté Claude `.claude/hooks/guard-bash.sh`. Tests : `bash scripts/test-githooks.sh`. Aucun secret GitHub n'est nécessaire à la CI.
 5. Ouvre le dossier dans Claude Code et **accepte la confiance de l'espace de travail** (nécessaire pour que les hooks du projet s'exécutent).
 6. Colle le contenu de `PROMPT-DE-DEMARRAGE.md` comme premier message.
 
