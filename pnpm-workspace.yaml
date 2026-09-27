@@ -1,0 +1,9 @@
+# Réglages pnpm du projet (pnpm 10 les lit ici ; pas de sous-paquets).
+# engineStrict : refuse une installation hors des versions de Node/pnpm déclarées dans package.json.
+engineStrict: true
+# strictDepBuilds : échoue si une dépendance veut exécuter un script d'installation non tranché ci-dessous.
+strictDepBuilds: true
+# Décision explicite par paquet ayant un script d'installation (défaut : refusé).
+allowBuilds:
+  # Script de repli qui télécharge un binaire natif ; le binaire précompilé est déjà fourni par une dépendance optionnelle.
+  unrs-resolver: false
