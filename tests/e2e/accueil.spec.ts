@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+import { attendreHydratation } from "./helpers";
+
 test.describe("page d'accueil (build de production)", () => {
   test("affiche la promesse en français", async ({ page }) => {
     await page.goto("/");
@@ -35,9 +37,7 @@ test.describe("page d'accueil (build de production)", () => {
     page.on("pageerror", (error) => erreurs.push(error.message));
 
     await page.goto("/");
-    // Attendre la fin du chargement et que la page soit rendue (hydratation comprise).
-    await page.waitForLoadState("load");
-    await expect(page.getByText("Elle trie. Tu décides.")).toBeVisible();
+    await attendreHydratation(page);
 
     expect(erreurs).toEqual([]);
   });

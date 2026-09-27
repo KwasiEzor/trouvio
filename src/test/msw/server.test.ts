@@ -26,9 +26,13 @@ describe("harnais MSW", () => {
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
 
+    // Le refus doit venir de MSW (stratégie "error"), pas d'un échec réseau quelconque.
+    // Délai court : si MSW laissait passer, la vraie connexion échouerait vite et sur un autre motif.
     await expect(
-      fetch("https://api.trouvio.test/non-simulee"),
-    ).rejects.toThrow();
+      fetch("https://api.trouvio.test/non-simulee", {
+        signal: AbortSignal.timeout(1000),
+      }),
+    ).rejects.toThrow(/onUnhandledRequest/);
 
     expect(consoleError).toHaveBeenCalledWith(
       expect.stringContaining("https://api.trouvio.test/non-simulee"),
