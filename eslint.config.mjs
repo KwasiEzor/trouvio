@@ -3,6 +3,9 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 
+const ENV_MESSAGE =
+  "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
+
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),
 // en plus des hooks .claude/hooks/ qui ne protègent que les éditions de Claude.
 const eslintConfig = defineConfig([
@@ -51,22 +54,48 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     rules: {
       "no-console": ["error", { allow: ["warn", "error"] }],
-      "no-restricted-properties": [
-        "error",
-        {
-          object: "process",
-          property: "env",
-          message:
-            "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).",
-        },
-      ],
       "react/no-danger": "error",
     },
   },
+  // Variables d'environnement : uniquement via src/lib/env.ts (CLAUDE.md §5), dans tout le code
+  // applicatif et outillé. Les *.config.* à la racine restent libres (lus par les outils) ; une
+  // config qui a besoin d'une variable applicative importe src/lib/env.ts.
   {
-    files: ["src/lib/env.ts"],
+    files: [
+      "src/**/*.{ts,tsx}",
+      "scripts/**/*.{ts,mts}",
+      "db/**/*.ts",
+      "evals/**/*.ts",
+      "tests/**/*.ts",
+    ],
+    ignores: ["src/lib/env.ts"],
     rules: {
-      "no-restricted-properties": "off",
+      "no-restricted-properties": [
+        "error",
+        { object: "process", property: "env", message: ENV_MESSAGE },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          // globalThis.process.env, global.process.env
+          selector:
+            "MemberExpression[property.name='env'][object.type='MemberExpression'][object.property.name='process']",
+          message: ENV_MESSAGE,
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "process", importNames: ["env"], message: ENV_MESSAGE },
+            {
+              name: "node:process",
+              importNames: ["env"],
+              message: ENV_MESSAGE,
+            },
+          ],
+        },
+      ],
     },
   },
   // Désactive les règles de style qui entreraient en conflit avec Prettier (toujours en dernier).
