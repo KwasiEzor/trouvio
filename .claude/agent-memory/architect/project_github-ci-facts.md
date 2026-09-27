@@ -1,19 +1,21 @@
 ---
 name: github-ci-facts
-description: Faits verifies (2026-09-27, plan P0-04) sur GitHub gratuit + depot prive Trouvio - protection de branche, CodeQL, secret scanning, minutes Actions, gitleaks, Dependabot pnpm, Playwright en CI
+description: Faits verifies (P0-04, 2026-09-27) sur la CI GitHub de Trouvio - depot PUBLIC, ruleset de main, CodeQL bloquant via code_scanning, gitleaks limite a HEAD, Dependabot pnpm, Playwright en CI
 metadata:
   type: project
 ---
 
-- Depot `KwasiEzor/trouvio` PRIVE sur compte GitHub Free : branch protection ET rulesets -> 403 "Upgrade to GitHub Pro or make this repository public" (verifie par gh api). CodeQL/code scanning, secret scanning/push protection et dependency-review-action exigent GitHub Code Security / Secret Protection sur prive -> indisponibles. Protection de main = hook pre-push local + controle a posteriori en CI (plan P0-04).
-- Reglages Actions du depot : default_workflow_permissions=read ; API expose `sha_pinning_required` et `allowed_actions` (reglables sans plan payant a priori).
-- Minutes : 2 000/mois (Free, prive), arrondi a la minute superieure PAR JOB ; sans moyen de paiement, usage BLOQUE a epuisement (partage avec le futur job quotidien P5 !). Runs Dependabot eux-memes gratuits, mais la CI declenchee par ses PR consomme.
-- Planifications desactivees apres 60 j d'inactivite : PUBLIC uniquement (ADR 0004/0008 le disent sans nuance).
-- gitleaks-action : EULA proprietaire (licence gratuite exigee pour organisations, pas pour comptes perso), besoin de GITHUB_TOKEN -> preferer le binaire gitleaks (MIT) epingle + SHA-256. Commande actuelle `gitleaks git` (les skills ship-check/security-audit citent encore `gitleaks detect`).
-- Playwright doc CI : cache des navigateurs deconseille (restauration ~ telechargement) ; `install --with-deps --only-shell chromium`.
-- Dependabot : pnpm v7-v10 supporte (ecosysteme npm), image Node 24 ; cooldown par defaut 3 j pour les version updates (pas les security updates) ; groupes = premier groupe correspondant ; `exclude-patterns` existe.
-- pnpm `--frozen-lockfile` par defaut en CI ; minimumReleaseAge agit a la resolution, pas sur un lockfile fige.
-- `.github/workflows/*` protege par guard-files (confirmation humaine a chaque ecriture) ; Prettier verifie aussi les YAML (format:check).
+- Depot `KwasiEzor/trouvio` rendu PUBLIC (decision utilisateur, ADR 0009) : sur prive gratuit, branch protection et rulesets donnaient 403 ; CodeQL, secret scanning, dependency-review payants.
+- Ruleset « main protegee » (id 24085231) : deletion, non_fast_forward, pull_request (squash, 0 approbation, resolution des fils), required_status_checks strict = quality, e2e, gitleaks, audit, dependency-review, CodeQL (integration_id 15368 = GitHub Actions), code_scanning CodeQL (security high_or_higher, alerts errors). Aucun bypass. ATTENTION : deux checks s'appellent « CodeQL » (job Actions 15368 vs resultat github-advanced-security 57789) ; le job seul ne bloque PAS sur les alertes -> d'ou la regle code_scanning.
+- Secret scanning + push protection actifs, motifs FOURNISSEURS seulement (non_provider_patterns et validity_checks non activables) : une cle generique passe le push, seul gitleaks la voit (prouve par la PR demo #8).
+- gitleaks : binaire v8.30.1 MIT + SHA-256 ; `--log-opts="--full-history HEAD"` obligatoire, sinon `git log --all` sur un checkout fetch-depth 0 scanne TOUTES les branches et une fuite sur une branche tierce bloque toutes les PR.
+- Reglages Actions : sha_pinning_required true, allowed_actions selected (GitHub + pnpm/action-setup@*). Toute nouvelle action tierce doit y etre ajoutee.
+- Minutes Actions illimitees sur runners standard (public). Planifications desactivees apres 60 j d'inactivite (public).
+- Playwright en CI : pas de cache des navigateurs (deconseille) ; `install --with-deps --only-shell chromium`.
+- Dependabot : pnpm v7-v10 (ecosysteme npm) ; cooldown 7 j (14 majeures), zizmor exige >= 7 ; groupes = premier correspondant ; majeures ignorees : eslint, typescript, jsdom, @types/node, vite. A verifier au premier passage : acceptation du fichier, compatibilite avec sha_pinning_required.
+- Pieges de fusion : `[skip ci]` en tete de PR -> checks requis en attente ; PR Dependabot en retard -> `@dependabot rebase` (pas « Update branch »).
+- pnpm `--frozen-lockfile` par defaut en CI ; minimumReleaseAge agit a la resolution seulement.
+- `.github/workflows/*` protege par guard-files (confirmation humaine) ; zizmor 1.30.1 (`uvx`, GH_TOKEN pour le mode en ligne) a relancer a chaque modification.
 
-**Why:** verifie dans la doc officielle GitHub/pnpm/Playwright et via gh api en planifiant P0-04.
-**How to apply:** tout plan touchant CI, workflows (P3 eval, P5 job quotidien, P10 deploiement) ou Dependabot part de ces faits ; re-verifier si le depot devient public ou passe en Pro. Voir [[tooling-gotchas]], [[test-stack-facts]].
+**Why:** constate en implementant P0-04 (gh api, PR #7 verte, PR demo #8 rouge pour les bonnes raisons, revue de code).
+**How to apply:** tout plan touchant CI, workflows (P3 eval, P5 job quotidien, P10 deploiement), Dependabot ou le ruleset part de ces faits. Voir [[tooling-gotchas]], [[test-stack-facts]].

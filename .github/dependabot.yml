@@ -46,6 +46,9 @@ updates:
       # Doit suivre la version majeure de Node (22).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # Peer de vitest 5 (vite ^6.4 || ^7 || ^8) : une majeure de vite attend la majeure de vitest.
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

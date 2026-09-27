@@ -6,7 +6,7 @@ Sur un dépôt privé en compte GitHub gratuit, la protection de branche et les 
 
 ## Décision
 Le dépôt `KwasiEzor/trouvio` est **public**. On active :
-- protection de `main` : PR obligatoire, checks requis (`quality`, `e2e`, `gitleaks`, `audit`, `CodeQL`), branche à jour, force-push et suppression interdits ;
+- protection de `main` : PR obligatoire, checks requis (`quality`, `e2e`, `gitleaks`, `audit`, `dependency-review`, `CodeQL` + règle `code_scanning` (alerte haute ou plus refusée)), branche à jour, force-push et suppression interdits ;
 - CodeQL, secret scanning, push protection, dependency review, alertes et correctifs Dependabot ;
 - réglages Actions : actions épinglées par SHA obligatoires, actions autorisées limitées (GitHub + `pnpm/action-setup`).
 Les garde-fous locaux (hook pre-push, hooks de Claude) restent en place.
