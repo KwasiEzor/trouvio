@@ -25,12 +25,11 @@ Ce dépôt ne contient pas encore de code applicatif : il contient **tout ce qu'
 
 ## 2. Mise en place (15 minutes)
 ```bash
-# 1. Créer le dépôt privé et y déposer ce kit
-gh repo create trouvio --private --clone && cd trouvio
-# (copier le contenu du kit ici, y compris les dossiers cachés .claude et .github)
-chmod +x .claude/hooks/*.sh .githooks/*
-git config core.hooksPath .githooks   # active le hook pre-push (refus de tout push direct sur main)
-git add -A && git commit -m "chore: kit de démarrage Trouvio" && git push -u origin main
+# 1. Cloner le dépôt (privé) et installer
+gh repo clone KwasiEzor/trouvio && cd trouvio
+nvm use                # Node 22 (.nvmrc)
+pnpm install           # dépendances + active le hook pre-push via le script « prepare »
+git rev-parse --git-path hooks   # doit afficher .githooks ; sinon : git config core.hooksPath .githooks
 
 # 2. Secrets locaux
 cp .env.example .env.local   # remplir les valeurs (jamais commité)
