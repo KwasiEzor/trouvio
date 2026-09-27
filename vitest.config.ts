@@ -20,13 +20,15 @@ export default defineConfig({
         "**/*.d.ts",
       ],
       reporter: ["text", "html"],
-      // docs/TESTING.md : 80 % sur lib/ et sur la logique pure des domaines (fichier par fichier).
+      // docs/TESTING.md : 80 % pour chaque fichier de lib/ et de la logique pure des domaines.
+      // Un fichier de pure configuration s'exclut explicitement (commentaire justifié), jamais par baisse du seuil.
       thresholds: {
         "src/lib/**": {
           lines: 80,
           functions: 80,
           branches: 80,
           statements: 80,
+          perFile: true,
         },
         "src/features/*/core/**": {
           lines: 80,

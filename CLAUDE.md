@@ -14,7 +14,7 @@ Next.js App Router + TypeScript strict · Neon Postgres + Drizzle (`node-postgre
 ## 3. Commandes
 ```bash
 pnpm dev | lint | typecheck | test
-pnpm test:coverage  # tests + seuils de couverture (80 % sur src/lib et features/*/core)
+pnpm test:coverage  # tests + seuils de couverture (80 % par fichier sur src/lib et features/*/core)
 pnpm test:e2e       # Playwright sur build de production (exigé si un parcours est touché)
 pnpm eval:scoring   # évaluation du prompt de scoring
 pnpm db:generate | db:migrate

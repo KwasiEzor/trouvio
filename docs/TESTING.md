@@ -34,7 +34,7 @@
 - **Tests colocalisés**, `globals: false` (imports explicites depuis `vitest`).
 - **Composants** : Testing Library pour les composants synchrones ; Server Components `async`, layouts et parcours complets en E2E (recommandation Next).
 - **Réseau** : serveur MSW partagé (`src/test/msw/server.ts`) démarré pour tous les tests, **sans handler par défaut** ; chaque test déclare ses réponses (`server.use(http.get(...))`) avec des URL en `.test` ; une requête non simulée échoue (`onUnhandledRequest: "error"`). Futures sources : fixtures dans `src/features/sources/<id>/__fixtures__/`, fabriques de handlers partagées au même endroit si besoin ; Anthropic simulé de la même façon (le SDK passe par `fetch`).
-- **Couverture** : tous les fichiers de `src/` comptent (même jamais chargés) ; seuils 80 % agrégés sur `src/lib/**`, 80 % **par fichier** sur `src/features/*/core/**` ; pas de seuil sur `src/app` (couvert par l'E2E). Un seuil ne s'abaisse jamais pour faire passer.
+- **Couverture** : tous les fichiers de `src/` comptent (même jamais chargés) ; seuils 80 % **par fichier** sur `src/lib/**` et `src/features/*/core/**` (un fichier de pure configuration s'exclut explicitement, avec justification relue en PR) ; pas de seuil sur `src/app` (couvert par l'E2E). Un seuil ne s'abaisse jamais pour faire passer.
 - **E2E** : `retries: 0` (un test instable se corrige) ; trace conservée en cas d'échec ; rapports dans `playwright-report/` et `test-results/` (ignorés par git).
 - **Navigateur** : `pnpm exec playwright install --only-shell chromium` (une fois par poste, hors dépôt ; en CI en P0-04).
 - **Interdits appliqués par ESLint** (et par le hook de Claude) : `.only`, `.skip`, `.fixme`, `expect` conditionnel, `process.env` dans les tests.
