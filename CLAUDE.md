@@ -54,7 +54,7 @@ pnpm verify         # lint + typecheck + test:coverage + format:check + build �
 ## 8. Definition of Done
 - [ ] Critères d'acceptation de la tâche (ROADMAP) tous remplis
 - [ ] Tests ajoutés/à jour ; couverture du domaine touché ≥ 80 %
-- [ ] `pnpm verify` vert ; E2E vert si un parcours utilisateur est touché
+- [ ] `pnpm verify` vert ; E2E vert si un parcours utilisateur est touché ; checks CI verts sur la PR
 - [ ] Checklist `docs/SECURITY.md` §5 passée si la tâche touche auth, données, API ou LLM
 - [ ] Pas de secret, pas de TODO orphelin, pas de code mort
 - [ ] Case cochée dans `docs/ROADMAP.md` + résumé de ce qui a été testé

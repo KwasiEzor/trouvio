@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 ## Procédure
 1. Dépendances : `pnpm audit --prod` ; noter les vulnérabilités hautes/critiques.
-2. Secrets : `gitleaks detect` si installé, sinon recherche de motifs dans tout l'historique (`git log -p`) ; vérifier que `.env*` n'est pas suivi.
+2. Secrets : `gitleaks git` si installé (et résultat du job CI `gitleaks`), sinon recherche de motifs dans tout l'historique (`git log -p`) ; vérifier que `.env*` n'est pas suivi.
 3. Lancer en parallèle :
    - le sous-agent `security-reviewer` sur tout `src/`, `db/`, `prompts/` (OWASP Top 10, OWASP LLM Top 10, checklist §5, RGPD) ;
    - le skill `security-review` sur les changements récents.

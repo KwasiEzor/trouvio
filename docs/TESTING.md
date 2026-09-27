@@ -38,3 +38,4 @@
 - **E2E** : `retries: 0` (un test instable se corrige) ; trace conservée en cas d'échec ; rapports dans `playwright-report/` et `test-results/` (ignorés par git).
 - **Navigateur** : `pnpm exec playwright install --only-shell chromium` (une fois par poste, hors dépôt ; en CI en P0-04).
 - **Interdits appliqués par ESLint** (et par le hook de Claude) : `.only`, `.skip`, `.fixme`, `expect` conditionnel, `process.env` dans les tests.
+- **En CI** (P0-04) : job `quality` = `pnpm verify` (couverture comprise) ; job `e2e` = installation du navigateur à chaque exécution (pas de cache, recommandation Playwright) puis `pnpm test:e2e` ; rapports en artefact (7 jours) en cas d'échec. Les deux sont des checks requis pour fusionner.

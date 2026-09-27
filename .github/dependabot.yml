@@ -1,0 +1,68 @@
+# Mises à jour de dépendances (P0-04). Chaque PR passe par la CI complète.
+# Les montées de sécurité ignorent le délai (cooldown) et les groupes.
+version: 2
+updates:
+  - package-ecosystem: npm # pnpm (lockfile pnpm-lock.yaml)
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Brussels
+    # Cohérent avec minimumReleaseAge (24 h) de pnpm-workspace.yaml.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    # Un paquet va dans le PREMIER groupe qui le reconnaît.
+    groups:
+      vitest: # @vitest/coverage-v8 exige la version exacte de vitest
+        patterns: ["vitest", "@vitest/*", "vite"]
+      next: # eslint-config-next suit la version de next
+        patterns: ["next", "eslint-config-next", "@next/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      playwright: # navigateurs liés à la version : relancer `playwright install` en local
+        patterns: ["@playwright/test", "@axe-core/playwright"]
+      dev-mineures:
+        dependency-type: development
+        update-types: [minor, patch]
+      prod-mineures:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # Plugins React, import et jsx-a11y de eslint-config-next plafonnés à ESLint 9.
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint exige TypeScript < 6.1.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # jsdom 30 exige Node >= 22.22.2 ; poste local en 22.22.0 (P0-03, décision D1).
+      - dependency-name: jsdom
+        update-types: ["version-update:semver-major"]
+      # Doit suivre la version majeure de Node (22).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Peer de vitest 5 (vite ^6.4 || ^7 || ^8) : une majeure de vite attend la majeure de vitest.
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
