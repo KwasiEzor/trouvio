@@ -71,12 +71,18 @@ const eslintConfig = defineConfig([
   },
   // Désactive les règles de style qui entreraient en conflit avec Prettier (toujours en dernier).
   prettier,
+  // ESLint (config flat) ne lit pas .gitignore : répéter ici les sorties générées.
   globalIgnores([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
     "next-env.d.ts",
     "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "blob-report/**",
+    "evals/results/**",
   ]),
 ]);
 

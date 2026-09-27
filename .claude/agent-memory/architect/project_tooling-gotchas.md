@@ -11,4 +11,5 @@ metadata:
 - Compatibilite constatee le 2026-09-27 : typescript-eslint 8.70 exige TypeScript < 6.1 (TS 7.0 est "latest" sur npm) ; plugins bundles par eslint-config-next 16.3.6 (react, import, jsx-a11y) plafonnent a ESLint ^9. Le gabarit create-next-app 16.3.6 fixe typescript ^5 et eslint ^9. Re-verifier avant toute montee de version (Dependabot P0-04).
 
 **Why:** decouvert en planifiant P0-01 ; un appel Bash a ete bloque et next dev aurait modifie CLAUDE.md en silence.
-**How to apply:** dans chaque plan touchant le hook git, next dev, ou les versions TS/ESLint, prevoir ces contournements et verifications. Voir [[p0-01-decisions]] une fois le plan valide.
+**How to apply:** dans chaque plan touchant le hook git, next dev, ou les versions TS/ESLint, prevoir ces contournements et verifications. Decisions validees de P0-01 : docs/plans/P0-01.md.
+- Sondes ESLint par stdin : `--stdin-filename` doit viser un fichier EXISTANT couvert par tsconfig (ex. src/app/page.tsx), sinon "not found by the project service" sur tout code ; verifier l'identifiant de regle dans la sortie (grep no-explicit-any), pas seulement le code de sortie.
