@@ -24,8 +24,17 @@ grep -Eq '(:[[:space:]]*any([^A-Za-z0-9_]|$)|as[[:space:]]+any([^A-Za-z0-9_]|$)|
 grep -Eq 'eslint-disable' <<<"$new" && problems+=("eslint-disable (corriger la cause)")
 if [[ "$rel" == src/* && "$is_test" == false ]]; then
   grep -Eq 'console\.(log|debug|info)\(' <<<"$new" && problems+=("console.log (utiliser lib/logger)")
-  grep -Eq 'process\.env' <<<"$new" && [[ "$rel" != src/lib/env.ts ]] && problems+=("process.env hors src/lib/env.ts")
   grep -Eq 'dangerouslySetInnerHTML' <<<"$new" && problems+=("dangerouslySetInnerHTML (contenu externe non fiable)")
+fi
+# Variables d'environnement : uniquement via src/lib/env.ts, dans tout le code couvert (tests compris),
+# sous toutes leurs formes (aligné sur eslint.config.mjs). Les *.config.* racine ne passent pas ici.
+if [[ "$rel" != src/lib/env.ts ]]; then
+  w='[^A-Za-z0-9_]'
+  if grep -Eq "process(\.|\[[[:space:]]*['\"])env($w|\$)" <<<"$new" \
+     || grep -Eq "\{[^}]*(^|$w)env($w|\$)[^}]*\}[[:space:]]*=[[:space:]]*((globalThis|global)\.)?process($w|\$)" <<<"$new" \
+     || grep -Eq "import[^;]*(^|$w)env($w|\$)[^;]*from[[:space:]]*['\"](node:)?process['\"]" <<<"$new"; then
+    problems+=("variables d'environnement hors src/lib/env.ts")
+  fi
 fi
 if [[ "$rel" == *.tsx ]]; then
   grep -Eq '(bg|text|border|fill|stroke|from|via|to|ring|outline|shadow|decoration)-\[#[0-9a-fA-F]{3,8}\]|(color|background|backgroundColor|borderColor|fill|stroke)[[:space:]]*:[[:space:]]*["'\'']#[0-9a-fA-F]{3,8}' <<<"$new" \
