@@ -35,6 +35,12 @@ describe("validation de l'environnement au démarrage (next.config.ts)", () => {
     },
   );
 
+  it("refuse de démarrer avec un DSN Sentry invalide (plutôt que de désactiver Sentry sans rien dire)", () => {
+    vi.stubEnv("APP_URL", "https://trouvio.example");
+    vi.stubEnv("SENTRY_DSN", "pas-une-url");
+    expect(() => config(PHASE_PRODUCTION_SERVER)).toThrow(EnvValidationError);
+  });
+
   it("démarre avec un environnement valide", () => {
     vi.stubEnv("APP_URL", "https://trouvio.example");
     expect(config(PHASE_PRODUCTION_SERVER)).toMatchObject({

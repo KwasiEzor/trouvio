@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertStartupEnv,
   createEnvReader,
+  isNodeRuntime,
+  publicBuildEnv,
   envSchemas,
   envVariables,
   EnvValidationError,
@@ -15,6 +17,7 @@ import {
 } from "./env";
 
 const SECRET_32 = "x".repeat(32);
+const DSN_VALIDE = "https://cle@o450000.ingest.de.sentry.io/4500000000000000";
 
 /** Une source complète et valide pour chaque domaine. */
 const VALID: Record<EnvDomain, EnvSource> = {
@@ -40,7 +43,9 @@ const VALID: Record<EnvDomain, EnvSource> = {
     RESEND_API_KEY: "cle-resend",
     EMAIL_FROM: "Trouvio <digest@trouvio.example>",
   },
-  sentry: { SENTRY_DSN: "https://cle@o0.ingest.sentry.io/1" },
+  sentry: {
+    SENTRY_DSN: "https://cle@o450000.ingest.de.sentry.io/4500000000000000",
+  },
   cron: { CRON_SECRET: SECRET_32 },
 };
 
@@ -157,8 +162,11 @@ describe("parseEnv — limites", () => {
     );
   });
 
-  it("n'exige au démarrage que le domaine core, pour le web comme pour le job", () => {
-    expect(STARTUP_DOMAINS).toEqual({ web: ["core"], job: ["core"] });
+  it("exige au démarrage core et sentry (DSN optionnel mais jamais invalide), web comme job", () => {
+    expect(STARTUP_DOMAINS).toEqual({
+      web: ["core", "sentry"],
+      job: ["core", "sentry"],
+    });
   });
 });
 
@@ -193,6 +201,24 @@ describe("parseEnv — cas négatifs", () => {
       "ANTHROPIC_MODEL_SCORING",
     ],
     ["secret cron trop court", "cron", { CRON_SECRET: "court" }, "CRON_SECRET"],
+    [
+      "DSN Sentry en http",
+      "sentry",
+      { SENTRY_DSN: "http://cle@o1.ingest.de.sentry.io/2" },
+      "SENTRY_DSN",
+    ],
+    [
+      "DSN Sentry sans clé publique",
+      "sentry",
+      { SENTRY_DSN: "https://o1.ingest.de.sentry.io/2" },
+      "SENTRY_DSN",
+    ],
+    [
+      "DSN Sentry sans identifiant de projet numérique",
+      "sentry",
+      { SENTRY_DSN: "https://cle@o1.ingest.de.sentry.io/trouvio" },
+      "SENTRY_DSN",
+    ],
   ] as const)("signale %s comme invalide", (_cas, domain, source, name) => {
     const err = capture(() => parseEnv(domain, source));
     expect(err.issues).toContainEqual({ name, reason: "invalide" });
@@ -244,6 +270,50 @@ describe("assertStartupEnv", () => {
 
   it("laisse démarrer le job avec un environnement valide", () => {
     expect(() => assertStartupEnv("job", VALID.core)).not.toThrow();
+  });
+});
+
+describe("publicBuildEnv (valeurs publiques figées au build)", () => {
+  it("renvoie le DSN et NODE_ENV, sans exiger APP_URL en production", () => {
+    expect(
+      publicBuildEnv({
+        NODE_ENV: "production",
+        SENTRY_DSN: DSN_VALIDE,
+      }),
+    ).toEqual({
+      NODE_ENV: "production",
+      SENTRY_DSN: DSN_VALIDE,
+    });
+  });
+
+  it("renvoie un DSN absent et development par défaut", () => {
+    expect(publicBuildEnv({})).toEqual({
+      NODE_ENV: "development",
+      SENTRY_DSN: undefined,
+    });
+  });
+
+  it("refuse un DSN invalide sans citer sa valeur", () => {
+    const err = capture(() =>
+      publicBuildEnv({ SENTRY_DSN: "https://SENTINELLE.example/x" }),
+    );
+    expect(err.issues).toEqual([{ name: "SENTRY_DSN", reason: "invalide" }]);
+    expect(err.message).not.toContain("SENTINELLE");
+  });
+
+  it("refuse un NODE_ENV inconnu", () => {
+    const err = capture(() => publicBuildEnv({ NODE_ENV: "staging" }));
+    expect(err.issues).toEqual([{ name: "NODE_ENV", reason: "invalide" }]);
+  });
+});
+
+describe("isNodeRuntime", () => {
+  it.each([
+    ["nodejs", true],
+    ["edge", false],
+    [undefined, false],
+  ] as const)("NEXT_RUNTIME=%s → %s", (valeur, attendu) => {
+    expect(isNodeRuntime({ NEXT_RUNTIME: valeur })).toBe(attendu);
   });
 });
 
