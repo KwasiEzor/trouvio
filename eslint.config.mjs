@@ -4,6 +4,7 @@ import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 import vitest from "@vitest/eslint-plugin";
 import playwright from "eslint-plugin-playwright";
+import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 
 const ENV_MESSAGE =
   "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
@@ -119,9 +120,43 @@ const eslintConfig = defineConfig([
               importNames: ["env"],
               message: ENV_MESSAGE,
             },
+            {
+              // Le cn brut ignore les tailles de texte du thème (text-label serait effacée).
+              name: "cn",
+              message:
+                "Importer cn depuis @/lib/utils (configuré avec le thème).",
+            },
           ],
         },
       ],
+    },
+  },
+  // Thème verrouillé (ADR 0007, P0-05) : seules les classes générées depuis src/app/globals.css
+  // (donc depuis docs/design/tokens.json) sont admises ; aucune couleur arbitraire.
+  {
+    files: ["src/**/*.tsx"],
+    plugins: { "better-tailwindcss": betterTailwindcss },
+    settings: { "better-tailwindcss": { entryPoint: "src/app/globals.css" } },
+    rules: {
+      "better-tailwindcss/no-unknown-classes": "error",
+      "better-tailwindcss/no-restricted-classes": [
+        "error",
+        {
+          restrict: [
+            {
+              pattern: "\\[#[0-9a-fA-F]{3,8}\\]",
+              message: "Couleur en dur interdite : utiliser un token du thème.",
+            },
+            {
+              pattern: "\\[(rgb|rgba|hsl|hsla|oklch|oklab)\\(",
+              message: "Couleur en dur interdite : utiliser un token du thème.",
+            },
+          ],
+        },
+      ],
+      "better-tailwindcss/no-conflicting-classes": "error",
+      "better-tailwindcss/no-duplicate-classes": "error",
+      "better-tailwindcss/no-deprecated-classes": "error",
     },
   },
   // Tests Vitest : .only et .skip interdits pour tous (humains, CI), pas seulement pour Claude.
