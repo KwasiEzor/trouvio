@@ -9,6 +9,8 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   test: {
+    // Aucun journal pendant les tests ; un test qui vérifie des journaux injecte sa propre sortie.
+    env: { LOG_LEVEL: "silent" },
     coverage: {
       provider: "v8",
       // Compte aussi les fichiers jamais chargés par un test.

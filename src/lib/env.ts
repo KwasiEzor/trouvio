@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LOG_THRESHOLDS } from "./logger/logger";
+
 /**
  * Seul point d'accès aux variables d'environnement (CLAUDE.md §5).
  *
@@ -30,6 +32,7 @@ const shapes = {
       .enum(["development", "test", "production"])
       .default("development"),
     APP_URL: httpUrl().optional(),
+    LOG_LEVEL: z.enum(LOG_THRESHOLDS).default("info"),
   },
   database: { DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }) },
   auth: { BETTER_AUTH_SECRET: secret() },
@@ -79,9 +82,10 @@ const core = z
       });
     }
   })
-  .transform(({ NODE_ENV, APP_URL }) => ({
+  .transform(({ NODE_ENV, APP_URL, LOG_LEVEL }) => ({
     NODE_ENV,
     APP_URL: new URL(APP_URL ?? DEFAULT_APP_URL).origin,
+    LOG_LEVEL,
   }));
 
 export const envSchemas = {
