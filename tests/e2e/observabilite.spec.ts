@@ -20,23 +20,31 @@ test.describe("observabilité (build de production, sans DSN)", () => {
     expect(versSentry).toEqual([]);
   });
 
-  test("ne sert aucune source map des scripts de la page", async ({
+  // Turbopack nomme la map autrement que le script (« a.js » → « b.js.map ») : seule la
+  // référence sourceMappingURL fait foi. Tous les scripts reçus comptent, dynamiques compris.
+  test("ne publie aucune source map pour les scripts chargés", async ({
     page,
     request,
   }) => {
+    const scripts: string[] = [];
+    page.on("response", (reponse) => {
+      const url = new URL(reponse.url());
+      if (
+        url.pathname.startsWith("/_next/static/") &&
+        url.pathname.endsWith(".js")
+      )
+        scripts.push(reponse.url());
+    });
     await page.goto("/");
-    const scripts = (
-      await page
-        .locator("script[src]")
-        .evaluateAll((elements) =>
-          elements.map((element) => (element as HTMLScriptElement).src),
-        )
-    ).filter((src) => new URL(src).pathname.startsWith("/_next/static/"));
+    await attendreHydratation(page);
 
     expect(scripts.length).toBeGreaterThan(0);
     for (const src of scripts) {
-      const reponse = await request.get(`${src}.map`);
-      expect(reponse.status(), `${src}.map`).toBe(404);
+      const code = await (await request.get(src)).text();
+      const reference = /\/\/# sourceMappingURL=(\S+)\s*$/.exec(code)?.[1];
+      expect(reference, `${src} référence une source map`).toBeUndefined();
+      const map = await request.get(`${src}.map`);
+      expect(map.status(), `${src}.map`).toBe(404);
     }
   });
 });
