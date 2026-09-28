@@ -2,3 +2,4 @@
 - [Faits env/runtime](project_env-and-runtime-facts.md) — server-only throw hors RSC ; register() hors build ; en start, erreur = processus VIVANT (valider dans next.config) ; VAR= vide ; Zod 4 ; Vitest 5 + vite peer
 - [Pile de tests](project_test-stack-facts.md) — jsdom 30 vs Node local ; msw postinstall ; Vitest 5 projects/couverture ; pnpm test* auto-autorise
 - [CI GitHub](project_github-ci-facts.md) — depot public ; ruleset main (6 checks + code_scanning) ; gitleaks HEAD seulement ; push protection fournisseurs seulement ; pas de cache Playwright
+- [Theme et UI](project_ui-theme-facts.md) — contrastes tokens (blanc/brand 3.46 KO) ; shadcn importe le paquet cn ; cn a configurer pour text-* ; next/font casse le build hors ligne
