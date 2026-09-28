@@ -12,5 +12,5 @@ paths:
 - Client HTTP commun : timeout, 3 tentatives, backoff exponentiel, respect des quotas (compteur).
 - Réponses des API validées par Zod ; champ inattendu = log + offre ignorée, pas de crash du run.
 - `normalize()` est pure et testée par fixtures JSON **réelles anonymisées** dans `features/sources/<id>/__fixtures__/` (aucune donnée personnelle de recruteur).
-- Échec d'une source = journalisé + Sentry, les autres sources continuent.
+- Échec d'une source = `logger.error("…", { source, err })` (journalisé + Sentry), les autres sources continuent. URL avec `app_key`/`token` : le logger les masque, mais ne jamais journaliser une réponse brute.
 - Dédoublonnage : tests couvrant doublons inter-sources ET faux doublons (même entreprise, même intitulé, offres distinctes).

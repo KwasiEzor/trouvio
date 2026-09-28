@@ -52,7 +52,7 @@ src/
     profile/             critères de recherche
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, auth, rate-limit, http, design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth, rate-limit, http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé
@@ -101,7 +101,16 @@ Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécuri
 ## 8. Configuration (variables d'environnement)
 - **Seul point d'accès** : `src/lib/env.ts` (interdit ailleurs par ESLint et par le hook `guard-code`).
 - **Domaines** : `core`, `database`, `auth`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
-- **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : aujourd'hui `core` pour `web` et `job`. **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
+- **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : aujourd'hui `core` et `sentry` pour `web` et `job` (le DSN reste optionnel, mais un DSN invalide empêche le démarrage au lieu de désactiver Sentry sans rien dire). **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
 - **Où** : `next.config.ts`, uniquement pour les phases serveur (`next start`, `next dev`) ; futur CLI du job (`scripts/job-run.ts`) : première instruction. Le **build n'exige aucun secret**. (`instrumentation.ts` ne convient pas : chargé après « Ready », une erreur y laisse le processus vivant.)
 - **Limite `standalone` (production, ADR 0006)** : le `server.js` généré embarque la config figée au build et **n'évalue pas** `next.config.ts` au démarrage. Le point d'entrée du conteneur doit donc appeler `assertStartupEnv("web")` avant de charger `server.js` (P10-02).
 - **Erreurs** : noms des variables manquantes ou invalides, jamais leurs valeurs.
+- **Valeurs publiées au navigateur** : seulement `SENTRY_DSN` et `NODE_ENV`, figés au build par `compiler.define` (`publicBuildEnv()`, lus par `src/lib/observability/public-config.ts`). Aucune variable `NEXT_PUBLIC_`. En production (P10-02), le DSN doit donc être présent **au build**.
+- **`LOG_LEVEL`** (domaine `core`) : `debug | info | warn | error | silent`, `info` par défaut ; `silent` pendant les tests (Vitest).
+
+## 9. Journaux et erreurs (P0-06, ADR 0010)
+- **Journaliser** : `import { logger } from "@/lib/logger"` (serveur), `logger.child({ source })` pour lier un contexte. Aucun `console.*` dans `src/` (ESLint). Une ligne JSON par événement : `time`, `level`, `msg`, `service`, `runtime` (`web` | `job`), `ctx` (contexte masqué), `err` (erreur sérialisée, chaîne `cause` comprise). `debug` et `info` sur stdout, `warn` et `error` sur stderr.
+- **Erreur** : `logger.error("…", { source, err })` écrit la ligne ET signale à Sentry (via `@sentry/core`). `warn` ne signale jamais. Règle : **journaliser OU relancer**, pas les deux.
+- **Masquage** : clés sensibles (mots de passe, jetons, cookies, emails, noms, IP, salaire…) et motifs dans les valeurs (emails, Bearer, JWT, `sk-ant-`, jeton Telegram, `app_key`/`token`… dans une URL, identifiants d'URL de connexion). Ne jamais journaliser un objet utilisateur ou un profil entier : passer l'`userId` (UUID interne).
+- **Sentry** : initialisé seulement avec un DSN. Serveur : `src/instrumentation.ts` (runtime Node uniquement ; une route edge ne serait pas surveillée) et `onRequestError`. Navigateur : `src/instrumentation-client.ts`. Rendu racine en échec : `src/app/global-error.tsx`. Même politique partout (`src/lib/observability/sentry-options.ts`) : collecte minimale, ni replay ni traces.
+- **Job (P5)** : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `init` avec `buildSentryOptions`, `await Sentry.flush(2000)` avant la sortie. Journaux Actions publics : agrégats seulement.
