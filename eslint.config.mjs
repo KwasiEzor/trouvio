@@ -4,6 +4,8 @@ import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 import vitest from "@vitest/eslint-plugin";
 import playwright from "eslint-plugin-playwright";
+import betterTailwindcss from "eslint-plugin-better-tailwindcss";
+import { getDefaultSelectors } from "eslint-plugin-better-tailwindcss/defaults";
 
 const ENV_MESSAGE =
   "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
@@ -120,8 +122,82 @@ const eslintConfig = defineConfig([
               message: ENV_MESSAGE,
             },
           ],
+          patterns: [
+            {
+              // Le cn brut ignore les tailles de texte du thème (text-label serait effacée).
+              group: ["cn", "cn/*"],
+              message:
+                "Importer cn depuis @/lib/utils (configuré avec le thème).",
+            },
+          ],
         },
       ],
+    },
+  },
+  // Seul point d'import du paquet cn (garde l'interdit de process.env).
+  {
+    files: ["src/lib/utils.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "process", importNames: ["env"], message: ENV_MESSAGE },
+            {
+              name: "node:process",
+              importNames: ["env"],
+              message: ENV_MESSAGE,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Thème verrouillé (plan P0-05, .claude/rules/ui.md) : seules les classes générées depuis
+  // src/app/globals.css (donc depuis docs/design/tokens.json) sont admises ; aucune couleur
+  // arbitraire, aucun dark: avant M3. Sont analysés : className, cn(), cva()… (sélecteurs par
+  // défaut) et les valeurs des tables de classes nommées CLASSES_* (convention du projet).
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "better-tailwindcss": betterTailwindcss },
+    settings: {
+      "better-tailwindcss": {
+        entryPoint: "src/app/globals.css",
+        selectors: [
+          ...getDefaultSelectors(),
+          {
+            kind: "variable",
+            name: "^CLASSES_[A-Z0-9_]+$",
+            match: [{ type: "objectValues" }],
+          },
+        ],
+      },
+    },
+    rules: {
+      "better-tailwindcss/no-unknown-classes": "error",
+      "better-tailwindcss/no-restricted-classes": [
+        "error",
+        {
+          restrict: [
+            {
+              pattern: "\\[#[0-9a-fA-F]{3,8}\\]",
+              message: "Couleur en dur interdite : utiliser un token du thème.",
+            },
+            {
+              pattern: "\\[(rgb|rgba|hsl|hsla|oklch|oklab)\\(",
+              message: "Couleur en dur interdite : utiliser un token du thème.",
+            },
+            {
+              pattern: "^dark:",
+              message:
+                "Pas de thème sombre avant le lancement (M3) : retirer les classes dark:.",
+            },
+          ],
+        },
+      ],
+      "better-tailwindcss/no-conflicting-classes": "error",
+      "better-tailwindcss/no-duplicate-classes": "error",
+      "better-tailwindcss/no-deprecated-classes": "error",
     },
   },
   // Tests Vitest : .only et .skip interdits pour tous (humains, CI), pas seulement pour Claude.

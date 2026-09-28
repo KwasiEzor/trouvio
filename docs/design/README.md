@@ -20,3 +20,11 @@ Les maquettes sont une **référence visuelle** (hiérarchie, espacements, état
 Règles de marque : le symbole tient lieu de « T » dans le logo horizontal ; en texte, écrire « Trouvio ». Turquoise `#1F9997` = seule couleur vive, à utiliser avec parcimonie. Polices : Poppins (titres), Work Sans (texte).
 
 Effets animés : Magic UI, surtout sur le site public, avec une liste fermée de composants adaptés aux tokens et au mouvement réduit. Voir `docs/adr/0007-magic-ui.md`.
+
+## Version 3 des tokens (P0-05, 2026-09-28)
+Les contrastes WCAG AA ont été vérifiés (et sont testés automatiquement, `src/lib/design-tokens.test.ts`). Deux ajustements, validés :
+- **`brand-strong` #157573** (nouveau) : même teinte que `brand`, plus foncée, pour tout ce qui porte du texte — bouton primaire (blanc dessus : 5,49), liens et texte turquoise (4,99 sur `surface`), anneau de focus. `#1F9997` (`brand`) reste la couleur de marque pour le symbole et le décoratif : blanc dessus n'atteignait que 3,46.
+- **`ink-muted` #6B7684 → #5F6A78** : 4,99 sur `surface` au lieu de 4,19.
+Les maquettes HTML ne sont pas modifiées ; elles restent la référence de hiérarchie et de mise en page, les couleurs de texte suivent les tokens.
+
+`src/app/icon.svg` (icône d'application servie par Next) est une copie de `public/brand/trouvio-app-icon.svg` : les mettre à jour ensemble.

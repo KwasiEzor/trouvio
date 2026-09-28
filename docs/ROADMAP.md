@@ -17,7 +17,7 @@
 - [x] **P0-02** `src/lib/env.ts` : validation Zod de toutes les variables (`.env.example` à jour) ; installe Vitest minimal et `pnpm test`. *Accept.* : démarrage refusé si une variable requise manque, test unitaire à l'appui. Plan : `docs/plans/P0-02.md`.
 - [x] **P0-03** Testing Library + MSW, Playwright, couverture (Vitest installé en P0-02) ; `pnpm verify` complet. *Accept.* : un test de chaque type passe. Plan : `docs/plans/P0-03.md`.
 - [x] **P0-04** CI GitHub Actions (`ci.yml`, `security.yml`, `codeql.yml`), Dependabot, protection de branche `main` (dépôt public, ADR 0009). *Accept.* : une PR factice déclenche tous les contrôles. Plan : `docs/plans/P0-04.md`.
-- [ ] **P0-05** Tailwind + shadcn/ui avec thème issu de `docs/design/tokens.json`, polices Poppins/Work Sans, logos dans `public/brand`. *Accept.* : page `/styleguide` affichant couleurs, typos, boutons.
+- [x] **P0-05** Tailwind + shadcn/ui avec thème issu de `docs/design/tokens.json`, polices Poppins/Work Sans, logos dans `public/brand`. *Accept.* : page `/styleguide` affichant couleurs, typos, boutons. Plan : `docs/plans/P0-05.md`.
 - [ ] **P0-06** `lib/logger` (JSON structuré, sans PII) et Sentry. *Accept.* : une erreur volontaire lancée en local remonte dans le projet Sentry de développement.
 **Porte P0** : CI verte sur `main`, aucune alerte de sécurité ouverte.
 

@@ -52,7 +52,7 @@ src/
     profile/             critères de recherche
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, auth, rate-limit, http
+  lib/                   db, env, llm, logger, auth, rate-limit, http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé
