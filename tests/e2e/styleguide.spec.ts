@@ -97,9 +97,10 @@ test.describe("guide de style (build de production)", () => {
   test("charge Poppins et Work Sans sans aucune requête vers Google", async ({
     page,
   }) => {
+    const hotesGoogle = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
     const requetesGoogle: string[] = [];
     page.on("request", (requete) => {
-      if (/fonts\.(googleapis|gstatic)\.com/.test(requete.url()))
+      if (hotesGoogle.has(new URL(requete.url()).hostname))
         requetesGoogle.push(requete.url());
     });
 
