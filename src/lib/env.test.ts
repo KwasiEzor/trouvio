@@ -65,6 +65,7 @@ describe("parseEnv — cas nominaux", () => {
     expect(parseEnv("core", VALID.core)).toEqual({
       NODE_ENV: "production",
       APP_URL: "https://trouvio.example",
+      LOG_LEVEL: "info",
     });
   });
 
@@ -72,8 +73,16 @@ describe("parseEnv — cas nominaux", () => {
     expect(parseEnv("core", {})).toEqual({
       NODE_ENV: "development",
       APP_URL: "http://localhost:3000",
+      LOG_LEVEL: "info",
     });
   });
+
+  it.each(["debug", "info", "warn", "error", "silent"])(
+    "accepte LOG_LEVEL=%s",
+    (level) => {
+      expect(parseEnv("core", { LOG_LEVEL: level }).LOG_LEVEL).toBe(level);
+    },
+  );
 
   it("ramène APP_URL à son origine (sans chemin ni barre finale)", () => {
     expect(
@@ -164,6 +173,7 @@ describe("parseEnv — cas négatifs", () => {
     ["APP_URL mal formée", "core", { APP_URL: "pas-une-url" }, "APP_URL"],
     ["APP_URL en ftp", "core", { APP_URL: "ftp://trouvio.example" }, "APP_URL"],
     ["NODE_ENV inconnu", "core", { NODE_ENV: "staging" }, "NODE_ENV"],
+    ["LOG_LEVEL inconnu", "core", { LOG_LEVEL: "verbeux" }, "LOG_LEVEL"],
     [
       "base non Postgres",
       "database",
