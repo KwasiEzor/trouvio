@@ -75,6 +75,8 @@ describe("Button", () => {
   it("montre un focus visible au clavier (contour, pas une ombre)", () => {
     render(<Button>Action</Button>);
     expect(screen.getByRole("button", { name: "Action" })).toHaveClass(
+      // outline-hidden met le style de contour à « none » : outline-solid est indispensable.
+      "focus-visible:outline-solid",
       "focus-visible:outline-2",
       "focus-visible:outline-ring",
     );
