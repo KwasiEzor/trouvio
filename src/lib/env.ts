@@ -25,6 +25,17 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
 const secret = () => z.string().min(32);
+// DSN Sentry : https, clé publique en nom d'utilisateur, chemin = identifiant numérique du projet.
+const sentryDsn = () =>
+  z.url({ protocol: /^https$/ }).refine((value) => {
+    // Zod 4 exécute le refine même si la vérification d'URL a échoué : ne jamais lever ici.
+    try {
+      const { username, pathname } = new URL(value);
+      return username !== "" && /^\/\d+$/.test(pathname);
+    } catch {
+      return false;
+    }
+  });
 
 const shapes = {
   core: {
@@ -53,7 +64,7 @@ const shapes = {
     TELEGRAM_WEBHOOK_SECRET: secret(),
   },
   email: { RESEND_API_KEY: required(), EMAIL_FROM: required() },
-  sentry: { SENTRY_DSN: httpUrl().optional() },
+  sentry: { SENTRY_DSN: sentryDsn().optional() },
   cron: { CRON_SECRET: secret() },
 };
 
@@ -119,8 +130,8 @@ export const envVariables: Record<EnvDomain, readonly string[]> = {
 
 /** Domaines exigés au démarrage. Chaque tâche qui met un domaine en service l'ajoute ici. */
 export const STARTUP_DOMAINS = {
-  web: ["core"],
-  job: ["core"],
+  web: ["core", "sentry"],
+  job: ["core", "sentry"],
 } as const satisfies Record<Runtime, readonly EnvDomain[]>;
 
 export class EnvValidationError extends Error {
@@ -213,6 +224,36 @@ export function assertStartupEnv(
   source: EnvSource = process.env,
 ): void {
   parseEnvDomains(STARTUP_DOMAINS[runtime], source, runtime);
+}
+
+/**
+ * Valeurs publiques figées dans le bundle navigateur au build (next.config.ts, compiler.define).
+ * N'exige rien (le build ne doit demander aucun secret) mais refuse une valeur invalide.
+ */
+export function publicBuildEnv(source: EnvSource = process.env): {
+  NODE_ENV: Env<"core">["NODE_ENV"];
+  SENTRY_DSN: string | undefined;
+} {
+  const cleaned = clean(source);
+  const nodeEnv = shapes.core.NODE_ENV.safeParse(cleaned["NODE_ENV"]);
+  const sentry = check("sentry", cleaned);
+  const issues: EnvIssue[] = [
+    ...(nodeEnv.success
+      ? []
+      : [{ name: "NODE_ENV", reason: "invalide" } as const]),
+    ...(sentry.ok ? [] : sentry.issues),
+  ];
+  if (!nodeEnv.success || !sentry.ok)
+    throw new EnvValidationError("build", normalize(issues));
+  return {
+    NODE_ENV: nodeEnv.data,
+    SENTRY_DSN: (sentry.data as Env<"sentry">).SENTRY_DSN,
+  };
+}
+
+/** Vrai dans le runtime Node de Next (instrumentation.ts) ; faux en edge ou hors Next. */
+export function isNodeRuntime(source: EnvSource = process.env): boolean {
+  return source["NEXT_RUNTIME"] === "nodejs";
 }
 
 /** Lecteur paresseux et mémorisé : rien n'est lu avant le premier accès. */
