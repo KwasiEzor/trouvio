@@ -26,3 +26,5 @@ Les contrastes WCAG AA ont été vérifiés (et sont testés automatiquement, `s
 - **`brand-strong` #157573** (nouveau) : même teinte que `brand`, plus foncée, pour tout ce qui porte du texte — bouton primaire (blanc dessus : 5,49), liens et texte turquoise (4,99 sur `surface`), anneau de focus. `#1F9997` (`brand`) reste la couleur de marque pour le symbole et le décoratif : blanc dessus n'atteignait que 3,46.
 - **`ink-muted` #6B7684 → #5F6A78** : 4,99 sur `surface` au lieu de 4,19.
 Les maquettes HTML ne sont pas modifiées ; elles restent la référence de hiérarchie et de mise en page, les couleurs de texte suivent les tokens.
+
+`src/app/icon.svg` (icône d'application servie par Next) est une copie de `public/brand/trouvio-app-icon.svg` : les mettre à jour ensemble.

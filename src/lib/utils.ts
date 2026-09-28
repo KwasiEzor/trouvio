@@ -1,6 +1,6 @@
 import { createCn } from "cn/config";
 
-import { TYPE_STYLE_NAMES } from "./design-tokens";
+import { TYPE_STYLE_NAMES } from "./design-token-names";
 
 /**
  * Fusion des classes Tailwind (clsx + résolution des conflits). Configurée avec les tailles de

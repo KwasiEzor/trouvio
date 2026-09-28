@@ -6,6 +6,8 @@
 
 /* Ne scanner que le code : les maquettes de docs/ ne doivent pas générer de classes. */
 @import "tailwindcss" source("..");
+/* Les tests contiennent des noms de classes dans des chaînes et commentaires : pas de CSS inutile. */
+@source not "../**/*.test.{ts,tsx}";
 
 /* Les classes dark: restent inertes jusqu'au thème sombre (après le lancement). */
 @custom-variant dark (&:is(.dark *));
@@ -63,6 +65,8 @@
   --muted-foreground: var(--color-ink-muted);
   --accent: var(--color-brand-dim);
   --accent-foreground: var(--color-ink);
+  /* Rôle déclaré pour les composants shadcn ; border-border pointe en fait sur le token
+     --color-border (même nom). À revoir avec le thème sombre (M3). */
   --border: var(--color-border);
   --input: var(--color-border);
   --ring: var(--color-brand-strong);

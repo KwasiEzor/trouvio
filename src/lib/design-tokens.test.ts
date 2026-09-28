@@ -6,6 +6,7 @@ import rawTokens from "../../docs/design/tokens.json";
 import {
   COLOR_TOKEN_NAMES,
   CONTRAST_PAIRS,
+  compositeOver,
   contrastRatio,
   designTokens,
   parseDesignTokens,
@@ -19,6 +20,11 @@ const css = readFileSync(
 );
 const ast = postcss.parse(css);
 const theme = new Map<string, string>();
+const staticTheme = new Map<string, string>();
+ast.walkAtRules("theme", (rule) => {
+  if (rule.params === "static")
+    rule.walkDecls((decl) => void staticTheme.set(decl.prop, decl.value));
+});
 ast.walkAtRules("theme", (rule) =>
   rule.walkDecls((decl) => void theme.set(decl.prop, decl.value)),
 );
@@ -113,6 +119,24 @@ describe("thème CSS ↔ tokens.json", () => {
   });
 });
 
+describe("thème CSS ⊂ tokens.json (sens inverse)", () => {
+  it("ne déclare dans @theme static que les variables issues des tokens, ni plus ni moins", () => {
+    const attendues = [
+      "--color-*",
+      "--radius-*",
+      "--text-*",
+      ...designTokens.colors.map(({ name }) => `--color-${name}`),
+      ...designTokens.typeStyles.flatMap(({ name }) => [
+        `--text-${name}`,
+        `--text-${name}--line-height`,
+        `--text-${name}--font-weight`,
+      ]),
+      ...designTokens.radii.map(({ name }) => `--${name}`),
+    ].sort();
+    expect([...staticTheme.keys()].sort()).toEqual(attendues);
+  });
+});
+
 describe("contrastes WCAG des paires d'usage", () => {
   it.each(CONTRAST_PAIRS)(
     "$fg sur $bg atteint $min:1 ($usage)",
@@ -137,6 +161,29 @@ describe("contrastes WCAG des paires d'usage", () => {
   });
 });
 
+describe("états de survol", () => {
+  const source = readFileSync(
+    new URL("../components/ui/button.tsx", import.meta.url),
+    "utf8",
+  );
+  const opacite =
+    Number(/hover:bg-primary\/(\d+)/.exec(source)?.[1] ?? "100") / 100;
+  const primaire = colorValue.get("brand-strong") ?? "";
+  const texte = colorValue.get("surface-raised") ?? "";
+
+  it.each(["surface", "surface-raised"])(
+    "le texte du bouton principal reste lisible au survol sur %s",
+    (fond) => {
+      const survol = compositeOver(
+        primaire,
+        colorValue.get(fond) ?? "",
+        opacite,
+      );
+      expect(contrastRatio(texte, survol)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+});
+
 describe("outils", () => {
   it.each([
     ["13px", "0.8125rem"],
@@ -144,6 +191,16 @@ describe("outils", () => {
     ["44px", "2.75rem"],
   ])("convertit %s en %s", (px, rem) => {
     expect(pxToRem(px)).toBe(rem);
+  });
+
+  it("compose une couleur semi-transparente sur un fond (comme le navigateur)", () => {
+    expect(compositeOver("#157573", "#FFFFFF", 0.9)).toBe("#2C8381");
+    expect(compositeOver("#157573", "#FFFFFF", 1)).toBe("#157573");
+  });
+
+  it("refuse une couleur mal formée plutôt que de renvoyer NaN", () => {
+    expect(() => contrastRatio("#12345", "#FFFFFF")).toThrow();
+    expect(() => compositeOver("rouge", "#FFFFFF", 0.5)).toThrow();
   });
 
   it("calcule le contraste maximal (noir sur blanc = 21) et minimal (identiques = 1)", () => {
@@ -178,6 +235,30 @@ describe("schéma de tokens.json", () => {
     donnees.color.tokens = donnees.color.tokens.filter(
       (token) => token.name !== "brand-strong",
     );
+    expect(() => parseDesignTokens(donnees)).toThrow();
+  });
+
+  it("refuse un fichier où il manque un style de texte attendu", () => {
+    const donnees = clone() as {
+      type: { groups: { styles: { name: string }[] }[] };
+    };
+    for (const groupe of donnees.type.groups) {
+      groupe.styles = groupe.styles.filter((style) => style.name !== "label");
+    }
+    expect(() => parseDesignTokens(donnees)).toThrow();
+  });
+
+  it("refuse un rayon en double", () => {
+    const donnees = clone() as { radius: { tokens: { name: string }[] } };
+    const dernier = donnees.radius.tokens[2];
+    if (dernier) dernier.name = "radius-sm";
+    expect(() => parseDesignTokens(donnees)).toThrow();
+  });
+
+  it("refuse un espacement inconnu du code", () => {
+    const donnees = clone() as { spacing: { tokens: { name: string }[] } };
+    const premier = donnees.spacing.tokens[0];
+    if (premier) premier.name = "space-12";
     expect(() => parseDesignTokens(donnees)).toThrow();
   });
 });

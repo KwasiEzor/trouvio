@@ -3,7 +3,11 @@ paths:
   - "src/app/**/*.tsx"
   - "src/components/**"
   - "src/features/**/components/**"
-  - "tailwind.config.*"
+  - "src/lib/design-tokens.ts"
+  - "src/lib/design-token-names.ts"
+  - "src/lib/utils.ts"
+  - "postcss.config.mjs"
+  - "docs/design/**"
   - "src/app/globals.css"
   - "components.json"
 ---
@@ -42,3 +46,7 @@ paths:
   2. l'écrire dans `src/components/ui/` : import `cn` depuis `@/lib/utils`, classes du thème uniquement, retirer `dark:*` et les variantes sans token ;
   3. **focus par contour** : `outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring` — `outline-solid` est indispensable (Tailwind v4 : `outline-hidden` met le style à « none ») ; pas d'anneau en ombre ;
   4. test Testing Library (rôle, nom accessible, états) et passage au guide de style `/styleguide` (E2E + axe).
+- **Tables de classes** : toute constante qui associe des clés à des classes Tailwind s'appelle `CLASSES_*` (ex. `CLASSES_NUANCIERS`) et utilise `satisfies Record<…Name, string>` : ESLint analyse alors ses valeurs, et un token ajouté sans sa classe casse le typecheck.
+- **Code client** : importer les noms de tokens depuis `@/lib/design-token-names` (sans dépendance) ; `@/lib/design-tokens` (Zod + JSON) est réservé au serveur.
+- **Volontairement non verrouillé** (valeurs par défaut de Tailwind, à resserrer si besoin) : familles `font-mono`/`font-serif`, ombres, interlignage et approche (`leading-*`, `tracking-*`), largeurs de conteneur, espacements (l'échelle par défaut correspond déjà aux tokens : `p-2` = `space-2`).
+- **États de survol** : toute opacité de survol sur un fond qui porte du texte doit garder 4,5:1 (test « états de survol » de `design-tokens.test.ts`, qui lit l'opacité dans `button.tsx`).

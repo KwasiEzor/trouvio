@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import {
   designTokens,
   type ColorTokenName,
+  type RadiusTokenName,
+  type SpacingTokenName,
   type TypeStyleName,
 } from "@/lib/design-tokens";
 
@@ -17,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 // Tables statiques : Tailwind ne détecte que des classes écrites en entier dans le code.
-const NUANCIERS = {
+const CLASSES_NUANCIERS = {
   surface: "bg-surface",
   "surface-raised": "bg-surface-raised",
   ink: "bg-ink",
@@ -28,7 +30,7 @@ const NUANCIERS = {
   border: "bg-border",
 } satisfies Record<ColorTokenName, string>;
 
-const STYLES_TEXTE = {
+const CLASSES_TEXTE = {
   display: "font-display text-display",
   h1: "font-display text-h1",
   h2: "font-display text-h2",
@@ -37,18 +39,18 @@ const STYLES_TEXTE = {
   label: "font-sans text-label",
 } satisfies Record<TypeStyleName, string>;
 
-const RAYONS = {
+const CLASSES_RAYONS = {
   "radius-sm": "rounded-sm",
   "radius-md": "rounded-md",
   "radius-lg": "rounded-lg",
-} satisfies Record<(typeof designTokens.radii)[number]["name"], string>;
+} satisfies Record<RadiusTokenName, string>;
 
-const ESPACEMENTS: Record<string, string> = {
+const CLASSES_ESPACEMENTS = {
   "space-2": "w-2",
   "space-4": "w-4",
   "space-6": "w-6",
   "space-8": "w-8",
-};
+} satisfies Record<SpacingTokenName, string>;
 
 const LOGOS = [
   {
@@ -105,7 +107,7 @@ export default function StyleguidePage() {
             >
               <span
                 aria-hidden="true"
-                className={`h-16 rounded-sm border border-border ${NUANCIERS[name]}`}
+                className={`h-16 rounded-sm border border-border ${CLASSES_NUANCIERS[name]}`}
               />
               <span className="text-label">{name}</span>
               <span className="font-mono text-body-sm">{value}</span>
@@ -130,7 +132,7 @@ export default function StyleguidePage() {
               >
                 <p
                   data-testid="echantillon-texte"
-                  className={STYLES_TEXTE[name]}
+                  className={CLASSES_TEXTE[name]}
                 >
                   Elle trie. Tu décides.
                 </p>
@@ -186,7 +188,7 @@ export default function StyleguidePage() {
             <li key={name} className="flex flex-col items-center gap-2">
               <span
                 aria-hidden="true"
-                className={`size-16 border border-border bg-brand-dim ${RAYONS[name]}`}
+                className={`size-16 border border-border bg-brand-dim ${CLASSES_RAYONS[name]}`}
               />
               <span className="text-body-sm">
                 {name} — {value}
@@ -199,7 +201,7 @@ export default function StyleguidePage() {
             <li key={name} className="flex items-center gap-4">
               <span
                 aria-hidden="true"
-                className={`h-4 bg-brand ${ESPACEMENTS[name] ?? ""}`}
+                className={`h-4 bg-brand ${CLASSES_ESPACEMENTS[name]}`}
               />
               <span className="text-body-sm">
                 {name} — {value}

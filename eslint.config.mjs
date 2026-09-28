@@ -5,6 +5,7 @@ import prettier from "eslint-config-prettier/flat";
 import vitest from "@vitest/eslint-plugin";
 import playwright from "eslint-plugin-playwright";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
+import { getDefaultSelectors } from "eslint-plugin-better-tailwindcss/defaults";
 
 const ENV_MESSAGE =
   "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
@@ -120,9 +121,11 @@ const eslintConfig = defineConfig([
               importNames: ["env"],
               message: ENV_MESSAGE,
             },
+          ],
+          patterns: [
             {
               // Le cn brut ignore les tailles de texte du thème (text-label serait effacée).
-              name: "cn",
+              group: ["cn", "cn/*"],
               message:
                 "Importer cn depuis @/lib/utils (configuré avec le thème).",
             },
@@ -131,12 +134,45 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Thème verrouillé (ADR 0007, P0-05) : seules les classes générées depuis src/app/globals.css
-  // (donc depuis docs/design/tokens.json) sont admises ; aucune couleur arbitraire.
+  // Seul point d'import du paquet cn (garde l'interdit de process.env).
   {
-    files: ["src/**/*.tsx"],
+    files: ["src/lib/utils.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "process", importNames: ["env"], message: ENV_MESSAGE },
+            {
+              name: "node:process",
+              importNames: ["env"],
+              message: ENV_MESSAGE,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Thème verrouillé (plan P0-05, .claude/rules/ui.md) : seules les classes générées depuis
+  // src/app/globals.css (donc depuis docs/design/tokens.json) sont admises ; aucune couleur
+  // arbitraire, aucun dark: avant M3. Sont analysés : className, cn(), cva()… (sélecteurs par
+  // défaut) et les valeurs des tables de classes nommées CLASSES_* (convention du projet).
+  {
+    files: ["src/**/*.{ts,tsx}"],
     plugins: { "better-tailwindcss": betterTailwindcss },
-    settings: { "better-tailwindcss": { entryPoint: "src/app/globals.css" } },
+    settings: {
+      "better-tailwindcss": {
+        entryPoint: "src/app/globals.css",
+        selectors: [
+          ...getDefaultSelectors(),
+          {
+            kind: "variable",
+            name: "^CLASSES_[A-Z0-9_]+$",
+            match: [{ type: "objectValues" }],
+          },
+        ],
+      },
+    },
     rules: {
       "better-tailwindcss/no-unknown-classes": "error",
       "better-tailwindcss/no-restricted-classes": [
@@ -150,6 +186,11 @@ const eslintConfig = defineConfig([
             {
               pattern: "\\[(rgb|rgba|hsl|hsla|oklch|oklab)\\(",
               message: "Couleur en dur interdite : utiliser un token du thème.",
+            },
+            {
+              pattern: "^dark:",
+              message:
+                "Pas de thème sombre avant le lancement (M3) : retirer les classes dark:.",
             },
           ],
         },
