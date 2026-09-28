@@ -39,3 +39,4 @@
 - **Navigateur** : `pnpm exec playwright install --only-shell chromium` (une fois par poste, hors dépôt ; en CI en P0-04).
 - **Interdits appliqués par ESLint** (et par le hook de Claude) : `.only`, `.skip`, `.fixme`, `expect` conditionnel, `process.env` dans les tests.
 - **En CI** (P0-04) : job `quality` = `pnpm verify` (couverture comprise) ; job `e2e` = installation du navigateur à chaque exécution (pas de cache, recommandation Playwright) puis `pnpm test:e2e` ; rapports en artefact (7 jours) en cas d'échec. Les deux sont des checks requis pour fusionner.
+- **Charte** (P0-05) : `src/lib/design-tokens.test.ts` échoue si `globals.css` s'écarte de `docs/design/tokens.json` ou si une paire de couleurs d'usage passe sous le seuil WCAG AA ; l'E2E `tests/e2e/styleguide.spec.ts` vérifie le guide de style (focus visible, polices auto-hébergées, aucune requête vers Google, axe).
