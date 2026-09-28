@@ -19,6 +19,10 @@ updates:
       include: scope
     # Un paquet va dans le PREMIER groupe qui le reconnaît.
     groups:
+      # En tête : @sentry/core et @sentry/nextjs doivent rester à la même version exacte
+      # (src/lib/observability/sdk-versions.test.ts). Relire le changelog (défauts de dataCollection).
+      sentry:
+        patterns: ["@sentry/*"]
       vitest: # @vitest/coverage-v8 exige la version exacte de vitest
         patterns: ["vitest", "@vitest/*", "vite"]
       next: # eslint-config-next suit la version de next

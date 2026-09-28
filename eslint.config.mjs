@@ -10,6 +10,16 @@ import { getDefaultSelectors } from "eslint-plugin-better-tailwindcss/defaults";
 const ENV_MESSAGE =
   "Lire les variables d'environnement via src/lib/env.ts (validé par Zod).";
 
+const ENV_IMPORT_PATHS = [
+  { name: "process", importNames: ["env"], message: ENV_MESSAGE },
+  { name: "node:process", importNames: ["env"], message: ENV_MESSAGE },
+];
+// Le cn brut ignore les tailles de texte du thème (text-label serait effacée).
+const CN_PATTERN = {
+  group: ["cn", "cn/*"],
+  message: "Importer cn depuis @/lib/utils (configuré avec le thème).",
+};
+
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),
 // en plus des hooks .claude/hooks/ qui ne protègent que les éditions de Claude.
 const eslintConfig = defineConfig([
@@ -57,7 +67,8 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      // Journaux : uniquement via @/lib/logger (JSON, masqué, signalé à Sentry) ; plan P0-06, D16.
+      "no-console": "error",
       "react/no-danger": "error",
     },
   },
@@ -113,24 +124,7 @@ const eslintConfig = defineConfig([
       ],
       "no-restricted-imports": [
         "error",
-        {
-          paths: [
-            { name: "process", importNames: ["env"], message: ENV_MESSAGE },
-            {
-              name: "node:process",
-              importNames: ["env"],
-              message: ENV_MESSAGE,
-            },
-          ],
-          patterns: [
-            {
-              // Le cn brut ignore les tailles de texte du thème (text-label serait effacée).
-              group: ["cn", "cn/*"],
-              message:
-                "Importer cn depuis @/lib/utils (configuré avec le thème).",
-            },
-          ],
-        },
+        { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN] },
       ],
     },
   },
@@ -138,15 +132,33 @@ const eslintConfig = defineConfig([
   {
     files: ["src/lib/utils.ts"],
     rules: {
+      "no-restricted-imports": ["error", { paths: ENV_IMPORT_PATHS }],
+    },
+  },
+  // Code exécuté dans le navigateur ou partagé avec lui (plan P0-06) : src/lib/env.ts est réservé
+  // au serveur ; le navigateur lit sa configuration par public-config.ts (compiler.define).
+  {
+    files: [
+      "src/instrumentation-client.ts",
+      "src/app/global-error.tsx",
+      "src/lib/observability/**/*.ts",
+      "src/lib/logger/redact.ts",
+      "src/lib/logger/serialize-error.ts",
+      "src/lib/logger/logger.ts",
+    ],
+    ignores: ["**/*.test.ts"],
+    rules: {
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            { name: "process", importNames: ["env"], message: ENV_MESSAGE },
+          paths: ENV_IMPORT_PATHS,
+          patterns: [
+            CN_PATTERN,
             {
-              name: "node:process",
-              importNames: ["env"],
-              message: ENV_MESSAGE,
+              // …/env, …/lib/env, ../logger, @/lib/logger, …/logger/index (pas …/logger/redact).
+              regex: "(^|/)(env|logger(/index)?)$",
+              message:
+                "Code client ou isomorphe : ni src/lib/env.ts ni le logger serveur (@/lib/logger) ; configuration navigateur via @/lib/observability/public-config.",
             },
           ],
         },

@@ -226,12 +226,12 @@ describe("scrubBreadcrumb", () => {
   });
 
   it("masque le message d'un fil d'Ariane de console", () => {
-    const console: Breadcrumb = {
+    const filConsole: Breadcrumb = {
       category: "console",
       message: "profil de kwasi@exemple.fr chargé",
       data: { arguments: ["kwasi@exemple.fr"], logger: "console" },
     };
-    expect(scrubBreadcrumb(console)).toEqual({
+    expect(scrubBreadcrumb(filConsole)).toEqual({
       category: "console",
       message: `profil de ${REDACTED} chargé`,
       data: { arguments: [REDACTED], logger: "console" },
