@@ -27,7 +27,7 @@ ast.walkRules(":root", (rule) =>
   rule.walkDecls((decl) => void rootVars.set(decl.prop, decl.value)),
 );
 
-const colorValue = new Map(
+const colorValue = new Map<string, string>(
   designTokens.colors.map((token) => [token.name, token.value]),
 );
 
