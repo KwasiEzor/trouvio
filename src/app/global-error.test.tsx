@@ -16,14 +16,22 @@ afterEach(() => {
 });
 
 describe("GlobalError (erreur de rendu à la racine)", () => {
-  it("signale l'erreur à Sentry", () => {
+  it("signale à Sentry une erreur née dans le navigateur", () => {
+    const erreur = new Error("rendu impossible");
+    render(<GlobalError error={erreur} reset={() => {}} />, {
+      container: document,
+    });
+    expect(captureException).toHaveBeenCalledWith(erreur);
+  });
+
+  it("ne signale pas une seconde fois une erreur serveur (digest, déjà capturée par onRequestError)", () => {
     const erreur = Object.assign(new Error("rendu impossible"), {
       digest: "d1",
     });
     render(<GlobalError error={erreur} reset={() => {}} />, {
       container: document,
     });
-    expect(captureException).toHaveBeenCalledWith(erreur);
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("affiche un message en français, sans détail technique", () => {

@@ -53,6 +53,35 @@ describe("serializeError", () => {
     ]);
   });
 
+  it("borne des AggregateError imbriquées (nombre total d'erreurs sérialisées)", () => {
+    const arbre = (profondeur: number): Error =>
+      profondeur === 0
+        ? new Error("feuille")
+        : new AggregateError(
+            Array.from({ length: 10 }, () => arbre(profondeur - 1)),
+            `niveau ${profondeur}`,
+          );
+    const erreur = arbre(4); // 11 111 erreurs distinctes
+    const debut = performance.now();
+    const texte = JSON.stringify(serializeError(erreur));
+    expect(performance.now() - debut).toBeLessThan(200);
+    expect(texte.match(/"name":"/g)?.length).toBeLessThanOrEqual(20);
+    expect(texte).toContain("de plus]");
+  });
+
+  it("borne la profondeur des AggregateError comme celle de cause", () => {
+    let erreur: Error = new Error("feuille");
+    for (let i = 0; i < 10; i++)
+      erreur = new AggregateError([erreur], `niveau ${i}`);
+    expect(JSON.stringify(serializeError(erreur))).not.toContain("feuille");
+  });
+
+  it("ne boucle pas sur une AggregateError qui se contient", () => {
+    const erreur = new AggregateError([], "boucle");
+    Object.defineProperty(erreur, "errors", { value: [erreur] });
+    expect(serializeError(erreur).errors).toEqual([CIRCULAR]);
+  });
+
   it("conserve les propriétés utiles (code, status) en les masquant au besoin", () => {
     const erreur = Object.assign(new Error("HTTP 401"), {
       status: 401,
@@ -95,5 +124,9 @@ describe("serializeError", () => {
     const resultat = serializeError(erreur);
     expect(resultat.name).toBe("EnvValidationError");
     expect(resultat.message).toContain("SENTRY_DSN");
+    // « name » est une clé masquée (nom de personne) : seul le message garde les noms de variables.
+    expect(resultat["issues"]).toEqual([
+      { name: REDACTED, reason: "invalide" },
+    ]);
   });
 });

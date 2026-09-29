@@ -46,6 +46,13 @@ function evenementSale(): ErrorEvent {
       os: { name: "macOS", version: "15" },
       log: { source: "adzuna", email: "a@b.fr" },
       response: { status_code: 500, headers: { "set-cookie": "x" } },
+      // Posé par captureRequestError (onRequestError) : request_path = req.url, query comprise.
+      nextjs: {
+        request_path: "/connexion?email=jean%40gmail.com&q=d%C3%A9veloppeur",
+        router_kind: "App Router",
+        router_path: "/connexion",
+        route_type: "render",
+      },
     },
     exception: {
       values: [
@@ -96,9 +103,37 @@ describe("buildSentryOptions", () => {
     });
     expect(options).not.toHaveProperty("tracesSampleRate");
     expect(options).not.toHaveProperty("replaysSessionSampleRate");
-    expect(options).not.toHaveProperty("integrations");
     expect(options?.beforeSend).toBe(scrubEvent);
     expect(options?.beforeBreadcrumb).toBe(scrubBreadcrumb);
+  });
+
+  it("coupe à la source le nom de machine et Spotlight (lus sinon hors env.ts)", () => {
+    expect(buildSentryOptions({ dsn: DSN, environment: "x" })).toMatchObject({
+      includeServerName: false,
+      spotlight: false,
+    });
+  });
+
+  it("retire le suivi des sessions navigateur (enveloppe hors beforeSend, IP et user agent)", () => {
+    const integrations = buildSentryOptions({
+      dsn: DSN,
+      environment: "x",
+    })?.integrations;
+    const defauts = [
+      { name: "BrowserSession" },
+      { name: "Dedupe" },
+      { name: "BrowserApiErrors" },
+    ];
+    expect(integrations?.(defauts)).toEqual([
+      { name: "Dedupe" },
+      { name: "BrowserApiErrors" },
+    ]);
+  });
+
+  it("n'envoie ni journaux ni métriques Sentry (hors beforeSend) : tout passe par lib/logger", () => {
+    const options = buildSentryOptions({ dsn: DSN, environment: "x" });
+    expect(options?.beforeSendLog()).toBeNull();
+    expect(options?.beforeSendMetric()).toBeNull();
   });
 
   it("pose explicitement chaque catégorie de collecte (les défauts de la v11 sont permissifs)", () => {
@@ -142,6 +177,24 @@ describe("scrubEvent", () => {
     ).toBeUndefined();
   });
 
+  it("masque un identifiant utilisateur qui serait un email", () => {
+    expect(
+      scrubEvent({ type: undefined, user: { id: "jean@gmail.com" } }).user,
+    ).toEqual({ id: REDACTED });
+  });
+
+  it("masque les données du chemin de l'URL et du nom de transaction", () => {
+    const propreChemin = scrubEvent({
+      type: undefined,
+      transaction: "GET /u/jean@gmail.com",
+      request: { url: "https://trouvio.example/u/jean%40gmail.com/profil?x=1" },
+    });
+    expect(propreChemin.request?.url).toBe(
+      `https://trouvio.example/u/${REDACTED}/profil`,
+    );
+    expect(propreChemin.transaction).toBe(`GET /u/${REDACTED}`);
+  });
+
   it("retire le nom de la machine", () => {
     expect(propre).not.toHaveProperty("server_name");
   });
@@ -160,6 +213,12 @@ describe("scrubEvent", () => {
       os: { name: "macOS", version: "15" },
       log: { source: "adzuna", email: REDACTED },
       response: { status_code: 500, headers: { "set-cookie": REDACTED } },
+      nextjs: {
+        request_path: "/connexion",
+        router_kind: "App Router",
+        router_path: "/connexion",
+        route_type: "render",
+      },
     });
   });
 
@@ -189,6 +248,8 @@ describe("scrubEvent", () => {
       "token=abc",
       "app_key=CLE",
       "poste-de-kwasi",
+      "jean%40gmail.com",
+      "veloppeur",
     ]) {
       expect(texte).not.toContain(secret);
     }
