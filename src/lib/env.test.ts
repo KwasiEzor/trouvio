@@ -271,6 +271,34 @@ describe("assertStartupEnv", () => {
   it("laisse démarrer le job avec un environnement valide", () => {
     expect(() => assertStartupEnv("job", VALID.core)).not.toThrow();
   });
+
+  it.each(["web", "job"] as const)(
+    "refuse de démarrer (%s) si SENTRY_TRACES_SAMPLE_RATE est posée (le SDK la lirait hors env.ts)",
+    (runtime) => {
+      const err = capture(() =>
+        assertStartupEnv(runtime, {
+          ...VALID.core,
+          SENTRY_TRACES_SAMPLE_RATE: "0.SENTINELLE",
+        }),
+      );
+      expect(err.issues).toEqual([
+        { name: "SENTRY_TRACES_SAMPLE_RATE", reason: "interdite" },
+      ]);
+      expect(err.message).toBe(
+        `Configuration invalide (${runtime}) — interdites : SENTRY_TRACES_SAMPLE_RATE`,
+      );
+      expect(err.message).not.toContain("SENTINELLE");
+    },
+  );
+
+  it("ignore SENTRY_TRACES_SAMPLE_RATE vide", () => {
+    expect(() =>
+      assertStartupEnv("web", {
+        ...VALID.core,
+        SENTRY_TRACES_SAMPLE_RATE: " ",
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe("publicBuildEnv (valeurs publiques figées au build)", () => {

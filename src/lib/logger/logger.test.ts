@@ -220,6 +220,65 @@ describe("createLogger — robustesse", () => {
     }).not.toThrow();
   });
 
+  it("ne lève jamais, même si le contexte lève à la lecture (getter, Proxy)", () => {
+    const { logger, entrees, report } = harnais();
+    const piege = {
+      get boum() {
+        throw new Error("getter");
+      },
+    };
+    const proxy = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("ownKeys");
+        },
+      },
+    );
+    expect(() => {
+      logger.info("getter", { piege });
+      logger.error("proxy", proxy);
+      logger.warn("nul", null as unknown as Record<string, unknown>);
+    }).not.toThrow();
+    expect(entrees().map((entree) => entree["msg"])).toEqual([
+      "getter",
+      "proxy",
+      "nul",
+    ]);
+    expect(entrees()[0]?.["ctx"]).toEqual({ illisible: true });
+    expect(report.message).toHaveBeenCalledWith("proxy", { illisible: true });
+  });
+
+  it("ne perd pas la ligne si l'erreur ne peut pas être sérialisée", () => {
+    const { logger, entrees } = harnais();
+    const erreur = new Error("x");
+    Object.defineProperty(erreur, "piege", {
+      enumerable: true,
+      get() {
+        throw new Error("getter");
+      },
+    });
+    logger.warn("tentative", { err: erreur });
+    expect(entrees()[0]).toMatchObject({
+      msg: "tentative",
+      err: { name: "NonError", value: "[Illisible]" },
+    });
+  });
+
+  it("ne masque rien sous le seuil (aucun coût pour un debug filtré)", () => {
+    const { logger, lignes } = harnais("info");
+    let lectures = 0;
+    const ctx = {
+      get lu() {
+        lectures += 1;
+        return 1;
+      },
+    };
+    logger.debug("d", ctx);
+    expect(lignes).toEqual([]);
+    expect(lectures).toBe(0);
+  });
+
   it("accepte un contexte circulaire", () => {
     const { logger, entrees } = harnais();
     const ctx: Record<string, unknown> = { etape: 1 };
