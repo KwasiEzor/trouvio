@@ -15,7 +15,7 @@ export type EnvSource = Readonly<Record<string, string | undefined>>;
 export type Runtime = "web" | "job";
 export type EnvIssue = {
   readonly name: string;
-  readonly reason: "manquante" | "invalide";
+  readonly reason: "manquante" | "invalide" | "interdite";
 };
 
 const DEFAULT_APP_URL = "http://localhost:3000";
@@ -152,6 +152,7 @@ function formatMessage(context: string, issues: readonly EnvIssue[]): string {
   const parts = [
     ["manquantes", list("manquante")],
     ["invalides", list("invalide")],
+    ["interdites", list("interdite")],
   ] as const;
   const details = parts
     .filter(([, names]) => names.length > 0)
@@ -209,21 +210,42 @@ export function parseEnvDomains(
   source: EnvSource,
   context: string,
 ): void {
-  const cleaned = clean(source);
-  const issues = domains.flatMap((domain) => {
-    const result = check(domain, cleaned);
-    return result.ok ? [] : result.issues;
-  });
+  const issues = domainIssues(domains, clean(source));
   if (issues.length > 0)
     throw new EnvValidationError(context, normalize(issues));
 }
 
-/** Refuse le démarrage si un domaine requis pour ce runtime est invalide. */
+function domainIssues(
+  domains: readonly EnvDomain[],
+  cleaned: Record<string, string>,
+): EnvIssue[] {
+  return domains.flatMap((domain) => {
+    const result = check(domain, cleaned);
+    return result.ok ? [] : result.issues;
+  });
+}
+
+/**
+ * Lues directement par un SDK, hors de ce fichier : interdites tant qu'un ADR ne les ouvre pas.
+ * SENTRY_TRACES_SAMPLE_RATE activerait les traces (ADR 0010) ; les autres variables SENTRY_* lues
+ * par le SDK sont neutralisées par ses options (sentry-options.ts).
+ */
+const FORBIDDEN_AT_STARTUP = ["SENTRY_TRACES_SAMPLE_RATE"] as const;
+
+/** Refuse le démarrage si un domaine requis pour ce runtime est invalide ou une variable interdite posée. */
 export function assertStartupEnv(
   runtime: Runtime,
   source: EnvSource = process.env,
 ): void {
-  parseEnvDomains(STARTUP_DOMAINS[runtime], source, runtime);
+  const cleaned = clean(source);
+  const issues = [
+    ...FORBIDDEN_AT_STARTUP.filter((name) => name in cleaned).map(
+      (name): EnvIssue => ({ name, reason: "interdite" }),
+    ),
+    ...domainIssues(STARTUP_DOMAINS[runtime], cleaned),
+  ];
+  if (issues.length > 0)
+    throw new EnvValidationError(runtime, normalize(issues));
 }
 
 /**

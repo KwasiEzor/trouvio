@@ -3,6 +3,7 @@ import type {
   DataCollection,
   ErrorEvent,
   Exception,
+  Integration,
 } from "@sentry/core";
 
 import { redact, redactString } from "../logger/redact";
@@ -53,6 +54,10 @@ export type SentryConfigInput = {
   environment: string;
 };
 
+// Suivi des sessions (santé des versions) : une enveloppe par chargement de page, hors beforeSend,
+// avec user agent, IP réseau et, si un utilisateur est posé, son identifiant. Inutilisé ici.
+const DROPPED_INTEGRATIONS = new Set(["BrowserSession"]);
+
 /** undefined sans DSN : l'appelant n'initialise alors pas Sentry du tout. */
 export function buildSentryOptions({ dsn, environment }: SentryConfigInput) {
   if (!dsn) return undefined;
@@ -61,15 +66,30 @@ export function buildSentryOptions({ dsn, environment }: SentryConfigInput) {
     environment,
     debug: false,
     dataCollection: DATA_COLLECTION,
+    // Serveur : ni nom de machine (os.hostname, SENTRY_NAME) ni Spotlight (SENTRY_SPOTLIGHT),
+    // que le SDK lirait sinon hors env.ts. Ignorés par le navigateur.
+    includeServerName: false,
+    spotlight: false,
+    integrations: (defaults: Integration[]) =>
+      defaults.filter(({ name }) => !DROPPED_INTEGRATIONS.has(name)),
     // Pas de traces en P0 (plan P0-06, D5) ; jamais d'en-têtes sentry-trace vers les API tierces.
     tracePropagationTargets: [],
     beforeSend: scrubEvent,
     beforeBreadcrumb: scrubBreadcrumb,
+    // Sentry.logger.* et Sentry.metrics.* partent sans garde et hors beforeSend : refusés, les
+    // journaux passent par lib/logger (ESLint réserve @sentry/* à quelques fichiers).
+    beforeSendLog: () => null,
+    beforeSendMetric: () => null,
   };
 }
 
 function stripQuery(url: string): string {
   return url.split(/[?#]/, 1)[0] ?? "";
+}
+
+/** URL ou chemin : sans query string ni fragment, puis masqué (email ou jeton dans le chemin). */
+function scrubUrl(url: string): string {
+  return redactString(stripQuery(url));
 }
 
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
@@ -82,7 +102,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     const { method, url, headers } = event.request;
     result.request = {
       ...(method !== undefined && { method }),
-      ...(url !== undefined && { url: stripQuery(url) }),
+      ...(url !== undefined && { url: scrubUrl(url) }),
       ...(headers && {
         headers: Object.fromEntries(
           Object.entries(headers).filter(([name]) =>
@@ -95,20 +115,28 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.user) {
     const { id } = event.user;
     if (id === undefined) delete result.user;
-    else result.user = { id };
+    else result.user = { id: typeof id === "string" ? redactString(id) : id };
   }
+  if (event.transaction !== undefined)
+    result.transaction = redactString(event.transaction);
   if (event.message !== undefined) result.message = redactString(event.message);
   if (event.extra)
     result.extra = redact(event.extra) as NonNullable<ErrorEvent["extra"]>;
   if (event.tags)
     result.tags = redact(event.tags) as NonNullable<ErrorEvent["tags"]>;
-  if (event.contexts)
-    result.contexts = Object.fromEntries(
+  if (event.contexts) {
+    const contexts = Object.fromEntries(
       Object.entries(event.contexts).map(([name, context]) => [
         name,
         redact(context, { keys: !SDK_CONTEXTS.has(name) }),
       ]),
     ) as NonNullable<ErrorEvent["contexts"]>;
+    // captureRequestError (onRequestError) y pose req.url, query string comprise.
+    const nextjs = contexts["nextjs"];
+    if (typeof nextjs?.["request_path"] === "string")
+      nextjs["request_path"] = stripQuery(nextjs["request_path"]);
+    result.contexts = contexts;
+  }
   if (event.exception?.values)
     result.exception = {
       ...event.exception,
