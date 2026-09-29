@@ -9,7 +9,8 @@ import { poppins, workSans } from "./fonts";
 import "./globals.css";
 
 // Remplace le layout racine quand son rendu échoue : il porte donc lui-même <html> et <body>.
-// Aucun détail technique affiché ; l'erreur part vers Sentry (nettoyée par beforeSend).
+// Aucun détail technique affiché ; une erreur née dans le navigateur part vers Sentry (nettoyée
+// par beforeSend).
 export default function GlobalError({
   error,
   reset,
@@ -18,7 +19,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // Avec un digest, l'erreur vient du serveur et onRequestError l'a déjà signalée (quota).
+    if (!error.digest) Sentry.captureException(error);
   }, [error]);
 
   return (

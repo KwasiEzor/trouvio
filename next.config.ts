@@ -29,8 +29,8 @@ function config(phase: string): NextConfig {
   return {
     ...nextConfig,
     compiler: {
-      // Une valeur texte est insérée telle quelle comme chaîne littérale (vérifié dans le bundle
-      // Turbopack) : pas de JSON.stringify, qui ajouterait des guillemets au DSN.
+      // Next applique lui-même JSON.stringify à chaque valeur (serializeDefineEnv, webpack comme
+      // Turbopack) : passer la valeur brute, sinon le DSN garderait ses guillemets.
       define: {
         __TROUVIO_SENTRY_DSN__: SENTRY_DSN ?? "",
         __TROUVIO_ENV__: NODE_ENV,
