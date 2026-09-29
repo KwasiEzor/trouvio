@@ -11,13 +11,16 @@ Trouvio traite des données de chercheurs d'emploi : critères, prétentions sal
    - Il écrit une ligne JSON par événement : `time`, `level`, `msg`, `service`, `runtime`, `ctx`, `err`.
    - Il masque récursivement les données sensibles par liste de refus : sur les **clés**, et par motifs sur les **valeurs** (emails, Bearer, JWT, clés Anthropic, jetons Telegram, paramètres de query string sensibles, identifiants d'URL).
    - Il sérialise les erreurs avec leur chaîne `cause`. Le niveau se règle par `LOG_LEVEL`.
+   - La sortie est bornée (éléments, clés, valeurs et erreurs par appel), et le logger ne lève jamais, même sur un contexte illisible.
    - `logger.error` signale toujours à Sentry via `@sentry/core`. Ce choix sert aussi le job (P5), qui n'utilise pas Next.
+   - ESLint réserve `@sentry/*` aux points d'intégration (instrumentation, `global-error`, `lib/observability`, `lib/logger/index.ts`) : pas de contournement du masquage.
    - Règle d'usage : journaliser **ou** relancer une erreur, pas les deux.
    - pino est écarté : sa redaction se fait par chemins (ni profondeur quelconque, ni motifs dans les valeurs), il passe par des workers, et le volume est minuscule.
 2. **Sentry 11, même politique sur le serveur et le navigateur** (`src/lib/observability/sentry-options.ts`).
    - `dataCollection` est posé en entier, avec une liste courte d'en-têtes autorisés. Tout le reste est coupé : utilisateur, cookies, corps, query string, IA, requêtes de base de données, files, GraphQL, variables locales.
-   - Défense en profondeur : `beforeSend` et `beforeBreadcrumb` réutilisent le masquage du logger, ne gardent de la requête que la méthode, l'URL sans query string et les en-têtes autorisés, réduisent `user` à son `id` et retirent le nom de la machine.
-   - Le nettoyage côté serveur du projet Sentry reste activé en plus (Data Scrubber, adresses IP non stockées).
+   - Défense en profondeur : `beforeSend` et `beforeBreadcrumb` réutilisent le masquage du logger, ne gardent de la requête que la méthode, l'URL sans query string et les en-têtes autorisés, réduisent `user` à son `id` et retirent le nom de la machine. La query string est aussi retirée de `contexts.nextjs.request_path`, que `captureRequestError` remplit avec l'URL brute.
+   - Ce qui échappe à `beforeSend` est coupé à la source : sessions navigateur (intégration `BrowserSession` retirée), journaux et métriques Sentry (`beforeSendLog` et `beforeSendMetric` renvoient `null`), nom de machine (`includeServerName: false`), Spotlight. `SENTRY_TRACES_SAMPLE_RATE`, que le SDK lirait hors `env.ts`, fait refuser le démarrage.
+   - Le nettoyage côté serveur de l'organisation Sentry reste activé en plus (Data Scrubber et scrubbers par défaut exigés, adresses IP non stockées, champs sensibles globaux, Enhanced Privacy).
    - Sans DSN, aucun `init`.
 3. **Ni replay, ni traces.**
    - Replay : l'écran porte des données personnelles, il faudrait un consentement et une CSP `worker-src blob:`.
@@ -40,7 +43,8 @@ Trouvio traite des données de chercheurs d'emploi : critères, prétentions sal
 - − Pas de traces de performance ni de replays. Il faudra un nouvel ADR pour en ajouter.
 - − Liste de refus : une donnée sensible sous une clé neutre et sans motif reconnaissable passerait. On compense avec la règle « jamais d'objet utilisateur entier dans un journal », la revue et le nettoyage côté serveur de Sentry.
 - − `@sentry/core` et `@sentry/nextjs` doivent rester à la même version exacte. Un groupe Dependabot `sentry` et un test y veillent. Relire le changelog à chaque mise à jour : une nouvelle catégorie de `dataCollection` prendrait sa valeur par défaut.
-- − Le quota gratuit est de 5 000 erreurs par mois. Une limite de débit est posée sur la clé du projet, et le job fera une capture par source et par exécution (P5-03).
+- − Le quota gratuit est de 5 000 erreurs par mois, et le plan gratuit n'offre pas de limite de débit par clé. La Spike Protection est active, `global-error` ne signale pas une seconde fois une erreur serveur, et le job fera une capture par source et par exécution (P5-03).
+- − Next écrit lui-même sur stderr les erreurs serveur brutes, hors logger : rétention courte des journaux du conteneur (P10-02).
 
 ## Alternatives écartées
 - **pino avec redaction par chemins** : ne masque ni à une profondeur quelconque ni dans les valeurs.

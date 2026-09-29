@@ -26,13 +26,13 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - Validation Zod de **toutes** les entrées (params, body, query, env, sorties LLM, réponses des API sources).
 - Server Actions et routes API : vérification d'auth + d'appartenance en première ligne.
 - Mots de passe : hachage géré par Better Auth (algorithme moderne), longueur minimale 8, vérification contre les mots de passe compromis si possible.
-- Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`.
+- Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`. Limite connue : Next écrit lui-même sur stderr le message et la pile brute d'une erreur serveur, hors logger ; les journaux du conteneur ont donc une rétention courte (P10-02).
 - Principe du moindre privilège : rôle DB applicatif sans droits DDL en production ; le job GitHub Actions utilise ce même rôle, jamais le propriétaire de la base.
 
 ## 4. RGPD (Belgique — autorité : APD)
 - Base légale : exécution du contrat (service) ; consentement pour tout traceur non essentiel.
 - Minimisation : le LLM reçoit uniquement les critères de recherche, pas l'identité.
-- Sous-traitants à lister dans la politique de confidentialité (hébergement, base de données, IA, email, paiement, monitoring). Monitoring : Sentry, organisation en **région UE** (Frankfurt), collecte minimale, IP non stockées, rétention 30 jours (ADR 0010).
+- Sous-traitants à lister dans la politique de confidentialité (hébergement, base de données, IA, email, paiement, monitoring). Monitoring : Sentry, organisation en **région UE** (Frankfurt), collecte minimale, IP non stockées, rétention 30 jours (ADR 0010). Réglages de l'organisation : Data Scrubber et scrubbers par défaut exigés, IP non stockées, champs sensibles globaux, Enhanced Privacy, pas d'issues partagées, Spike Protection (le plan gratuit n'offre pas de limite par clé).
 - Droits : export (JSON/CSV) et suppression effective du compte ; durée de conservation définie (ex. offres brutes 90 jours).
 
 ## 5. Checklist de revue (à passer pour toute PR touchant auth, données, API ou LLM)
