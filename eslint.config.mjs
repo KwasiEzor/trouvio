@@ -19,6 +19,20 @@ const CN_PATTERN = {
   group: ["cn", "cn/*"],
   message: "Importer cn depuis @/lib/utils (configuré avec le thème).",
 };
+// Sentry.logger.*, Sentry.metrics.* ou un captureException direct contourneraient le masquage de
+// lib/logger (ADR 0010). Seuls les points d'intégration listés plus bas importent @sentry/*.
+const SENTRY_PATTERN = {
+  group: ["@sentry/*"],
+  message:
+    "Signaler une erreur via logger.error (@/lib/logger), qui masque puis transmet à Sentry.",
+};
+// Code client ou isomorphe (plan P0-06) : …/env, …/lib/env, ../logger, @/lib/logger,
+// …/logger/index sont réservés au serveur (pas …/logger/redact).
+const SERVER_ONLY_PATTERN = {
+  regex: "(^|/)(env|logger(/index)?)$",
+  message:
+    "Code client ou isomorphe : ni src/lib/env.ts ni le logger serveur (@/lib/logger) ; configuration navigateur via @/lib/observability/public-config.",
+};
 
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),
 // en plus des hooks .claude/hooks/ qui ne protègent que les éditions de Claude.
@@ -124,7 +138,7 @@ const eslintConfig = defineConfig([
       ],
       "no-restricted-imports": [
         "error",
-        { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN] },
+        { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN, SENTRY_PATTERN] },
       ],
     },
   },
@@ -132,19 +146,35 @@ const eslintConfig = defineConfig([
   {
     files: ["src/lib/utils.ts"],
     rules: {
-      "no-restricted-imports": ["error", { paths: ENV_IMPORT_PATHS }],
+      "no-restricted-imports": [
+        "error",
+        { paths: ENV_IMPORT_PATHS, patterns: [SENTRY_PATTERN] },
+      ],
+    },
+  },
+  // Points d'intégration Sentry côté serveur, et tests (mocks) : @sentry/* autorisé.
+  {
+    files: [
+      "src/instrumentation.ts",
+      "src/sentry.server.config.ts",
+      "src/lib/logger/index.ts",
+      "src/**/*.test.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN] },
+      ],
     },
   },
   // Code exécuté dans le navigateur ou partagé avec lui (plan P0-06) : src/lib/env.ts est réservé
   // au serveur ; le navigateur lit sa configuration par public-config.ts (compiler.define).
+  // Points d'intégration Sentry côté navigateur ou isomorphes : @sentry/* autorisé.
   {
     files: [
       "src/instrumentation-client.ts",
       "src/app/global-error.tsx",
       "src/lib/observability/**/*.ts",
-      "src/lib/logger/redact.ts",
-      "src/lib/logger/serialize-error.ts",
-      "src/lib/logger/logger.ts",
     ],
     ignores: ["**/*.test.ts"],
     rules: {
@@ -152,15 +182,23 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: ENV_IMPORT_PATHS,
-          patterns: [
-            CN_PATTERN,
-            {
-              // …/env, …/lib/env, ../logger, @/lib/logger, …/logger/index (pas …/logger/redact).
-              regex: "(^|/)(env|logger(/index)?)$",
-              message:
-                "Code client ou isomorphe : ni src/lib/env.ts ni le logger serveur (@/lib/logger) ; configuration navigateur via @/lib/observability/public-config.",
-            },
-          ],
+          patterns: [CN_PATTERN, SERVER_ONLY_PATTERN],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/lib/logger/redact.ts",
+      "src/lib/logger/serialize-error.ts",
+      "src/lib/logger/logger.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [CN_PATTERN, SENTRY_PATTERN, SERVER_ONLY_PATTERN],
         },
       ],
     },
