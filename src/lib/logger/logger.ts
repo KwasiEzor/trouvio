@@ -1,5 +1,5 @@
 import { redact, redactString } from "./redact";
-import { serializeError } from "./serialize-error";
+import { type SerializedError, serializeError } from "./serialize-error";
 
 /**
  * Cœur du logger, pur et isomorphe : niveau, sortie, horloge et signalement sont injectés.
@@ -64,13 +64,24 @@ export function createLogger(options: LoggerOptions): Logger {
     }
   }
 
-  // Un journal ne doit jamais faire échouer l'appelant : chaque étape est protégée.
+  // Un journal ne doit jamais faire échouer l'appelant (souvent un catch) : chaque étape est
+  // protégée, préparation comprise (getter ou Proxy qui lève, contexte null venu de JS).
   function log(level: LogLevel, msg: string, ctx: LogContext = {}): void {
-    const err = "err" in ctx ? ctx["err"] : bindings["err"];
-    const context = { ...redactContext(bindings), ...redactContext(ctx) };
-    const message = redactString(msg);
+    const written = RANK[level] >= RANK[threshold()];
+    // Sous le seuil, seul error() a encore à faire (signalement) : rien n'est lu ni masqué.
+    if (!written && level !== "error") return;
 
-    if (RANK[level] >= RANK[threshold()]) {
+    const message = attempt(() => redactString(msg), UNREADABLE);
+    const err = attempt(
+      () => ("err" in ctx ? ctx["err"] : bindings["err"]),
+      undefined,
+    );
+    const context = attempt(
+      () => ({ ...redactContext(bindings), ...redactContext(ctx) }),
+      UNREADABLE_CONTEXT,
+    );
+
+    if (written) {
       try {
         const entry = {
           time: now().toISOString(),
@@ -79,7 +90,9 @@ export function createLogger(options: LoggerOptions): Logger {
           service: "trouvio",
           runtime: options.runtime,
           ...(Object.keys(context).length > 0 && { ctx: context }),
-          ...(err !== undefined && { err: serializeError(err) }),
+          ...(err !== undefined && {
+            err: attempt(() => serializeError(err), UNREADABLE_ERROR),
+          }),
         };
         options.write(level, JSON.stringify(entry));
       } catch {
@@ -105,6 +118,21 @@ export function createLogger(options: LoggerOptions): Logger {
     child: (more) =>
       createLogger({ ...options, bindings: { ...bindings, ...more } }),
   };
+}
+
+const UNREADABLE = "[Illisible]";
+const UNREADABLE_CONTEXT = { illisible: true };
+const UNREADABLE_ERROR: SerializedError = {
+  name: "NonError",
+  value: UNREADABLE,
+};
+
+function attempt<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
 }
 
 /** Masque le contexte d'origine (pas une copie : un cycle vers lui-même est reconnu) et retire `err`. */
