@@ -18,7 +18,7 @@
 - [x] **P0-03** Testing Library + MSW, Playwright, couverture (Vitest installé en P0-02) ; `pnpm verify` complet. *Accept.* : un test de chaque type passe. Plan : `docs/plans/P0-03.md`.
 - [x] **P0-04** CI GitHub Actions (`ci.yml`, `security.yml`, `codeql.yml`), Dependabot, protection de branche `main` (dépôt public, ADR 0009). *Accept.* : une PR factice déclenche tous les contrôles. Plan : `docs/plans/P0-04.md`.
 - [x] **P0-05** Tailwind + shadcn/ui avec thème issu de `docs/design/tokens.json`, polices Poppins/Work Sans, logos dans `public/brand`. *Accept.* : page `/styleguide` affichant couleurs, typos, boutons. Plan : `docs/plans/P0-05.md`.
-- [ ] **P0-06** `lib/logger` (JSON structuré, sans PII) et Sentry. *Accept.* : une erreur volontaire lancée en local remonte dans le projet Sentry de développement.
+- [x] **P0-06** `lib/logger` (JSON structuré, sans PII) et Sentry. *Accept.* : une erreur volontaire lancée en local remonte dans le projet Sentry de développement.
 **Porte P0** : CI verte sur `main`, aucune alerte de sécurité ouverte.
 
 ## P1 — Données & authentification
@@ -26,7 +26,7 @@
 - [ ] **P1-02** Better Auth (email + mot de passe, lien magique), sessions en base, rôles `user`/`admin`. *Accept.* : inscription, connexion, déconnexion testées en E2E.
 - [ ] **P1-03** Helpers d'autorisation (`requireUser`, `requireAdmin`, requêtes scopées par `userId`). *Accept.* : tests IDOR — un utilisateur ne peut lire/modifier aucune ressource d'un autre.
 - [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429.
-- [ ] **P1-05** En-têtes de sécurité (SECURITY §3) : CSP avec nonce (via `proxy.ts`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`. *Accept.* : test vérifiant chaque en-tête sur une page et une route API ; aucun script autorisé par `unsafe-inline`.
+- [ ] **P1-05** En-têtes de sécurité (SECURITY §3) : CSP avec nonce (via `proxy.ts`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`. *Accept.* : test vérifiant chaque en-tête sur une page et une route API ; aucun script autorisé par `unsafe-inline`. *Note P0-06* : Sentry navigateur exige `connect-src https://o<id>.ingest.de.sentry.io` (ou `tunnelRoute` fixe exclu du `matcher` de `proxy.ts`) ; `requestId` transmis au logger par `child()`.
 **Porte P1** : tests d'autorisation verts, revue `security-reviewer` sans point bloquant.
 
 ## P2 — Collecte des offres
@@ -54,9 +54,9 @@
 - [ ] **P4-04** Idempotence des envois (`deliveries`). *Accept.* : double exécution → un seul message.
 
 ## P5 — Orchestration
-- [ ] **P5-01** `runDailyJob()` (orchestration collecte → scoring → digest) + point d'entrée CLI `pnpm job:run`, verrou `pg_advisory_lock` (ADR 0008). *Accept.* : test d'intégration de bout en bout avec sources et LLM simulés ; un second lancement concurrent s'arrête sans rien faire.
+- [ ] **P5-01** `runDailyJob()` (orchestration collecte → scoring → digest) + point d'entrée CLI `pnpm job:run`, verrou `pg_advisory_lock` (ADR 0008). *Accept.* : test d'intégration de bout en bout avec sources et LLM simulés ; un second lancement concurrent s'arrête sans rien faire. *Note P0-06* : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `flush` avant la sortie ; `process.exitCode = 1` plutôt que `process.exit()` (sur un pipe, stdout est asynchrone et la dernière ligne serait perdue) ; journaux Actions publics = agrégats seulement (ARCHITECTURE §9).
 - [ ] **P5-02** Workflow `daily-job.yml` : exécution quotidienne de `pnpm job:run` dans GitHub Actions + déclenchement manuel, secrets dans un environnement GitHub `production` limité à ce workflow. *Accept.* : exécution planifiée réussie, aucun secret dans les journaux du workflow.
-- [ ] **P5-03** Observabilité du job (`job_runs`, alertes Sentry en cas d'échec). *Accept.* : échec simulé d'une source → alerte, les autres sources continuent.
+- [ ] **P5-03** Observabilité du job (`job_runs`, alertes Sentry en cas d'échec). *Accept.* : échec simulé d'une source → alerte, les autres sources continuent. *Note P0-06* : une capture par source et par exécution (quota gratuit de 5 000 erreurs/mois) ; un `logger.error` sans `err` s'intitule « Object.message » dans Sentry : lui donner une empreinte (`fingerprint`) par message.
 **Porte P5 = Jalon M1** : 7 jours consécutifs de digest sans intervention → **début de l'auto-test (2 semaines)**, ajustement du prompt (v2) à partir des retours.
 
 ## P6 — Application web (espace connecté)
@@ -87,7 +87,7 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 
 ## P10 — Durcissement & lancement
 - [ ] **P10-01** Audit sécurité final (`/security-audit`), correction de tous les points hauts.
-- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy ; point d'entrée qui valide l'environnement avant `server.js` (ARCHITECTURE §8). *Accept.* : conteneur lancé sans `APP_URL` → sortie code 1, noms des variables manquantes affichés sans valeur.
+- [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy ; point d'entrée qui valide l'environnement avant `server.js` (ARCHITECTURE §8). *Accept.* : conteneur lancé sans `APP_URL` → sortie code 1, noms des variables manquantes affichés sans valeur. *Note P0-06* : `SENTRY_DSN` présent au build (figé dans le bundle navigateur) ; projet Sentry de production ; upload des source maps avec un jeton de build réservé à la production (`sourcemaps.disable` à revoir) ; dans ce projet, *Allowed Domains* limités au domaine de l'app et filtres entrants (localhost, navigateurs anciens) ; rétention courte des journaux Docker (Next y écrit les erreurs serveur brutes, hors logger) ; `user.geo` (ville) déduit par Sentry de l'IP de connexion malgré « IP non stockées » : règle de nettoyage avancée sur `$user.geo`, vérifiée par un essai.
 - [ ] **P10-03** Sauvegardes (Neon PITR + export), runbook incident (`docs/RUNBOOK.md`).
 - [ ] **P10-04** Tests de charge légers (100 utilisateurs simulés sur le job quotidien).
 - [ ] **P10-05** Route `POST /api/cron/run` sur le serveur déployé (secret, temps constant, même verrou que `pnpm job:run`) et décision d'y basculer le job ou de le garder dans GitHub Actions (ADR 0008). *Accept.* : 401 sans secret, 409 si déjà en cours.

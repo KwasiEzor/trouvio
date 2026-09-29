@@ -1,1 +1,2 @@
 - [Faits revue env P0-02](project_env-review-facts.md) — standalone ignore next.config.ts ; contournements ESLint/hook ; tests sentinelles sans fichier de secrets
+- [Vecteurs Sentry v11](project_sentry-v11-leak-vectors.md) — sessions, logs sans garde, env SENTRY_*, request_path avec query ; hors beforeSend

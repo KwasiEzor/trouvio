@@ -15,6 +15,6 @@ paths:
 - Route publique (auth, contact, webhooks) = rate limiting + test de dépassement (429).
 - `/api/cron/run` : Bearer `CRON_SECRET` comparé à temps constant, verrou anti-exécution concurrente (409).
 - Webhooks : signature vérifiée, traitement idempotent.
-- Jamais d'email, token, contenu de profil dans les logs ; identifiants pseudonymes.
+- Jamais d'email, token, contenu de profil dans les logs ; identifiants pseudonymes. Journaliser via `@/lib/logger` ; `logger.error` signale à Sentry (journaliser OU relancer, pas les deux). Jamais d'import direct de `@sentry/*` hors des points d'intégration (ESLint) ; `Sentry.setUser({ id })` uniquement, jamais d'email.
 - Chaque route ajoute des tests négatifs : non authentifié, autre utilisateur (IDOR), entrée invalide.
 - Checklist `docs/SECURITY.md` §5 obligatoire ; faire passer le sous-agent `security-reviewer`.

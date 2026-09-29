@@ -23,6 +23,8 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 180_000,
     // `next start` exige APP_URL en production (src/lib/env.ts) ; aucun fichier .env n'est lu ni créé.
-    env: { APP_URL: BASE_URL },
+    // SENTRY_DSN vide : Next ne remplace pas une variable déjà définie, donc un DSN du fichier
+    // local de l'utilisateur n'active jamais Sentry pendant les E2E (observabilite.spec.ts).
+    env: { APP_URL: BASE_URL, SENTRY_DSN: "" },
   },
 });
