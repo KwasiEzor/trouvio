@@ -157,6 +157,19 @@ check allow guard-bash.sh "boucle \${c}:chemin"        "$(bash_ev 'for c in $(gi
 check allow guard-bash.sh "awk -F et sed -E"           "$(bash_ev "awk -F'\\t' '{print \$3}' x.log | sed -E 's/^.?[0-9]{4}-[0-9TZ:.-]+ //' | cut -c1-9")"
 check deny  guard-bash.sh "grep -r dans \"\$(…)\""     "$(bash_ev 'echo "$(grep -rn KEY .)"')"
 check deny  guard-bash.sh "joker dans \"\$(…)\""       "$(bash_ev 'echo "$(cat .e*)"')"
+# Revue sécurité P0-07 : casse (APFS l'ignore) et désynchronisation du suivi des guillemets.
+EU="$(printf '%s' "$E" | tr '[:lower:]' '[:upper:]')"; EUL="$EU.LOCAL"
+check deny  guard-bash.sh "casse : cat $EUL"          "$(bash_ev "cat $EUL")"
+check deny  guard-bash.sh "casse : nom reconstruit"   "$(bash_ev 'f=.EN; cat ${f}V.LOCAL')"
+check deny  guard-bash.sh "here-string puis grep -r"  "$(bash_ev "$(printf 'cat <<<x\ngrep -rn KEY .')")"
+check deny  guard-bash.sh "apostrophe en commentaire puis grep -r" "$(bash_ev "$(printf "echo x # l'agent\ngrep -rn KEY .")")"
+check deny  guard-bash.sh "\$'…\\'…' puis joker"       "$(bash_ev "echo \$'a\\'b' .e*")"
+check deny  guard-bash.sh "joker entre backticks"     "$(bash_ev 'echo "`cat .e*`"')"
+check deny  guard-bash.sh "guillemet jamais fermé"    "$(bash_ev "$(printf "echo 'abc\ngrep -rn KEY .")")"
+check deny  guard-bash.sh "heredoc jamais fermé"      "$(bash_ev "$(printf 'cat <<FIN\ngrep -rn KEY .')")"
+check allow guard-bash.sh "commentaire en fin de commande" "$(bash_ev "git log -1 # l'historique")"
+check allow guard-bash.sh "here-string légitime"      "$(bash_ev 'grep -c x <<<"$out"')"
+check allow guard-bash.sh "\$'…' légitime"             "$(bash_ev "printf \$'a\\tb\\n'")"
 
 # --- guard-files ---
 check deny  guard-files.sh "Read $EL"                 "$(file_ev Read "$EL")"
@@ -180,6 +193,10 @@ check deny  guard-files.sh "Grep glob **/.e*"         "$(grep_ev "$ROOT" '**/.e*
 check allow guard-files.sh "Grep glob *.ts dans src"  "$(grep_ev "$ROOT/src" '*.ts')"
 check allow guard-files.sh "Grep sur src"             "$(grep_ev "$ROOT/src" '')"
 check allow guard-files.sh "Grep glob **/*.{ts,tsx}"  "$(grep_ev "$ROOT" '**/*.{ts,tsx}')"
+check deny  guard-files.sh "Grep glob [.]env*"        "$(grep_ev "$ROOT" '[.]env*')"
+check deny  guard-files.sh "Grep glob {.,}env*"       "$(grep_ev "$ROOT" '{.,}env*')"
+check deny  guard-files.sh "casse : Read $EUL"        "$(file_ev Read "$EUL")"
+check deny  guard-files.sh "casse : Grep sur $EUL"    "$(grep_ev "$ROOT/$EUL" '')"
 # Lien symbolique vers un fichier d'environnement (faux fichier vide, dossier temporaire).
 LIENS="$(mktemp -d)"; : > "$LIENS/$E.sonde"; ln -s "$LIENS/$E.sonde" "$LIENS/lien-anodin"
 check deny  guard-files.sh "Read d'un lien vers $E.sonde" "$(jq -n --arg f "$LIENS/lien-anodin" '{tool_name:"Read",tool_input:{file_path:$f}}')"

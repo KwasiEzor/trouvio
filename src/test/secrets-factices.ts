@@ -24,3 +24,12 @@ export function fauxCleAnthropic(): string {
 export function fauxCleResend(): string {
   return ["re", "a".repeat(8), "b".repeat(24)].join("_");
 }
+
+export function fauxMotDePasseNeon(): string {
+  return ["npg", "a1".repeat(8)].join("_");
+}
+
+export function fausseUrlPostgres(): string {
+  const identifiants = ["app", `${"p".repeat(6)}42`].join(":");
+  return `postgresql://${identifiants}@ep-essai-123.eu-central-1.aws.neon.tech/trouvio`;
+}

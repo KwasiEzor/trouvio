@@ -1,5 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +16,8 @@ import {
   fauxCleResend,
   fauxJetonTelegram,
   fauxJwt,
+  fauxMotDePasseNeon,
+  fausseUrlPostgres,
 } from "./secrets-factices";
 
 const RACINE = new URL("../../", import.meta.url);
@@ -111,8 +122,33 @@ describe("littéraux de secrets dans le dépôt", () => {
     expect(formatsReconnus(fauxJwt())).toEqual(["JWT"]);
     expect(formatsReconnus(fauxCleAnthropic())).toEqual(["clé Anthropic"]);
     expect(formatsReconnus(fauxCleResend())).toEqual(["clé Resend"]);
-    expect(
-      formatsReconnus("aucun secret ici, cle@o1.ingest.de.sentry.io"),
-    ).toEqual([]);
+    expect(formatsReconnus(fauxMotDePasseNeon())).toEqual([
+      "mot de passe Neon",
+    ]);
+    expect(formatsReconnus(fausseUrlPostgres())).toEqual([
+      "URL Postgres avec mot de passe",
+    ]);
+  });
+
+  it.each([
+    "aucun secret ici, cle@o1.ingest.de.sentry.io",
+    "postgresql://app:mdp-secret@hote.example/db",
+    "postgresql://UTILISATEUR:MOT_DE_PASSE@HOTE/BASE?sslmode=require",
+    "postgres://app:motdepasse1@localhost:5432/trouvio",
+  ])("ne signale pas une valeur d'exemple : %s", (texte) => {
+    expect(formatsReconnus(texte)).toEqual([]);
+  });
+
+  it("ne suit pas un lien symbolique (il pourrait viser un fichier d'environnement)", () => {
+    const dossier = mkdtempSync(join(tmpdir(), "litteraux-"));
+    try {
+      writeFileSync(join(dossier, "cible.txt"), "contenu");
+      symlinkSync(join(dossier, "cible.txt"), join(dossier, "lien.txt"));
+      const racine = pathToFileURL(`${dossier}/`);
+      expect(lire("cible.txt", racine)).toBe("contenu");
+      expect(lire("lien.txt", racine)).toBeUndefined();
+    } finally {
+      rmSync(dossier, { recursive: true, force: true });
+    }
   });
 });
