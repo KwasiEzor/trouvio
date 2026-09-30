@@ -55,6 +55,23 @@ check ask   guard-bash.sh "DROP TABLE"                "$(bash_ev 'psql -c "DROP 
 check deny  guard-bash.sh "npm install"               "$(bash_ev 'npm install zod')"
 check allow guard-bash.sh "pnpm verify"               "$(bash_ev 'pnpm verify')"
 
+# --- guard-bash : jetons et trousseau (P0-08) ---
+# Le bac à sable laisse le trousseau joignable (git et gh en ont besoin) : le hook refuse d'en extraire.
+check deny  guard-bash.sh "gh auth token"             "$(bash_ev 'gh auth token')"
+check deny  guard-bash.sh "gh auth token --hostname"  "$(bash_ev 'gh auth token --hostname github.com')"
+check deny  guard-bash.sh "gh \"auth\" token"         "$(bash_ev 'gh "auth" token')"
+check deny  guard-bash.sh "gh auth status -t"         "$(bash_ev 'gh auth status -t')"
+check deny  guard-bash.sh "gh auth status --show-token" "$(bash_ev 'gh auth status --hostname github.com --show-token')"
+check deny  guard-bash.sh "security find-generic -w"  "$(bash_ev 'security find-generic-password -s gh:github.com -w')"
+check deny  guard-bash.sh "security find-internet"    "$(bash_ev '/usr/bin/security find-internet-password -s github.com -w')"
+check deny  guard-bash.sh "security dump-keychain"    "$(bash_ev 'security dump-keychain -d login.keychain')"
+check deny  guard-bash.sh "git credential fill"       "$(bash_ev 'printf "protocol=https\nhost=github.com\n" | git credential fill')"
+check deny  guard-bash.sh "credential-osxkeychain get" "$(bash_ev 'echo host=github.com | git credential-osxkeychain get')"
+check allow guard-bash.sh "gh auth status"            "$(bash_ev 'gh auth status')"
+check allow guard-bash.sh "gh pr view 12"             "$(bash_ev 'gh pr view 12')"
+check allow guard-bash.sh "security find-certificate" "$(bash_ev 'security find-certificate -a -c Apple')"
+check allow guard-bash.sh "sondes du bac à sable"     "$(bash_ev 'bash scripts/test-sandbox.sh')"
+
 # --- guard-bash : lectures indirectes des secrets et exécution détournée (P0-07) ---
 # Le hook est un filet contre les formes plausibles ; la frontière sera le bac à sable (P0-08).
 check deny  guard-bash.sh "grep -rn ."                "$(bash_ev 'grep -rn SENTRY_DSN .')"
