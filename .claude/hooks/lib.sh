@@ -33,6 +33,22 @@ rel_path() {
   esac
 }
 
+# Fichiers TypeScript modifiés (suivis ou nouveaux) par rapport à HEAD, hors node_modules et .next.
+# Git seulement : les hooks tournent hors du bac à sable et n'exécutent aucun code du dépôt (ADR 0011).
+changed_ts() {
+  { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard; } \
+    | grep -E '\.(ts|tsx)$' | grep -Ev '^(node_modules|\.next)/' | sort -u
+}
+
+# Empreinte des fichiers TypeScript modifiés (chemin et contenu), notée par scripts/verifie-modifs.sh
+# après une vérification verte et comparée par le hook Stop.
+changes_fingerprint() {
+  local f
+  changed_ts | while IFS= read -r f; do
+    if [[ -f "$f" ]]; then echo "$f $(git hash-object -- "$f")"; else echo "$f supprimé"; fi
+  done | shasum | cut -d' ' -f1
+}
+
 # Vrai si le nom de fichier est un .env secret (tout .env* et .envrc sauf .env.example), sans
 # tenir compte de la casse : APFS (macOS) ouvre .ENV.LOCAL comme .env.local.
 is_secret_env() {

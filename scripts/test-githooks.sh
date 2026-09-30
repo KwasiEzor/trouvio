@@ -3,7 +3,8 @@
 # Usage : bash scripts/test-githooks.sh     (code de sortie ≠ 0 si un cas échoue)
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TMP="$(mktemp -d)"
+# Modèle explicite : sans lui, mktemp de macOS ignore $TMPDIR (seul dossier temporaire du bac à sable).
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/githooks.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 pass=0; fail=0
 

@@ -1,5 +1,57 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": { "NEXT_TELEMETRY_DISABLED": "1", "WATCHPACK_POLLING": "true" },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": false,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/",
+        "./.[eE][nN][vV]*",
+        "./**/.[eE][nN][vV]*",
+        "~/.ssh",
+        "~/.aws",
+        "~/.docker",
+        "~/.netrc"
+      ],
+      "allowRead": [
+        "./",
+        "./.env.example",
+        "~/Library/Application Support/Herd/config/nvm/versions/node",
+        "~/.gitconfig",
+        "~/.config/git",
+        "~/.config/gh",
+        "~/Library/Application Support/vitest",
+        "~/.claude/shell-snapshots",
+        "~/.claude/session-env"
+      ],
+      "denyWrite": [
+        "./.env",
+        "./.env.local",
+        "./.env.*.local",
+        "./.env.development",
+        "./.env.test",
+        "./.env.production",
+        "./.envrc",
+        "./.githooks",
+        "./node_modules/*",
+        "./node_modules/.bin",
+        "./node_modules/.pnpm",
+        "./node_modules/.modules.yaml"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "github.com",
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ],
+      "allowLocalBinding": true
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm dev)",
@@ -44,6 +96,7 @@
       "Bash(awk *)",
       "Bash(bash scripts/test-hooks.sh*)",
       "Bash(bash scripts/test-githooks.sh*)",
+      "Bash(bash scripts/test-sandbox.sh*)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:docs.claude.com)",
       "WebFetch(domain:platform.claude.com)",
@@ -135,26 +188,14 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-verify.sh",
-            "timeout": 300,
-            "statusMessage": "Typecheck + tests liés…"
+            "timeout": 10,
+            "statusMessage": "Vérification à jour ?"
           }
         ]
       }
