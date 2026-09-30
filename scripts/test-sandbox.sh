@@ -139,6 +139,7 @@ must_pass "git lit ~/.gitconfig" 'git config --global --get user.name'
 echo "--- Confinement (doit échouer)"
 must_fail "lecture du dossier personnel (~)" 'ls "$HOME"'
 must_fail "lecture de ~/.zshrc" 'cat "$HOME/.zshrc"'
+must_fail "trousseau de session invisible (aucun jeton joignable)" 'security default-keychain'
 if listed "$UPPER_LOCAL"; then
   echo "SAUTÉ   $UPPER_LOCAL existe déjà"
 else

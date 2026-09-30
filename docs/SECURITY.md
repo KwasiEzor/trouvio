@@ -79,13 +79,13 @@ Workflows : permissions en lecture seule par défaut, actions épinglées par SH
 ## 7. Bac à sable de Claude Code (P0-08, ADR 0011)
 **Réglages** (`.claude/settings.json`, bloc `sandbox`) :
 - actif, refus de démarrer sans lui, aucune commande hors bac à sable, aucune approbation automatique ;
-- lecture : tout `~` refusé, puis rouvert au plus juste (projet, runtime Node, config git et `gh`, jeton de Vitest, shell de Claude) ; `.env*` du projet refusés à tout niveau, sauf `.env.example` ;
+- lecture : tout `~` refusé, puis rouvert au plus juste (projet, runtime Node, config git et `gh`, jeton de Vitest, shell de Claude) ; `.env*` du projet refusés à tout niveau, sauf `.env.example` ; le trousseau de session est donc invisible : aucun jeton joignable ;
 - écriture : projet et dossier temporaire seulement ; jamais les `.env`, `.githooks`, `node_modules` (paquets, `.bin`, `.pnpm`), ni les chemins protégés d'office (réglages, `hooks`, `skills`, `agents` et `commands` de `.claude`, `.git/hooks`, `.git/config`) ; ni store ni cache pnpm ;
-- réseau : npm, GitHub, Google Fonts et les domaines `WebFetch` autorisés ; tout autre domaine est demandé.
+- réseau : npm, `github.com` (`git fetch`), Google Fonts et les domaines `WebFetch` autorisés ; tout autre domaine est demandé.
 
 Les hooks n'exécutent aucun code du dépôt (bash, jq et git seulement) : le hook Stop exige l'empreinte notée par `scripts/verifie-modifs.sh`, que Claude lance dans le bac à sable.
 
-**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Se lancent dans le terminal de l'utilisateur (jamais par `!`) : un serveur avec de vrais secrets, `pnpm test:e2e` (Chromium incompatible avec Seatbelt) et `pnpm install` / `pnpm add`.
+**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Se lancent dans le terminal de l'utilisateur (jamais par `!`) : un serveur avec de vrais secrets, `pnpm test:e2e` (Chromium incompatible avec Seatbelt), `pnpm install` / `pnpm add`, `git push` et les commandes `gh` (trousseau fermé ; jeton à grain fin limité au dépôt).
 
 Avant de lancer ces commandes :
 - relire `git diff` et `git status` ;
@@ -93,19 +93,18 @@ Avant de lancer ces commandes :
 
 **Aucune session Claude ne modifie le code pendant qu'un processus avec de vrais secrets tourne hors bac à sable** (`next dev` recharge chaque modification).
 
-**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 36 sondes :
+**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 37 sondes :
 - 16 sondes de lecture sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
 - 5 sondes sur `.env.local`, par code de retour seulement ;
 - 5 contre-épreuves, qui doivent réussir ;
-- 10 sondes de confinement : lecture de `~`, création d'un `.env` en majuscules, écriture dans `~`, le store, `node_modules` et les garde-fous, connexion directe.
+- 11 sondes de confinement : lecture de `~`, trousseau invisible, création d'un `.env` en majuscules, écriture dans `~`, le store, `node_modules` et les garde-fous, connexion directe.
 
 Preuve noyau : `sandbox_check` vaut 1 dans le bac à sable.
 
 **Résiduels acceptés :**
-- **trousseau joignable** (git et `gh` en ont besoin) : le code d'un test peut en extraire le jeton `gh` et l'envoyer vers `api.github.com`. Le filet `guard-bash` ne voit que le texte des commandes. Prérequis : jetons `gh` et git **à grain fin, limités au dépôt** ;
 - jeton de Vitest lisible (protège l'interface web de Vitest, inutilisée ici) ;
 - sortie vers tout port localhost (`allowLocalBinding`) : ne pas laisser de port de débogage ouvert ;
-- façade de domaine possible par les domaines `WebFetch`, et `trustd` ouvert pour `gh` : sorties étroites, les secrets restant illisibles ;
+- façade de domaine possible par les domaines `WebFetch`, et push vers un dépôt tiers par `github.com` avec des identifiants apportés : sorties étroites, les secrets restant illisibles ;
 - code exécuté ensuite par l'utilisateur hors bac à sable : règles ci-dessus.
 
 **Sortie de secours** pour une session, par l'utilisateur seulement : `claude --settings '{"sandbox":{"enabled":false}}'`.

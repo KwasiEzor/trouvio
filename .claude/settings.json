@@ -6,7 +6,6 @@
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": false,
     "allowUnsandboxedCommands": false,
-    "enableWeakerNetworkIsolation": true,
     "filesystem": {
       "denyRead": [
         "~/",
@@ -47,7 +46,6 @@
       "allowedDomains": [
         "registry.npmjs.org",
         "github.com",
-        "api.github.com",
         "fonts.googleapis.com",
         "fonts.gstatic.com"
       ],
