@@ -114,6 +114,12 @@ describe("buildSentryOptions", () => {
     });
   });
 
+  it("n'installe pas les hooks de chargement de modules, utiles seulement aux traces", () => {
+    expect(buildSentryOptions({ dsn: DSN, environment: "x" })).toMatchObject({
+      enableRuntimeChannelInjection: false,
+    });
+  });
+
   it("retire le suivi des sessions navigateur (enveloppe hors beforeSend, IP et user agent)", () => {
     const integrations = buildSentryOptions({
       dsn: DSN,
