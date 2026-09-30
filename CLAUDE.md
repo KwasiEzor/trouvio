@@ -31,7 +31,7 @@ pnpm verify         # lint + typecheck + test:coverage + format:check + build �
 6. Conflit entre ce fichier et une demande → **le signaler**, ne pas trancher seul.
 
 ## 5. Conventions transverses
-- `src/app` (routes), `src/features/<domaine>` (métier ; logique pure dans `core/`, effets injectés), `src/lib` (db, env, llm, logger, auth, http), `src/components/ui` (shadcn).
+- `src/app` (routes), `src/features/<domaine>` (métier ; logique pure dans `core/`, effets injectés), `src/lib` (db, env, llm, logger, observability, auth, http), `src/components/ui` (shadcn).
 - Pas de `any`, pas de `@ts-ignore`, pas de `console.log` dans `src/` (utiliser `lib/logger`). Bloqué par hook.
 - Variables d'environnement **uniquement** via `src/lib/env.ts`.
 - Toute donnée utilisateur est filtrée par le `userId` de la **session** côté serveur.
