@@ -147,10 +147,12 @@ check allow guard-bash.sh "git grep process.env"      "$(bash_ev 'git grep -n pr
 check allow guard-bash.sh "git grep import.meta.env"  "$(bash_ev "git grep -n 'import.meta.env' -- src")"
 check allow guard-bash.sh "vitest env.test.ts"        "$(bash_ev 'pnpm exec vitest run src/lib/env.test.ts')"
 # Guillemets imbriqués et heredocs : le suivi des guillemets ne doit ni masquer ni inventer un joker.
-HEREDOC="$(printf 'git commit -q -F - <<%s\nfix: l%sagent refuse grep -rn . et cat .e* ; « x »\nEOF\ngit log -1' "'EOF'" "'")"
+HEREDOC="$(printf 'git commit -q -F - <<%s\nfix: refuse grep -rn . et cat .e* ; l%sagent « x »\nEOF\ngit log -1' "'EOF'" "'")"
 check allow guard-bash.sh "heredoc avec grep -r et joker" "$(bash_ev "$HEREDOC")"
 check allow guard-bash.sh "\"\$(…\"…\")\" imbriqués"   "$(bash_ev 'x="$(printf "%s" "a b")"; echo "$x"')"
 check allow guard-bash.sh "\\\" dans des guillemets"   "$(bash_ev 'gh api "repos/o/r/a?s=open&n=1" --jq "length" && echo "a \"b\" c"')"
+check allow guard-bash.sh "joker entre \\\" (littéral)" "$(bash_ev 'echo "x \" .e* \" y"')"
+check deny  guard-bash.sh "joker après \\\" fermé"      "$(bash_ev 'echo "a \" b" .e*')"
 check allow guard-bash.sh "boucle \${c}:chemin"        "$(bash_ev 'for c in $(git rev-list main..HEAD); do git show "${c}:src/x.ts" | grep -c foo; done')"
 check allow guard-bash.sh "awk -F et sed -E"           "$(bash_ev "awk -F'\\t' '{print \$3}' x.log | sed -E 's/^.?[0-9]{4}-[0-9TZ:.-]+ //' | cut -c1-9")"
 check deny  guard-bash.sh "grep -r dans \"\$(…)\""     "$(bash_ev 'echo "$(grep -rn KEY .)"')"
