@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": { "NEXT_TELEMETRY_DISABLED": "1", "npm_config_store_dir": "~/Library/pnpm/store" },
+  "env": { "NEXT_TELEMETRY_DISABLED": "1", "WATCHPACK_POLLING": "true" },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
@@ -8,8 +8,26 @@
     "allowUnsandboxedCommands": false,
     "enableWeakerNetworkIsolation": true,
     "filesystem": {
-      "denyRead": ["./.[eE][nN][vV]*", "~/.ssh", "~/.aws", "~/.docker", "~/.netrc"],
-      "allowRead": ["./.env.example"],
+      "denyRead": [
+        "~/",
+        "./.[eE][nN][vV]*",
+        "./**/.[eE][nN][vV]*",
+        "~/.ssh",
+        "~/.aws",
+        "~/.docker",
+        "~/.netrc"
+      ],
+      "allowRead": [
+        "./",
+        "./.env.example",
+        "~/Library/Application Support/Herd/config/nvm/versions/node",
+        "~/.gitconfig",
+        "~/.config/git",
+        "~/.config/gh",
+        "~/Library/Application Support/vitest",
+        "~/.claude/shell-snapshots",
+        "~/.claude/session-env"
+      ],
       "denyWrite": [
         "./.env",
         "./.env.local",
@@ -18,9 +36,12 @@
         "./.env.test",
         "./.env.production",
         "./.envrc",
-        "./.githooks"
-      ],
-      "allowWrite": ["~/Library/pnpm/store", "~/Library/Caches/pnpm"]
+        "./.githooks",
+        "./node_modules/*",
+        "./node_modules/.bin",
+        "./node_modules/.pnpm",
+        "./node_modules/.modules.yaml"
+      ]
     },
     "network": {
       "allowedDomains": [

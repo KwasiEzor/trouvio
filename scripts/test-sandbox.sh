@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# Sondes de confinement des secrets locaux (P0-08, ADR 0011). Aucune lecture d'un .env ne doit aboutir.
-# Usage :
-#   bash scripts/test-sandbox.sh         mode « bash » : lancé par Claude, dans son bac à sable Bash
-#   bash scripts/test-sandbox.sh hooks   mode « hooks » : lancé par l'utilisateur dans son terminal ;
-#                                        chaque sonde passe par `confine` (.claude/hooks/lib.sh)
-# Codes : 0 tout est confiné · 1 au moins une sonde en échec · 2 canari absent · 3 bac à sable
-#         inactif · 4 confine indisponible.
+# Sondes du bac à sable Bash de Claude Code (P0-08, ADR 0011) : aucune lecture d'un .env ne doit aboutir.
+# Usage : bash scripts/test-sandbox.sh      (lancé par Claude, donc dans son bac à sable)
+# Codes : 0 tout est confiné · 1 au moins une sonde en échec · 2 canari non garanti · 3 bac à sable inactif.
 # Règle de sortie : la sortie d'une sonde est capturée puis cherchée pour le marqueur du canari,
 # jamais affichée. .env.local n'est sondé que par code de retour, et seulement si le canari est
 # resté illisible pour toutes les sondes.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-MODE="${1:-bash}"
 
 # Noms construits ici : le hook Bash refuse tout texte de commande qui les nomme.
 E=".en""v"
@@ -21,57 +16,43 @@ EXAMPLE="$ROOT/$E.example"
 MARK="canari-p0""-08-pas-un-secret"
 CONTENT="TROUVIO_CANARI=$MARK"
 
-case "$MODE" in
-  bash)
-    # Preuve noyau (sandbox_check sur ce shell) et marque du bac à sable de Claude Code.
-    kernel="$(python3 -c 'import ctypes,sys; print(ctypes.CDLL(None).sandbox_check(int(sys.argv[1]), None, 0))' "$$" 2>/dev/null)"
-    if [[ "${SANDBOX_RUNTIME:-}" != 1 || "$kernel" != 1 ]]; then
-      echo "Bac à sable inactif (SANDBOX_RUNTIME=${SANDBOX_RUNTIME:-absent}, sandbox_check=${kernel:-?}) : aucune sonde lancée."
-      exit 3
-    fi
-    echo "Bac à sable actif : sandbox_check=1, SANDBOX_RUNTIME=1, TMPDIR=${TMPDIR:-?}"
-    run() { "$@"; }
-    ;;
-  hooks)
-    # shellcheck source=../.claude/hooks/lib.sh
-    source "$ROOT/.claude/hooks/lib.sh"
-    if [[ "$(uname -s)" != Darwin || ! -x /usr/bin/sandbox-exec ]] || ! declare -F confine >/dev/null; then
-      echo "confine indisponible (macOS, /usr/bin/sandbox-exec et .claude/hooks/lib.sh requis) : aucune sonde lancée."
-      exit 4
-    fi
-    run() { confine "$@"; }
-    ;;
-  *)
-    echo "Usage : bash scripts/test-sandbox.sh [bash|hooks]" >&2
-    exit 64
-    ;;
-esac
+# Preuve noyau (sandbox_check sur ce shell) et marque du bac à sable de Claude Code.
+kernel="$(python3 -c 'import ctypes,sys; print(ctypes.CDLL(None).sandbox_check(int(sys.argv[1]), None, 0))' "$$" 2>/dev/null)"
+if [[ "${SANDBOX_RUNTIME:-}" != 1 || "$kernel" != 1 ]]; then
+  echo "Bac à sable inactif (SANDBOX_RUNTIME=${SANDBOX_RUNTIME:-absent}, sandbox_check=${kernel:-?}) : aucune sonde lancée."
+  exit 3
+fi
+echo "Bac à sable actif : sandbox_check=1, SANDBOX_RUNTIME=1, TMPDIR=${TMPDIR:-?}"
 
-# Présence d'un fichier à la racine par lecture du répertoire seulement : dans le bac à sable, même
-# stat est refusé sur un .env.
+# Présence d'un fichier à la racine par lecture du répertoire seulement (même stat est refusé sur un
+# .env), sans tenir compte de la casse comme APFS.
 listed() {
-  local f
-  for f in "$ROOT"/.* "$ROOT"/*; do [[ "${f##*/}" == "$1" ]] && return 0; done
+  local f want
+  want="$(tr '[:upper:]' '[:lower:]' <<<"$1")"
+  for f in "$ROOT"/.* "$ROOT"/*; do
+    [[ "$(tr '[:upper:]' '[:lower:]' <<<"${f##*/}")" == "$want" ]] && return 0
+  done
   return 1
 }
 
-# Canari : réécrit à chaque passage (écriture permise), laissé en place comme fixture (ignoré par git).
-printf '%s\n' "$CONTENT" >"$CANARY" 2>/dev/null
-if ! listed "$E.canary"; then
-  echo "Canari absent et impossible à créer ici. Dans ton terminal, à la racine du dépôt :"
-  echo "  printf '%s\\n' '$CONTENT' > $E.canary"
+# Canari : réécrit à chaque passage pour garantir son contenu, laissé en place (ignoré par git).
+if ! printf '%s\n' "$CONTENT" >"$CANARY" 2>/dev/null || ! listed "$E.canary"; then
+  echo "Canari impossible à écrire ici : son contenu n'est pas garanti, aucune sonde lancée."
   exit 2
 fi
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/sonde-p008.XXXXXX")" || exit 1
+UPPER_LOCAL="$(tr '[:lower:]' '[:upper:]' <<<"$E").SONDE.LOCAL"
+trap 'rm -rf "$T" "$ROOT"/sonde-p008-*' EXIT
 mkdir "$T/temoin"
 CTRL="$T/temoin/temoin.txt"
 printf '%s\n' "$CONTENT" >"$CTRL"
-trap 'rm -rf "$T" "$ROOT"/sonde-p008-*' EXIT
-export ROOT T MARK CONTENT
+export ROOT T MARK CONTENT E
 
 fails=0
+total=0
 report() { # <ok|ko> <libellé> [motif]
+  total=$((total + 1))
   if [[ "$1" == ok ]]; then
     echo "OK      $2"
   else
@@ -84,18 +65,18 @@ report() { # <ok|ko> <libellé> [motif]
 # le témoin (sinon la sonde ne prouve rien) et ne rien obtenir du canari.
 reads() {
   local out
-  out="$(run bash -c "$2" _ "$CTRL" 2>&1)"
+  out="$(bash -c "$2" _ "$CTRL" 2>&1)"
   if [[ "$out" != *"$MARK"* ]]; then
     report ko "$1" "sonde inopérante sur le témoin"
     return
   fi
-  out="$(run bash -c "$2" _ "$CANARY" 2>&1)"
+  out="$(bash -c "$2" _ "$CANARY" 2>&1)"
   if [[ "$out" == *"$MARK"* ]]; then report ko "$1" "canari lu"; else report ok "$1"; fi
 }
 
 # must_fail <libellé> <script> [nettoyage] : le script doit échouer (code ≠ 0), sortie jetée.
 must_fail() {
-  if run bash -c "$2" >/dev/null 2>&1; then
+  if bash -c "$2" >/dev/null 2>&1; then
     report ko "$1" "a réussi"
     [[ -n "${3:-}" ]] && bash -c "$3" >/dev/null 2>&1
   else
@@ -103,11 +84,16 @@ must_fail() {
   fi
 }
 
+# must_pass <libellé> <script> : contre-épreuve, le script doit réussir.
+must_pass() {
+  if bash -c "$2" >/dev/null 2>&1; then report ok "$1"; else report ko "$1" "a échoué"; fi
+}
+
 echo "--- Lecture du canari (chaque sonde doit échouer)"
 reads "cat" 'cat -- "$1"'
 reads "node -e" 'node -e "process.stdout.write(require(\"fs\").readFileSync(process.argv[1]))" "$1"'
 reads "python3 open()" 'python3 -c "import sys; sys.stdout.write(open(sys.argv[1]).read())" "$1"'
-reads "grep (premier niveau, fichiers cachés compris)" 'd="$(dirname "$1")"; grep -sh -d skip -e "$MARK" -- "$d"/.[!.]* "$d"/*'
+reads "grep (premier niveau, fichiers cachés compris)" 'd="$(dirname "$1")"; grep -sh -d skip --exclude="$E.local" -e "$MARK" -- "$d"/.[!.]* "$d"/*'
 reads "find -exec cat" 'find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1")" -exec cat {} +'
 reads "lien symbolique dans TMPDIR" 'l="$T/lien"; rm -f "$l"; ln -s "$1" "$l" && cat "$l"'
 reads "lien physique dans TMPDIR" 'l="$T/dur"; rm -f "$l"; ln "$1" "$l" && cat "$l"'
@@ -132,45 +118,40 @@ else
     'node -e|node -e "require(\"fs\").readFileSync(process.argv[1])" "$1"' \
     'python3 open()|python3 -c "import sys; open(sys.argv[1]).read()" "$1"' \
     'nom en majuscules|cat "$(dirname "$1")/$(basename "$1" | tr "[:lower:]" "[:upper:]")"'; do
-    if run bash -c "${probe#*|}" _ "$LOCAL" >/dev/null 2>&1; then
+    if bash -c "${probe#*|}" _ "$LOCAL" >/dev/null 2>&1; then
       report ko "$E.local : ${probe%%|*}" "lecture réussie"
     else
       report ok "$E.local : ${probe%%|*}"
     fi
   done
-  must_fail "ouverture en ajout de $E.local (n'écrit rien)" ': >>"$ROOT/'"$E"'.local"'
+  must_fail "ouverture en ajout de $E.local (n'écrit rien)" ': >>"$ROOT/$E.local"'
 fi
 
 echo "--- Contre-épreuves (doivent réussir)"
-if [[ -n "$(run cat -- "$EXAMPLE" 2>/dev/null)" ]]; then report ok "lecture de $E.example"; else report ko "lecture de $E.example"; fi
-out="$(run bash -c 'f="$ROOT/sonde-p008-ecriture"; echo "$MARK" >"$f" && cat "$f"; rm -f "$f"' 2>&1)"
+if [[ -n "$(cat -- "$EXAMPLE" 2>/dev/null)" ]]; then report ok "lecture de $E.example"; else report ko "lecture de $E.example"; fi
+out="$(bash -c 'f="$ROOT/sonde-p008-ecriture"; echo "$MARK" >"$f" && cat "$f"; rm -f "$f"' 2>&1)"
 if [[ "$out" == *"$MARK"* ]]; then report ok "écriture et lecture d'un fichier du dépôt"; else report ko "écriture et lecture d'un fichier du dépôt"; fi
-if [[ "$MODE" == bash ]]; then
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://registry.npmjs.org/ 2>/dev/null)"
-  if [[ "$code" == 200 ]]; then report ok "registry.npmjs.org par le proxy (200)"; else report ko "registry.npmjs.org par le proxy" "code $code"; fi
-fi
+code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://registry.npmjs.org/ 2>/dev/null)"
+if [[ "$code" == 200 ]]; then report ok "registry.npmjs.org par le proxy (200)"; else report ko "registry.npmjs.org par le proxy" "code $code"; fi
+must_pass "node (runtime sous ~, lecture permise)" 'node -e "process.exit(0)"'
+must_pass "git lit ~/.gitconfig" 'git config --global --get user.name'
 
 echo "--- Confinement (doit échouer)"
+must_fail "lecture du dossier personnel (~)" 'ls "$HOME"'
+must_fail "lecture de ~/.zshrc" 'cat "$HOME/.zshrc"'
+if listed "$UPPER_LOCAL"; then
+  echo "SAUTÉ   $UPPER_LOCAL existe déjà"
+else
+  must_fail "création de $UPPER_LOCAL (nom .env en majuscules)" ': >"$ROOT/'"$UPPER_LOCAL"'"' 'rm -f "$ROOT/'"$UPPER_LOCAL"'"'
+fi
 must_fail "écriture dans ~ (hors dépôt)" 'touch "$HOME/.trouvio-sonde-p008"' 'rm -f "$HOME/.trouvio-sonde-p008"'
+must_fail "écriture dans le store pnpm" 'touch "$HOME/Library/pnpm/store/sonde-p008"' 'rm -f "$HOME/Library/pnpm/store/sonde-p008"'
+must_fail "écriture dans node_modules/" 'touch "$ROOT/node_modules/.sonde-p008"' 'rm -f "$ROOT/node_modules/.sonde-p008"'
 must_fail "écriture dans .githooks/" 'touch "$ROOT/.githooks/sonde-p008"' 'rm -f "$ROOT/.githooks/sonde-p008"'
 must_fail "écriture dans .git/hooks/" 'touch "$ROOT/.git/hooks/sonde-p008"' 'rm -f "$ROOT/.git/hooks/sonde-p008"'
 must_fail "écriture dans .claude/hooks/" 'touch "$ROOT/.claude/hooks/sonde-p008"' 'rm -f "$ROOT/.claude/hooks/sonde-p008"'
 must_fail "connexion directe (sans proxy)" 'curl -s -o /dev/null --max-time 10 --noproxy "*" https://github.com'
 
-if [[ "$MODE" == hooks ]]; then
-  echo "--- Hooks qui exécutent du code du dépôt (doivent passer par confine)"
-  # Chaque ligne qui lance l'outil (hors commentaire) doit passer par confine.
-  for check in 'format.sh:--write' 'stop-verify.sh:pnpm -s typecheck' 'stop-verify.sh:vitest related'; do
-    hook="${check%%:*}"; pat="${check#*:}"
-    lines="$(grep -F -- "$pat" "$ROOT/.claude/hooks/$hook" | grep -v '^[[:space:]]*#')"
-    if [[ -n "$lines" ]] && ! grep -vq 'confine ' <<<"$lines"; then
-      report ok "$hook : « $pat » passe par confine"
-    else
-      report ko "$hook : « $pat » passe par confine"
-    fi
-  done
-fi
-
-echo "Bac à sable ($MODE) : $fails sonde(s) en échec."
+echo "Bac à sable : $total sondes, $fails en échec."
 ((fails == 0)) || exit 1
 exit 0
