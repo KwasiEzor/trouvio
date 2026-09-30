@@ -70,6 +70,9 @@ export function buildSentryOptions({ dsn, environment }: SentryConfigInput) {
     // que le SDK lirait sinon hors env.ts. Ignorés par le navigateur.
     includeServerName: false,
     spotlight: false,
+    // Serveur : aucun hook de chargement de modules (diagnostics channels), qui ne servent qu'aux
+    // spans. Leur installation échoue sous Next (dev comme start) et le SDK l'annonce au démarrage.
+    enableRuntimeChannelInjection: false,
     integrations: (defaults: Integration[]) =>
       defaults.filter(({ name }) => !DROPPED_INTEGRATIONS.has(name)),
     // Pas de traces en P0 (plan P0-06, D5) ; jamais d'en-têtes sentry-trace vers les API tierces.
