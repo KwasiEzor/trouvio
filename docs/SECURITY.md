@@ -19,7 +19,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Fuite des secrets du job | Workflow GitHub Actions qui exécute le job (ADR 0008) | Environnement GitHub `production` limité au workflow du job, aucun secret exposé aux PR ni aux forks, pas d'`echo` de variables, journaux relus |
 | Explosion des coûts IA | Boucle, abus | Filtre dur avant IA, plafonds par utilisateur/jour, alerte admin |
 | Brute force / spam | Formulaires auth/contact | Rate limiting, lien magique à usage unique et expirant |
-| Fuite de secrets | Commit, logs, lecture par l'agent | Push protection GitHub (blocage au push, motifs des fournisseurs seulement), gitleaks en CI (motifs génériques compris, après le push), test de garde des littéraux de secrets (`src/test/litteraux-secrets.test.ts`, faux secrets fabriqués à l'exécution), logger sans PII ni secrets. `.env*` : la **frontière** est le bac à sable Bash de Claude Code (Seatbelt, ADR 0011), qui confine chaque commande et ses descendants, et `confine` pour les hooks qui exécutent du code du dépôt ; les hooks de Claude restent le **filet** (lecture directe, jokers sur fichiers cachés, recherche récursive, noms reconstruits, extraction du trousseau). Voir §7 |
+| Fuite de secrets | Commit, logs, lecture par l'agent | Push protection GitHub (blocage au push, motifs des fournisseurs seulement), gitleaks en CI (motifs génériques compris, après le push), test de garde des littéraux de secrets (`src/test/litteraux-secrets.test.ts`, faux secrets fabriqués à l'exécution), logger sans PII ni secrets. `.env*` : la **frontière** est le bac à sable Bash de Claude Code (Seatbelt, ADR 0011), qui confine chaque commande et ses descendants et refuse aussi la lecture du dossier personnel ; les hooks n'exécutent aucun code du dépôt ; ils restent le **filet** (lecture directe, jokers sur fichiers cachés, recherche récursive, noms reconstruits, extraction du trousseau). Voir §7 |
 | Dépendance compromise | Supply chain | Lockfile, `minimumReleaseAge` 24 h, `strictDepBuilds`, Dependabot (délai 7 j), `pnpm audit`, dependency-review, CodeQL |
 | Webhooks falsifiés | Stripe/Telegram | Vérification de signature/secret, idempotence |
 | Fuite par l'outil de suivi d'erreurs | Événement Sentry (requête, cookies, variables locales, messages) | `dataCollection` minimal posé explicitement, `beforeSend`/`beforeBreadcrumb` qui masquent, ni replay ni traces, scrubbers du projet Sentry, région UE (ADR 0010) |
@@ -79,25 +79,33 @@ Workflows : permissions en lecture seule par défaut, actions épinglées par SH
 ## 7. Bac à sable de Claude Code (P0-08, ADR 0011)
 **Réglages** (`.claude/settings.json`, bloc `sandbox`) :
 - actif, refus de démarrer sans lui, aucune commande hors bac à sable, aucune approbation automatique ;
-- lecture refusée : `.env*` sauf `.env.example`, `~/.ssh`, `~/.aws`, `~/.docker`, `~/.netrc` ;
-- écriture refusée : les `.env` et `.githooks`, en plus des chemins protégés d'office (réglages, `hooks`, `skills`, `agents` et `commands` de `.claude`, `.git/hooks`, `.git/config`) ;
+- lecture : tout `~` refusé, puis rouvert au plus juste (projet, runtime Node, config git et `gh`, jeton de Vitest, shell de Claude) ; `.env*` du projet refusés à tout niveau, sauf `.env.example` ;
+- écriture : projet et dossier temporaire seulement ; jamais les `.env`, `.githooks`, `node_modules` (paquets, `.bin`, `.pnpm`), ni les chemins protégés d'office (réglages, `hooks`, `skills`, `agents` et `commands` de `.claude`, `.git/hooks`, `.git/config`) ; ni store ni cache pnpm ;
 - réseau : npm, GitHub, Google Fonts et les domaines `WebFetch` autorisés ; tout autre domaine est demandé.
 
-Les hooks qui exécutent du code du dépôt passent par `confine` (`sandbox-exec`, profil dans `.claude/hooks/lib.sh`).
+Les hooks n'exécutent aucun code du dépôt (bash, jq et git seulement) : le hook Stop exige l'empreinte notée par `scripts/verifie-modifs.sh`, que Claude lance dans le bac à sable.
 
-**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Un serveur avec de vrais secrets, ainsi que `pnpm test:e2e` (Chromium incompatible avec Seatbelt), se lancent dans le terminal de l'utilisateur, **après relecture de `git diff`**.
+**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Se lancent dans le terminal de l'utilisateur (jamais par `!`) : un serveur avec de vrais secrets, `pnpm test:e2e` (Chromium incompatible avec Seatbelt) et `pnpm install` / `pnpm add`.
 
-**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox`, des hooks ou d'une version de Claude Code :
-- 30 sondes sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
-- `.env.local` sondé par code de retour seulement ;
-- contre-épreuves (`.env.example`, écriture dans le dépôt, registre npm par le proxy) et confinement (écriture hors dépôt, dans les garde-fous, connexion directe).
+Avant de lancer ces commandes :
+- relire `git diff` et `git status` ;
+- supprimer `.next`.
 
-Le mode `hooks`, lancé par l'utilisateur, vérifie `confine` et le branchement des hooks. Preuve noyau : `sandbox_check` vaut 1 dans le bac à sable.
+**Aucune session Claude ne modifie le code pendant qu'un processus avec de vrais secrets tourne hors bac à sable** (`next dev` recharge chaque modification).
+
+**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 36 sondes :
+- 16 sondes de lecture sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
+- 5 sondes sur `.env.local`, par code de retour seulement ;
+- 5 contre-épreuves, qui doivent réussir ;
+- 10 sondes de confinement : lecture de `~`, création d'un `.env` en majuscules, écriture dans `~`, le store, `node_modules` et les garde-fous, connexion directe.
+
+Preuve noyau : `sandbox_check` vaut 1 dans le bac à sable.
 
 **Résiduels acceptés :**
-- trousseau joignable (jeton `gh`) : filet `guard-bash` seulement ; recommandation, un jeton `gh` à grain fin limité au dépôt ;
+- **trousseau joignable** (git et `gh` en ont besoin) : le code d'un test peut en extraire le jeton `gh` et l'envoyer vers `api.github.com`. Le filet `guard-bash` ne voit que le texte des commandes. Prérequis : jetons `gh` et git **à grain fin, limités au dépôt** ;
+- jeton de Vitest lisible (protège l'interface web de Vitest, inutilisée ici) ;
 - sortie vers tout port localhost (`allowLocalBinding`) : ne pas laisser de port de débogage ouvert ;
-- façade de domaine possible par les domaines `WebFetch`, et `trustd` ouvert pour `gh` : sorties étroites, les `.env` restant illisibles ;
-- code exécuté ensuite par l'utilisateur hors bac à sable.
+- façade de domaine possible par les domaines `WebFetch`, et `trustd` ouvert pour `gh` : sorties étroites, les secrets restant illisibles ;
+- code exécuté ensuite par l'utilisateur hors bac à sable : règles ci-dessus.
 
 **Sortie de secours** pour une session, par l'utilisateur seulement : `claude --settings '{"sandbox":{"enabled":false}}'`.

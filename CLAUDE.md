@@ -19,6 +19,7 @@ pnpm test:e2e       # Playwright sur build de production (exigé si un parcours 
 pnpm eval:scoring   # évaluation du prompt de scoring
 pnpm db:generate | db:migrate
 pnpm verify         # lint + typecheck + test:coverage + format:check + build — porte de qualité
+bash scripts/verifie-modifs.sh  # format + typecheck + tests liés ; exigé par le hook Stop si du TS a changé
 ```
 
 ## 4. Boucle de travail (obligatoire)
@@ -43,7 +44,7 @@ pnpm verify         # lint + typecheck + test:coverage + format:check + build �
 - Lire, afficher ou commiter `.env*` (hors `.env.example`), des clés, des tokens.
 - Désactiver un test, un lint, un hook ou une vérification de sécurité pour « faire passer ».
 - `git push --force` sur `main` ; migrations destructives sans plan de retour arrière.
-- Contourner le bac à sable Bash (ADR 0011). Commande refusée par lui, `pnpm test:e2e` ou serveur avec de vrais secrets : demander à l'utilisateur de la lancer dans son terminal.
+- Contourner le bac à sable Bash (ADR 0011). Commande refusée par lui, `pnpm test:e2e`, `pnpm install`/`add` ou serveur avec de vrais secrets : demander à l'utilisateur de la lancer dans son terminal. Ne pas modifier le code pendant qu'un tel serveur tourne.
 
 ## 7. Travailler efficacement avec Claude
 - **Contexte** : une session = une tâche. `/clear` entre deux tâches. Le plan sur disque (`docs/plans/`) et la ROADMAP portent l'état, pas la conversation.
