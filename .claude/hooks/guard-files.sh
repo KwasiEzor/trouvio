@@ -56,8 +56,10 @@ if [[ "$rel" =~ ^prompts/scoring\.v[0-9]+\.md$ ]] && git -C "$PROJECT_DIR" ls-fi
   deny "$rel est une version publiée : créer prompts/scoring.vN+1.md puis lancer /eval-scoring (.claude/rules/llm.md)."
 fi
 
-# Garde-fous eux-mêmes : modification possible mais jamais silencieuse.
-if [[ "$rel" == .claude/hooks/* || "$rel" == .claude/settings.json || "$rel" == .github/workflows/* || "$rel" == .githooks/* ]]; then
+# Garde-fous eux-mêmes, et fichiers d'où Claude Code, git ou l'éditeur exécutent du code hors du bac
+# à sable (serveurs MCP, tâches VS Code, config et hooks git) : modification jamais silencieuse.
+if [[ "$rel" == .claude/hooks/* || "$rel" == .claude/settings.json || "$rel" == .github/workflows/* || "$rel" == .githooks/* \
+  || "$rel" == .mcp.json || "$rel" == .vscode/* || "$rel" == .git/* ]]; then
   ask "Modification d'un garde-fou ($rel) : confirmation humaine requise."
 fi
 

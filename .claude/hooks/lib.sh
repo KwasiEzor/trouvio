@@ -33,43 +33,20 @@ rel_path() {
   esac
 }
 
-# Exécute sous sandbox-exec le code du dépôt qu'un hook lance (Prettier, next typegen, Vitest).
-# Les hooks tournent hors du bac à sable de Claude Code et Claude peut modifier ce code : sans ce
-# confinement, un test ou une config piégés liraient les .env (ADR 0011). Le profil refuse la
-# lecture des .env (hors .env.example) et des secrets du dossier personnel, l'écriture hors du
-# projet et des dossiers temporaires, l'écriture des garde-fous et le réseau hors localhost.
-# Hors macOS (CI), la commande s'exécute telle quelle ; sur macOS sans sandbox-exec, jamais.
-confine() {
-  if [[ "$(uname -s)" != Darwin ]]; then
-    "$@"
-    return
-  fi
-  if [[ ! -x /usr/bin/sandbox-exec ]]; then
-    echo "Hook Trouvio : sandbox-exec introuvable, « $1 » n'est pas exécuté (ADR 0011)." >&2
-    return 126
-  fi
-  /usr/bin/sandbox-exec -p "$(confine_profile)" "$@"
+# Fichiers TypeScript modifiés (suivis ou nouveaux) par rapport à HEAD, hors node_modules et .next.
+# Git seulement : les hooks tournent hors du bac à sable et n'exécutent aucun code du dépôt (ADR 0011).
+changed_ts() {
+  { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard; } \
+    | grep -E '\.(ts|tsx)$' | grep -Ev '^(node_modules|\.next)/' | sort -u
 }
 
-# Profil Seatbelt de confine. La dernière règle qui s'applique l'emporte. Seatbelt compare le chemin
-# canonique : un nom tapé en majuscules (APFS) retombe sur la règle ; la classe [eE][nN][vV] couvre
-# en plus un fichier créé en majuscules.
-confine_profile() {
-  local root home rx
-  root="$(cd "$PROJECT_DIR" && pwd -P)"
-  home="$(cd "$HOME" && pwd -P)"
-  rx="$(printf '%s' "$root" | sed -E 's/[][\.*^$()+?{}|]/\\&/g')"
-  cat <<EOF
-(version 1)
-(allow default)
-(deny file-read* file-write* (regex #"^$rx/\.[eE][nN][vV]"))
-(allow file-read* (literal "$root/.env.example"))
-(deny file-read* (subpath "$home/.ssh") (subpath "$home/.aws") (subpath "$home/.docker") (literal "$home/.netrc"))
-(deny file-write* (require-not (require-any (subpath "$root") (subpath "/private/tmp") (subpath "/private/var/folders") (subpath "/dev"))))
-(deny file-write* (subpath "$root/.claude") (subpath "$root/.githooks") (subpath "$root/.git/hooks") (literal "$root/.git/config"))
-(deny network-outbound (remote ip "*:*"))
-(allow network-outbound (remote ip "localhost:*"))
-EOF
+# Empreinte des fichiers TypeScript modifiés (chemin et contenu), notée par scripts/verifie-modifs.sh
+# après une vérification verte et comparée par le hook Stop.
+changes_fingerprint() {
+  local f
+  changed_ts | while IFS= read -r f; do
+    if [[ -f "$f" ]]; then echo "$f $(git hash-object -- "$f")"; else echo "$f supprimé"; fi
+  done | shasum | cut -d' ' -f1
 }
 
 # Vrai si le nom de fichier est un .env secret (tout .env* et .envrc sauf .env.example), sans

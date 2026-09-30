@@ -109,8 +109,11 @@ fi
 # Trousseau : le bac à sable le laisse joignable (git et gh s'en servent), le hook refuse d'en extraire.
 if has "${S}gh[[:space:]]+auth[[:space:]]+token([[:space:];&|)]|\$)" "$globs" \
   || has "${S}gh[[:space:]]+auth[[:space:]]+status[^;&|]*[[:space:]](--show-token|-[A-Za-z]*t[A-Za-z]*)([[:space:];&|)]|\$)" "$globs" \
-  || has "${S}security[[:space:]]+(find-[a-z-]*password|dump-keychain)([[:space:];&|)]|\$)" "$globs" \
-  || has "${S}git[[:space:]]+credential[[:space:]]+fill|${S}git([[:space:]]+|-)credential-[a-z]+[[:space:]]+get([[:space:];&|)]|\$)" "$globs"; then
+  || has "${S}security([[:space:]]+-[A-Za-z]+)*[[:space:]]+(find-[a-z-]*password|dump-keychain)([[:space:];&|)]|\$)" "$globs" \
+  || has "${S}security([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*[ip][A-Za-z]*([[:space:];&|)]|\$)" "$globs" \
+  || has "${S}git([[:space:]]+(-[cC][[:space:]]*[^[:space:];&|]+|--[^[:space:];&|]+))*[[:space:]]+credential[[:space:]]+fill" "$globs" \
+  || has "${S}git([[:space:]]+(-[cC][[:space:]]*[^[:space:];&|]+|--[^[:space:];&|]+))*([[:space:]]+|-)credential-[a-z]+[[:space:]]+get([[:space:];&|)]|\$)" "$globs" \
+  || has 'GIT_TRACE_REDACT=[^1t]' "$globs"; then
   deny "Extraire un jeton ou un mot de passe du trousseau exposerait un secret (ADR 0011)."
 fi
 
