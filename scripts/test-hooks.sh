@@ -67,6 +67,12 @@ check deny  guard-bash.sh "security find-internet"    "$(bash_ev '/usr/bin/secur
 check deny  guard-bash.sh "security dump-keychain"    "$(bash_ev 'security dump-keychain -d login.keychain')"
 check deny  guard-bash.sh "git credential fill"       "$(bash_ev 'printf "protocol=https\nhost=github.com\n" | git credential fill')"
 check deny  guard-bash.sh "credential-osxkeychain get" "$(bash_ev 'echo host=github.com | git credential-osxkeychain get')"
+check deny  guard-bash.sh "security -q find-…"        "$(bash_ev 'security -q find-generic-password -w -s x')"
+check deny  guard-bash.sh "security -i (stdin)"       "$(bash_ev 'echo dump-keychain | security -i')"
+check deny  guard-bash.sh "git -c … credential fill"  "$(bash_ev 'echo host=github.com | git -c credential.helper=osxkeychain credential fill')"
+check deny  guard-bash.sh "git -C . credential fill"  "$(bash_ev 'echo host=github.com | git -C . credential fill')"
+check deny  guard-bash.sh "GIT_TRACE_REDACT=0"        "$(bash_ev 'GIT_TRACE_REDACT=0 GIT_CURL_VERBOSE=1 git ls-remote origin')"
+check allow guard-bash.sh "git -C . status"           "$(bash_ev 'git -C . status')"
 check allow guard-bash.sh "gh auth status"            "$(bash_ev 'gh auth status')"
 check allow guard-bash.sh "gh pr view 12"             "$(bash_ev 'gh pr view 12')"
 check allow guard-bash.sh "security find-certificate" "$(bash_ev 'security find-certificate -a -c Apple')"
@@ -314,6 +320,53 @@ if jq -e '.hookSpecificOutput.additionalContext | test("Trouvio")' <<<"$out" >/d
 
 # --- stop-verify : ne boucle jamais ---
 if echo '{"stop_hook_active":true}' | "$H/stop-verify.sh"; then pass=$((pass+1)); else fail=$((fail+1)); echo "ÉCHEC stop-verify stop_hook_active"; fi
+
+# --- Hooks sans code du dépôt (ADR 0011) ---
+# Les hooks tournent hors du bac à sable : aucun ne doit lancer de code que Claude peut modifier.
+ok() { if "$@"; then pass=$((pass+1)); else fail=$((fail+1)); echo "ÉCHEC $LIBELLE"; fi; }
+LIBELLE="hooks déclarés = hooks sans code connus"
+declares="$(jq -r '.hooks[][].hooks[].command' "$ROOT/.claude/settings.json" | sed -E 's#.*/\.claude/hooks/##; s#"##g' | sort -u | tr '\n' ' ')"
+ok test "$declares" == "guard-bash.sh guard-code.sh guard-files.sh session-context.sh stop-verify.sh "
+LIBELLE="format.sh supprimé"; ok test ! -e "$H/format.sh"
+
+# Projet factice : chaque outil qui exécuterait du code du dépôt est un bouchon qui note son appel.
+FX="$(mktemp -d "${TMPDIR:-/tmp}/fixture.XXXXXX")"
+mkdir -p "$FX/node_modules/.bin" "$FX/bouchons" "$FX/scripts" "$FX/src"
+for outil in node_modules/.bin/vitest node_modules/.bin/prettier node_modules/.bin/tsc node_modules/.bin/next \
+  bouchons/pnpm bouchons/node bouchons/npx; do
+  printf '#!/usr/bin/env bash\necho "$0 $*" >>"%s/appels"\nexit "${BOUCHON_CODE:-0}"\n' "$FX" >"$FX/$outil"
+  chmod +x "$FX/$outil"
+done
+printf '{"scripts":{"typecheck":"tsc --noEmit"}}\n' >"$FX/package.json"
+printf 'export const a = 1;\n' >"$FX/src/a.ts"
+git -C "$FX" init -q && git -C "$FX" add -A && git -C "$FX" -c user.name=t -c user.email=t@example.com commit -qm init
+printf 'export const a = 2;\n' >"$FX/src/a.ts"
+stop_fx() { echo '{}' | CLAUDE_PROJECT_DIR="$FX" PATH="$FX/bouchons:$PATH" "$H/stop-verify.sh" 2>"$FX/stderr"; }
+
+LIBELLE="stop-verify : TS modifié sans vérification → bloque"; ok test "$(stop_fx; echo $?)" == 2
+LIBELLE="stop-verify : message vers verifie-modifs.sh"; ok grep -q 'scripts/verifie-modifs.sh' "$FX/stderr"
+LIBELLE="stop-verify : n'exécute aucun outil du dépôt"; ok test ! -e "$FX/appels"
+
+# verifie-modifs.sh (lancé par Claude dans le bac à sable) : note l'empreinte seulement en cas de succès.
+verif_fx() { CLAUDE_PROJECT_DIR="$FX" PATH="$FX/bouchons:$PATH" BOUCHON_CODE="$1" bash "$ROOT/scripts/verifie-modifs.sh" >/dev/null 2>&1; }
+LIBELLE="verifie-modifs : échec d'un outil → code ≠ 0"; ok test "$(verif_fx 1; echo $?)" != 0
+LIBELLE="verifie-modifs : échec → pas d'empreinte"; ok test ! -e "$FX/.claude/state/last-green"
+LIBELLE="verifie-modifs : succès → code 0"; ok test "$(verif_fx 0; echo $?)" == 0
+LIBELLE="verifie-modifs : formate, vérifie les types, lance les tests liés"
+ok grep -q 'prettier --write' "$FX/appels"; ok grep -q 'pnpm -s typecheck' "$FX/appels"; ok grep -q 'vitest related' "$FX/appels"
+rm -f "$FX/appels"
+LIBELLE="stop-verify : empreinte à jour → laisse finir"; ok test "$(stop_fx; echo $?)" == 0
+LIBELLE="stop-verify : toujours aucun outil exécuté"; ok test ! -e "$FX/appels"
+printf 'export const a = 3;\n' >"$FX/src/a.ts"
+LIBELLE="stop-verify : nouvelle modification → bloque de nouveau"; ok test "$(stop_fx; echo $?)" == 2
+rm -rf "$FX"
+
+# --- Garde-fous chargés par Claude Code ou par l'éditeur (P0-08) ---
+check ask   guard-files.sh "Edit .mcp.json"           "$(file_ev Edit .mcp.json)"
+check ask   guard-files.sh "Write .vscode/tasks.json" "$(file_ev Write .vscode/tasks.json)"
+check ask   guard-files.sh "Edit .git/config"         "$(file_ev Edit .git/config)"
+check ask   guard-files.sh "Write .git/hooks/pre-commit" "$(file_ev Write .git/hooks/pre-commit)"
+check allow guard-files.sh "Edit scripts/verifie-modifs.sh" "$(file_ev Edit scripts/verifie-modifs.sh)"
 
 echo "Hooks : $pass réussis, $fail en échec."
 ((fail == 0))
