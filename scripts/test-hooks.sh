@@ -255,7 +255,7 @@ check deny  guard-files.sh "Grep glob {.,}env*"       "$(grep_ev "$ROOT" '{.,}en
 check deny  guard-files.sh "casse : Read $EUL"        "$(file_ev Read "$EUL")"
 check deny  guard-files.sh "casse : Grep sur $EUL"    "$(grep_ev "$ROOT/$EUL" '')"
 # Lien symbolique vers un fichier d'environnement (faux fichier vide, dossier temporaire).
-LIENS="$(mktemp -d)"; : > "$LIENS/$E.sonde"; ln -s "$LIENS/$E.sonde" "$LIENS/lien-anodin"
+LIENS="$(mktemp -d "${TMPDIR:-/tmp}/liens.XXXXXX")"; : > "$LIENS/$E.sonde"; ln -s "$LIENS/$E.sonde" "$LIENS/lien-anodin"
 check deny  guard-files.sh "Read d'un lien vers $E.sonde" "$(jq -n --arg f "$LIENS/lien-anodin" '{tool_name:"Read",tool_input:{file_path:$f}}')"
 check deny  guard-files.sh "Grep d'un lien vers $E.sonde" "$(grep_ev "$LIENS/lien-anodin" '')"
 rm -rf "$LIENS"
