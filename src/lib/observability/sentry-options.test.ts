@@ -187,7 +187,9 @@ describe("scrubEvent", () => {
     const propreChemin = scrubEvent({
       type: undefined,
       transaction: "GET /u/jean@example.com",
-      request: { url: "https://trouvio.example/u/jean%40example.com/profil?x=1" },
+      request: {
+        url: "https://trouvio.example/u/jean%40example.com/profil?x=1",
+      },
     });
     expect(propreChemin.request?.url).toBe(
       `https://trouvio.example/u/${REDACTED}/profil`,

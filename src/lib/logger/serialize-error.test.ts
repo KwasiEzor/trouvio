@@ -105,7 +105,11 @@ describe("serializeError", () => {
 
   it.each([
     ["une chaîne", "boum", "boum"],
-    ["un objet", { email: "a@b.example", code: 3 }, { email: REDACTED, code: 3 }],
+    [
+      "un objet",
+      { email: "a@b.example", code: 3 },
+      { email: REDACTED, code: 3 },
+    ],
     ["null", null, null],
   ])(
     "accepte une valeur lancée qui n'est pas une Error : %s",
