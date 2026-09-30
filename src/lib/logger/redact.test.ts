@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fauxCleAnthropic,
+  fauxCleResend,
+  fauxJetonTelegram,
+  fauxJwt,
+} from "@/test/secrets-factices";
+
+import {
   CIRCULAR,
   REDACTED,
   isSensitiveKey,
@@ -67,7 +74,7 @@ describe("redact — clés", () => {
       source: "adzuna",
       headers: { Authorization: "Bearer abc", "X-Api-Key": "k" },
       tentatives: [{ access_token: "t1", status: 401 }],
-      profil: { contact: { email: "kwasi@exemple.fr" } },
+      profil: { contact: { email: "kwasi@example.com" } },
     };
     expect(redact(entree)).toEqual({
       source: "adzuna",
@@ -109,7 +116,7 @@ describe("redact — clés", () => {
   it("peut ne masquer que les valeurs (contextes techniques du SDK)", () => {
     expect(
       redact(
-        { os: { name: "Linux" }, note: "écrire à a@b.fr" },
+        { os: { name: "Linux" }, note: "écrire à a@b.example" },
         { keys: false },
       ),
     ).toEqual({ os: { name: "Linux" }, note: `écrire à ${REDACTED}` });
@@ -118,13 +125,10 @@ describe("redact — clés", () => {
 
 describe("redactString — motifs dans les valeurs", () => {
   it.each([
-    ["email dans une phrase", "échec pour kwasi.ezor+test@exemple.fr hier"],
+    ["email dans une phrase", "échec pour kwasi.ezor+test@example.com hier"],
     ["en-tête Bearer", "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.x.y"],
-    [
-      "JWT seul",
-      "jeton eyJhbGciOi_J9.eyJzdWIiOi_J9.c2lnbmF0dXJlX2ZhY3RpY2VfcG91cl90ZXN0",
-    ],
-    ["clé Anthropic", "clé sk-ant-api03-AbCdEf_123-xyz refusée"],
+    ["JWT seul", `jeton ${fauxJwt()}`],
+    ["clé Anthropic", `clé ${fauxCleAnthropic()} refusée`],
   ])("masque un secret : %s", (_cas, texte) => {
     const resultat = redactString(texte);
     expect(resultat).toContain(REDACTED);
@@ -149,11 +153,14 @@ describe("redactString — motifs dans les valeurs", () => {
   });
 
   it("masque le jeton d'un bot Telegram dans une URL", () => {
+    const jeton = fauxJetonTelegram();
     const resultat = redactString(
-      "https://api.telegram.org/bot123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw/sendMessage",
+      `https://api.telegram.org/bot${jeton}/sendMessage`,
     );
-    expect(resultat).not.toContain("AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw");
-    expect(resultat).toContain("/sendMessage");
+    expect(resultat).not.toContain(jeton.split(":")[1]);
+    expect(resultat).toBe(
+      `https://api.telegram.org/bot${REDACTED}/sendMessage`,
+    );
   });
 
   it.each([
@@ -174,7 +181,7 @@ describe("redactString — motifs dans les valeurs", () => {
     ],
     [
       "email encodé en paramètre",
-      "/connexion?email=jean.dupont%40gmail.com&q=dev",
+      "/connexion?email=jean.dupont%40example.com&q=dev",
       `/connexion?email=${REDACTED}&q=dev`,
     ],
     [
@@ -189,7 +196,7 @@ describe("redactString — motifs dans les valeurs", () => {
     ],
     [
       "email percent-encodé dans un chemin",
-      "/u/jean%40gmail.com/profil",
+      "/u/jean%40example.com/profil",
       `/u/${REDACTED}/profil`,
     ],
     [
@@ -197,11 +204,7 @@ describe("redactString — motifs dans les valeurs", () => {
       "Authorization: Basic dXNlcjpwYXNz",
       `Authorization: Basic ${REDACTED}`,
     ],
-    [
-      "clé Resend",
-      "clé re_123456789abcdefghijKL refusée",
-      `clé ${REDACTED} refusée`,
-    ],
+    ["clé Resend", `clé ${fauxCleResend()} refusée`, `clé ${REDACTED} refusée`],
     [
       "IBAN",
       "virement vers BE71 0961 2345 6769 refusé",
@@ -230,17 +233,17 @@ describe("redactString — motifs dans les valeurs", () => {
   });
 
   it("tronque une chaîne trop longue après masquage", () => {
-    const resultat = redactString(`${"a".repeat(4990)} x@y.fr`);
+    const resultat = redactString(`${"a".repeat(4990)} x@y.test`);
     expect(resultat.length).toBeLessThan(2100);
     expect(resultat).toMatch(/…\[tronqué\]$/);
     expect(redactString("court")).toBe("court");
   });
 
   it("n'examine que le début d'une entrée énorme et la signale tronquée", () => {
-    const resultat = redactString(`${"a".repeat(25_000)} x@y.fr`, 30_000);
+    const resultat = redactString(`${"a".repeat(25_000)} x@y.test`, 30_000);
     expect(resultat).toHaveLength(20_000 + "…[tronqué]".length);
     expect(resultat).toMatch(/…\[tronqué\]$/);
-    expect(resultat).not.toContain("x@y.fr");
+    expect(resultat).not.toContain("x@y.test");
   });
 
   it("reste linéaire sur des entrées hostiles", () => {
@@ -330,7 +333,7 @@ describe("redact — limites et robustesse", () => {
       carte: new Map([["source", "adzuna"]]),
       ensemble: new Set(["a"]),
       url: new URL("https://x.example/?token=abc"),
-      erreur: new TypeError("pour a@b.fr"),
+      erreur: new TypeError("pour a@b.example"),
     });
     expect(resultat).toEqual({
       grand: "10",
@@ -346,7 +349,7 @@ describe("redact — limites et robustesse", () => {
   });
 
   it("ne modifie jamais l'entrée", () => {
-    const entree = { password: "p", liste: [{ email: "a@b.fr" }] };
+    const entree = { password: "p", liste: [{ email: "a@b.example" }] };
     const copie = structuredClone(entree);
     redact(entree);
     expect(entree).toEqual(copie);
