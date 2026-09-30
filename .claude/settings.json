@@ -1,11 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": { "NEXT_TELEMETRY_DISABLED": "1" },
+  "env": { "NEXT_TELEMETRY_DISABLED": "1", "npm_config_store_dir": "~/Library/pnpm/store" },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": false,
     "allowUnsandboxedCommands": false,
+    "enableWeakerNetworkIsolation": true,
     "filesystem": {
       "denyRead": ["./.[eE][nN][vV]*", "~/.ssh", "~/.aws", "~/.docker", "~/.netrc"],
       "allowRead": ["./.env.example"],
