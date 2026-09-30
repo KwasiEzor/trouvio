@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
 import {
-  lstatSync,
+  closeSync,
+  constants,
   mkdtempSync,
+  openSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -35,12 +37,19 @@ function fichiersSuivis(): string[] {
 
 /** Contenu d'un fichier suivi ; jamais la cible d'un lien symbolique (il pourrait viser un .env). */
 function lire(fichier: string, racine: URL = RACINE): string | undefined {
-  const url = new URL(fichier, racine);
+  let fd: number | undefined;
   try {
-    if (lstatSync(url).isSymbolicLink()) return undefined;
-    return readFileSync(url, "utf8");
+    // O_NOFOLLOW : l'ouverture d'un lien symbolique échoue (ELOOP). Le refus et la lecture portent
+    // sur le même descripteur, sans course entre un lstat et la lecture (CodeQL js/file-system-race).
+    fd = openSync(
+      new URL(fichier, racine),
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    );
+    return readFileSync(fd, "utf8");
   } catch {
-    return undefined; // suivi mais supprimé de l'arbre de travail
+    return undefined; // lien symbolique, dossier, ou suivi mais supprimé de l'arbre de travail
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
 }
 
