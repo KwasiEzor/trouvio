@@ -171,6 +171,20 @@ if git -C "$ROOT" ls-files --error-unmatch prompts/scoring.v1.md >/dev/null 2>&1
   check deny guard-files.sh "prompt publié v1"        "$(file_ev Edit prompts/scoring.v1.md)"
 fi
 check allow guard-files.sh "nouveau prompt v2"        "$(file_ev Write prompts/scoring.v2.md)"
+# Outil Grep (P0-07, Q4) : ni fichier secret visé, ni joker sur .env ou sur fichiers cachés.
+grep_ev() { jq -n --arg p "$1" --arg g "$2" '{tool_name:"Grep",tool_input:{pattern:"KEY",path:$p,glob:$g}} | if .tool_input.glob == "" then del(.tool_input.glob) else . end'; }
+check deny  guard-files.sh "Grep sur $EL"             "$(grep_ev "$ROOT/$EL" '')"
+check deny  guard-files.sh "Grep glob $E*"            "$(grep_ev "$ROOT" "$E*")"
+check deny  guard-files.sh "Grep glob .*"             "$(grep_ev "$ROOT" '.*')"
+check deny  guard-files.sh "Grep glob **/.e*"         "$(grep_ev "$ROOT" '**/.e*')"
+check allow guard-files.sh "Grep glob *.ts dans src"  "$(grep_ev "$ROOT/src" '*.ts')"
+check allow guard-files.sh "Grep sur src"             "$(grep_ev "$ROOT/src" '')"
+check allow guard-files.sh "Grep glob **/*.{ts,tsx}"  "$(grep_ev "$ROOT" '**/*.{ts,tsx}')"
+# Lien symbolique vers un fichier d'environnement (faux fichier vide, dossier temporaire).
+LIENS="$(mktemp -d)"; : > "$LIENS/$E.sonde"; ln -s "$LIENS/$E.sonde" "$LIENS/lien-anodin"
+check deny  guard-files.sh "Read d'un lien vers $E.sonde" "$(jq -n --arg f "$LIENS/lien-anodin" '{tool_name:"Read",tool_input:{file_path:$f}}')"
+check deny  guard-files.sh "Grep d'un lien vers $E.sonde" "$(grep_ev "$LIENS/lien-anodin" '')"
+rm -rf "$LIENS"
 
 # --- guard-code ---
 check deny  guard-code.sh "any"                       "$(write_ev src/lib/a.ts 'export const f = (x: any) => x')"
