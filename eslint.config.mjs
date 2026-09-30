@@ -26,6 +26,47 @@ const SENTRY_PATTERN = {
   message:
     "Signaler une erreur via logger.error (@/lib/logger), qui masque puis transmet à Sentry.",
 };
+// Accès détournés à process.env (globalThis, crochets, déstructuration, Reflect).
+const ENV_SYNTAX = [
+  {
+    // globalThis.process.env, global.process.env
+    selector:
+      "MemberExpression[property.name='env'][object.type='MemberExpression'][object.property.name='process']",
+    message: ENV_MESSAGE,
+  },
+  {
+    // globalThis.process["env"]
+    selector:
+      "MemberExpression[object.property.name='process'][property.value='env']",
+    message: ENV_MESSAGE,
+  },
+  {
+    // globalThis["process"]
+    selector:
+      "MemberExpression[object.name=/^(globalThis|global)$/][property.value='process']",
+    message: ENV_MESSAGE,
+  },
+  {
+    // const { env } = globalThis.process
+    selector:
+      "VariableDeclarator[init.type='MemberExpression'][init.property.name='process'] > ObjectPattern > Property[key.name='env']",
+    message: ENV_MESSAGE,
+  },
+  {
+    // Reflect.get(process, "env")
+    selector:
+      "CallExpression[callee.object.name='Reflect'][arguments.0.name='process']",
+    message: ENV_MESSAGE,
+  },
+];
+// Imports de @sentry/* que no-restricted-imports ne voit pas (P0-07) : import() dynamique, y
+// compris par gabarit, et createRequire(…)("@sentry/…"). require() est déjà refusé par
+// @typescript-eslint/no-require-imports.
+const SENTRY_SYNTAX = [
+  "ImportExpression[source.value=/^@sentry\\//]",
+  "ImportExpression[source.type='TemplateLiteral'][source.quasis.0.value.raw=/^@sentry\\//]",
+  "CallExpression[arguments.0.value=/^@sentry\\//]",
+].map((selector) => ({ selector, message: SENTRY_PATTERN.message }));
 // Code client ou isomorphe (plan P0-06) : …/env, …/lib/env, ../logger, @/lib/logger,
 // …/logger/index sont réservés au serveur (pas …/logger/redact).
 const SERVER_ONLY_PATTERN = {
@@ -103,42 +144,21 @@ const eslintConfig = defineConfig([
         "error",
         { object: "process", property: "env", message: ENV_MESSAGE },
       ],
-      "no-restricted-syntax": [
-        "error",
-        {
-          // globalThis.process.env, global.process.env
-          selector:
-            "MemberExpression[property.name='env'][object.type='MemberExpression'][object.property.name='process']",
-          message: ENV_MESSAGE,
-        },
-        {
-          // globalThis.process["env"]
-          selector:
-            "MemberExpression[object.property.name='process'][property.value='env']",
-          message: ENV_MESSAGE,
-        },
-        {
-          // globalThis["process"]
-          selector:
-            "MemberExpression[object.name=/^(globalThis|global)$/][property.value='process']",
-          message: ENV_MESSAGE,
-        },
-        {
-          // const { env } = globalThis.process
-          selector:
-            "VariableDeclarator[init.type='MemberExpression'][init.property.name='process'] > ObjectPattern > Property[key.name='env']",
-          message: ENV_MESSAGE,
-        },
-        {
-          // Reflect.get(process, "env")
-          selector:
-            "CallExpression[callee.object.name='Reflect'][arguments.0.name='process']",
-          message: ENV_MESSAGE,
-        },
-      ],
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...SENTRY_SYNTAX],
       "no-restricted-imports": [
         "error",
         { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN, SENTRY_PATTERN] },
+      ],
+    },
+  },
+  // src/lib/env.ts lit process.env (seul autorisé) mais n'importe pas Sentry.
+  {
+    files: ["src/lib/env.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...SENTRY_SYNTAX],
+      "no-restricted-imports": [
+        "error",
+        { patterns: [CN_PATTERN, SENTRY_PATTERN] },
       ],
     },
   },
@@ -152,7 +172,8 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Points d'intégration Sentry côté serveur, et tests (mocks) : @sentry/* autorisé.
+  // Points d'intégration Sentry côté serveur, et tests (mocks) : @sentry/* autorisé. En flat
+  // config, redéclarer no-restricted-syntax remplace la règle : l'interdit de process.env est repris.
   {
     files: [
       "src/instrumentation.ts",
@@ -161,6 +182,7 @@ const eslintConfig = defineConfig([
       "src/**/*.test.{ts,tsx}",
     ],
     rules: {
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
       "no-restricted-imports": [
         "error",
         { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN] },
@@ -178,6 +200,7 @@ const eslintConfig = defineConfig([
     ],
     ignores: ["**/*.test.ts"],
     rules: {
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
       "no-restricted-imports": [
         "error",
         {
