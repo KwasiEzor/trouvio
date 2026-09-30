@@ -1,5 +1,37 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": { "NEXT_TELEMETRY_DISABLED": "1" },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": false,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": ["./.[eE][nN][vV]*", "~/.ssh", "~/.aws", "~/.docker", "~/.netrc"],
+      "allowRead": ["./.env.example"],
+      "denyWrite": [
+        "./.env",
+        "./.env.local",
+        "./.env.*.local",
+        "./.env.development",
+        "./.env.test",
+        "./.env.production",
+        "./.envrc",
+        "./.githooks"
+      ],
+      "allowWrite": ["~/Library/pnpm/store", "~/Library/Caches/pnpm"]
+    },
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "github.com",
+        "api.github.com",
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ],
+      "allowLocalBinding": true
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm dev)",
@@ -44,6 +76,7 @@
       "Bash(awk *)",
       "Bash(bash scripts/test-hooks.sh*)",
       "Bash(bash scripts/test-githooks.sh*)",
+      "Bash(bash scripts/test-sandbox.sh*)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:docs.claude.com)",
       "WebFetch(domain:platform.claude.com)",

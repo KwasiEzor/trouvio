@@ -128,14 +128,14 @@ if ! listed "$E.local"; then
 elif ((canary_fails > 0)); then
   echo "SAUTÉ   le canari a été lu : $E.local n'est pas sondé"
 else
-  for probe in 'cat -- "$1"' \
-    'node -e "require(\"fs\").readFileSync(process.argv[1])" "$1"' \
-    'python3 -c "import sys; open(sys.argv[1]).read()" "$1"' \
-    'cat "$(dirname "$1")/$(basename "$1" | tr "[:lower:]" "[:upper:]")"'; do
-    if run bash -c "$probe" _ "$LOCAL" >/dev/null 2>&1; then
-      report ko "$E.local : ${probe%% *}" "lecture réussie"
+  for probe in 'cat|cat -- "$1"' \
+    'node -e|node -e "require(\"fs\").readFileSync(process.argv[1])" "$1"' \
+    'python3 open()|python3 -c "import sys; open(sys.argv[1]).read()" "$1"' \
+    'nom en majuscules|cat "$(dirname "$1")/$(basename "$1" | tr "[:lower:]" "[:upper:]")"'; do
+    if run bash -c "${probe#*|}" _ "$LOCAL" >/dev/null 2>&1; then
+      report ko "$E.local : ${probe%%|*}" "lecture réussie"
     else
-      report ok "$E.local : ${probe%% *}"
+      report ok "$E.local : ${probe%%|*}"
     fi
   done
   must_fail "ouverture en ajout de $E.local (n'écrit rien)" ': >>"$ROOT/'"$E"'.local"'
@@ -154,7 +154,7 @@ echo "--- Confinement (doit échouer)"
 must_fail "écriture dans ~ (hors dépôt)" 'touch "$HOME/.trouvio-sonde-p008"' 'rm -f "$HOME/.trouvio-sonde-p008"'
 must_fail "écriture dans .githooks/" 'touch "$ROOT/.githooks/sonde-p008"' 'rm -f "$ROOT/.githooks/sonde-p008"'
 must_fail "écriture dans .git/hooks/" 'touch "$ROOT/.git/hooks/sonde-p008"' 'rm -f "$ROOT/.git/hooks/sonde-p008"'
-must_fail "écriture dans .claude/" 'touch "$ROOT/.claude/sonde-p008"' 'rm -f "$ROOT/.claude/sonde-p008"'
+must_fail "écriture dans .claude/hooks/" 'touch "$ROOT/.claude/hooks/sonde-p008"' 'rm -f "$ROOT/.claude/hooks/sonde-p008"'
 must_fail "connexion directe (sans proxy)" 'curl -s -o /dev/null --max-time 10 --noproxy "*" https://github.com'
 
 if [[ "$MODE" == hooks ]]; then
