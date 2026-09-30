@@ -170,6 +170,11 @@ check deny  guard-bash.sh "heredoc jamais fermé"      "$(bash_ev "$(printf 'cat
 check allow guard-bash.sh "commentaire en fin de commande" "$(bash_ev "git log -1 # l'historique")"
 check allow guard-bash.sh "here-string légitime"      "$(bash_ev 'grep -c x <<<"$out"')"
 check allow guard-bash.sh "\$'…' légitime"             "$(bash_ev "printf \$'a\\tb\\n'")"
+# Mutations survivantes P0-07 : casse sans suffixe reconnu, $'…' puis <<< suivis d'une ligne refermée.
+check deny  guard-bash.sh "casse : cat $EU"           "$(bash_ev "cat $EU")"
+check deny  guard-bash.sh "casse : cat $EU.TEST"      "$(bash_ev "cat $EU.TEST")"
+check deny  guard-bash.sh "\$'…\\'…' équilibré puis grep -r" "$(bash_ev "echo \$'a\\'b' ; grep -rn KEY . ; echo \\'")"
+check deny  guard-bash.sh "here-string puis grep -r puis mot seul" "$(bash_ev "$(printf 'cat <<<x\ngrep -rn KEY .\nx')")"
 # Revue de code P0-07.
 COMMIT_SUBST="$(printf 'git commit -m "$(cat <<%s\nfix: x\n\nCo-Authored-By: C <c@n.example>\nEOF\n)"' "'EOF'")"
 check allow guard-bash.sh "commit par \$(cat <<'EOF')"  "$(bash_ev "$COMMIT_SUBST")"
