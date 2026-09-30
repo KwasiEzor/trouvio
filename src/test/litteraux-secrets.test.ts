@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  lstatSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -32,9 +33,12 @@ function fichiersSuivis(): string[] {
     .filter(Boolean);
 }
 
-function lire(fichier: string): string | undefined {
+/** Contenu d'un fichier suivi ; jamais la cible d'un lien symbolique (il pourrait viser un .env). */
+function lire(fichier: string, racine: URL = RACINE): string | undefined {
+  const url = new URL(fichier, racine);
   try {
-    return readFileSync(new URL(fichier, RACINE), "utf8");
+    if (lstatSync(url).isSymbolicLink()) return undefined;
+    return readFileSync(url, "utf8");
   } catch {
     return undefined; // suivi mais supprimé de l'arbre de travail
   }
@@ -56,6 +60,13 @@ const FORMATS: readonly (readonly [string, RegExp])[] = [
   ["clé Stripe", /\b(?:(?:sk|rk)_live|whsec)_[A-Za-z0-9]{16,}/],
   ["clé Resend", /\bre_[A-Za-z0-9]{8}_[A-Za-z0-9]{24}\b/],
   ["DSN Sentry réel", /https:\/\/[0-9a-f]{32}@o\d+\.ingest\./],
+  ["mot de passe Neon", /\bnpg_[A-Za-z0-9]{12,}\b/],
+  // Mot de passe d'au moins 8 caractères dont un chiffre ou une minuscule (pas un gabarit en
+  // MAJUSCULES), vers un hôte qui n'est ni local ni réservé.
+  [
+    "URL Postgres avec mot de passe",
+    /postgres(?:ql)?:\/\/[^:/\s@]+:(?=[^@\s]*[a-z0-9])[^@\s]{8,}@(?!(?:localhost|127\.0\.0\.1)\b|[^/\s:?]*\.(?:example|test|invalid|localhost)\b)/,
+  ],
   [
     "clé privée",
     new RegExp(["-----BEGIN", "[A-Z ]*PRIVATE KEY-----"].join(" ")),

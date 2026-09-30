@@ -10,48 +10,68 @@ cmd="$(jq -r '.tool_input.command // ""')"
 # - « globs » : guillemets retirés, métacaractères de joker neutralisés entre guillemets ou après
 #   un antislash (le shell ne les y développe pas) ; « ".e"* » reste donc un joker ;
 # - « bare » : chaque chaîne entre guillemets remplacée par Q, pour lire les options sans les motifs.
+# Suivi comme le shell : antislash, '…', "…", $'…' (l'antislash y échappe l'apostrophe), contextes
+# $( … ) et `…` (même entre guillemets doubles), commentaires #, heredocs hors guillemets (<<<
+# exclu, <<\EOF reconnu). Découpage ambigu à la fin (guillemet, $( ou heredoc non fermé) : __DESYNC__.
 normalize() { # <globs|bare>
-  # Suivi des guillemets comme le shell : antislash, chaînes '…' et "…", et $( … ) qui ouvre un
-  # nouveau contexte (même entre guillemets doubles) jusqu'à sa parenthèse fermante.
   printf '%s\n' "$cmd" | awk -v mode="$1" -v sq="'" '
-    BEGIN { q = ""; d = 0; hd = ""; hdre = "<<-?[ \t]*[\"" sq "]?[A-Za-z_][A-Za-z0-9_]*" }
+    function keep(ch) { if (ch ~ /[][*?{}]/) ch = "_"; out = out ch }
+    BEGIN { q = ""; d = 0; hd = ""; nhd = ""; hdre = "^-?[ \t]*\\\\?[\"" sq "]?[A-Za-z_][A-Za-z0-9_]*" }
     {
       line = $0
       if (hd != "") { t = line; if (strip) sub(/^\t+/, "", t); if (t == hd) hd = ""; next }
       out = ""; n = length(line)
       for (i = 1; i <= n; i++) {
-        c = substr(line, i, 1)
-        if (q != sq && c == "\\" && i < n) {
-          i++; c = substr(line, i, 1)
-          if (q != "" && mode == "bare") continue
-          if (c ~ /[][*?{}]/) c = "_"
-          out = out c; continue
+        c = substr(line, i, 1); nx = substr(line, i + 1, 1); pv = (i > 1) ? substr(line, i - 1, 1) : ""
+        if (q == "A") {
+          if (c == "\\" && i < n) { i++; if (mode == "globs") keep(substr(line, i, 1)); continue }
+          if (c == sq) { q = ""; continue }
+          if (mode == "globs") keep(c)
+          continue
         }
-        if (q != sq && c == "$" && substr(line, i + 1, 1) == "(") { d++; st[d] = q; pc[d] = 0; q = ""; out = out "$("; i++; continue }
-        if (q == "" && d > 0 && c == "(") pc[d]++
-        if (q == "" && d > 0 && c == ")") { if (pc[d] > 0) pc[d]--; else { q = st[d]; d--; out = out ")"; continue } }
-        if (q == "" && (c == sq || c == "\"")) { q = c; if (mode == "bare") out = out "Q"; continue }
-        if (q != "" && c == q) { q = ""; continue }
-        if (q != "") { if (mode == "bare") continue; if (c ~ /[][*?{}]/) c = "_" }
+        if (q != sq && c == "\\" && i < n) { i++; if (q != "" && mode == "bare") continue; keep(substr(line, i, 1)); continue }
+        if (q == sq) { if (c == sq) q = ""; else if (mode == "globs") keep(c); continue }
+        # Hors apostrophes : q vaut "" ou le guillemet double.
+        if (c == "$" && nx == "(") { d++; st[d] = q; bt[d] = 0; pc[d] = 0; q = ""; out = out "$("; i++; continue }
+        if (c == "`") {
+          if (q == "" && d > 0 && bt[d]) { q = st[d]; d--; out = out "`"; continue }
+          d++; st[d] = q; bt[d] = 1; pc[d] = 0; q = ""; out = out "`"; continue
+        }
+        if (q == "\"") { if (c == "\"") q = ""; else if (mode == "globs") keep(c); continue }
+        # Hors de toute chaîne.
+        if (d > 0 && !bt[d] && c == "(") pc[d]++
+        if (d > 0 && !bt[d] && c == ")") { if (pc[d] > 0) pc[d]--; else { q = st[d]; d--; out = out ")"; continue } }
+        if (c == "#" && (pv == "" || pv ~ /[ \t;&|(]/)) break
+        if (c == "$" && nx == sq) { q = "A"; i++; if (mode == "bare") out = out "Q"; continue }
+        if (c == sq || c == "\"") { q = c; if (mode == "bare") out = out "Q"; continue }
+        if (c == "<" && nx == "<" && pv != "<" && substr(line, i + 2, 1) != "<" && match(substr(line, i + 2), hdre)) {
+          h = substr(line, i + 2, RLENGTH); nstrip = (h ~ /^-/)
+          sub(/^-?[ \t]*/, "", h); gsub(/[\\"]/, "", h); gsub(sq, "", h); nhd = h
+        }
         out = out c
       }
       print out
-      if (q == "" && match(line, hdre)) {
-        d = substr(line, RSTART, RLENGTH); strip = (d ~ /^<<-/)
-        sub(/^<<-?[ \t]*/, "", d); gsub(sq, "", d); gsub(/"/, "", d); hd = d
-      }
-    }'
+      if (nhd != "") { hd = nhd; strip = nstrip; nhd = "" }
+    }
+    END { if (q != "" || d > 0 || hd != "") print "__DESYNC__" }'
 }
 globs="$(normalize globs)"
 bare="$(normalize bare)"
 has() { printf '%s' "$2" | grep -Eq -- "$1"; }             # <regex> <texte>
 has_i() { printf '%s' "$2" | grep -Eqi -- "$1"; }
-# Début d'une commande simple : début de ligne, séparateur, sous-shell ou espace.
-S='(^|[;&|(`[:space:]])'
+# Début d'une commande simple : début de ligne, séparateur, sous-shell, espace ou chemin (/usr/bin/…).
+S='(^|[;&|(`[:space:]/])'
+
+if [[ "$globs$bare" == *__DESYNC__* ]]; then
+  deny "Découpage de la commande ambigu (guillemet, \$( ou heredoc non fermé) : refusée par précaution."
+fi
 
 # --- Secrets : fichiers .env (hors .env.example) et environnement ---
-cmd_no_example="$(printf '%s \n' "$cmd" | sed -E 's/\.env\.example([^A-Za-z0-9_.-])/\1/g')"
-if has '(^|[^A-Za-z0-9_$.-])\.env([^A-Za-z0-9_]|$)|\.envrc' "$cmd_no_example"; then
+# APFS ignore la casse : .ENV.LOCAL ouvre .env.local. Le nom est cherché dans la commande brute et
+# dans la lecture « globs » (guillemets et antislashs résolus : .e''nv, .en\v).
+no_example() { printf '%s \n' "$1" | sed -E 's/\.[eE][nN][vV]\.[eE][xX][aA][mM][pP][lL][eE]([^A-Za-z0-9_.-])/\1/g'; }
+R1='(^|[^A-Za-z0-9_$.-])\.env([^A-Za-z0-9_]|$)|\.envrc'
+if has_i "$R1" "$(no_example "$cmd")" || has_i "$R1" "$(no_example "$globs")"; then
   deny "Accès aux fichiers .env interdit (CLAUDE.md §6). Seul .env.example est manipulable."
 fi
 if has '(^|[[:space:]/=<>|;&(])\.[^[:space:]/]*[][*?{]' "$globs" || has '\*\([^)]*D[^)]*\)' "$globs"; then
@@ -60,13 +80,14 @@ fi
 if has_i "${S}setopt[[:space:]]+[^;&|]*glob_?dots|${S}shopt[[:space:]]+-s[[:space:]]+[^;&|]*dotglob" "$bare"; then
   deny "Inclure les fichiers cachés dans les jokers exposerait les .env."
 fi
-if has "(nv|[})\"']v)\.(local|development|production)([^A-Za-z0-9_]|$)|nv\.test\.local" "$cmd"; then
+if has_i "(nv|[})\"']v)\.(local|development|production)([^A-Za-z0-9_]|$)|nv\.test\.local" "$cmd"; then
   deny "Nom de fichier .env reconstruit : accès interdit (CLAUDE.md §6)."
 fi
 if has "\\\$'[^']*\\\\(x2[eE]|0?56|u002[eE]|U0000002[eE])" "$cmd"; then
   deny "Point encodé (\$'…') dans un nom de fichier : accès interdit aux fichiers cachés."
 fi
-if has "${S}(e|f)?grep([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(-[A-Za-z0-9]*[rR][A-Za-z0-9]*|--recursive|--dereference-recursive|--directories(=|[[:space:]]+)recurse|-d[[:space:]]*recurse)([[:space:];&|]|$)" "$bare"; then
+bare_ng="$(printf '%s' "$bare" | sed -E 's/git[[:space:]]+grep/git-grep/g')"
+if has "${S}(e|f)?grep([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(-[A-Za-z0-9]*[rR][A-Za-z0-9]*|--recursive|--dereference-recursive|--directories(=|[[:space:]]+)recurse|-d[[:space:]]*recurse)([[:space:];&|]|$)" "$bare_ng"; then
   deny "Recherche récursive interdite (elle lirait les .env ignorés). Utiliser git grep (fichiers suivis) ou l'outil Grep."
 fi
 if has "${S}rg([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(-[A-Za-z0-9]*[ug][A-Za-z0-9]*|--unrestricted|--no-ignore[A-Za-z-]*|--i?glob([=[:space:]]|$))" "$bare" \
@@ -79,21 +100,27 @@ fi
 if has "${S}gitleaks[[:space:]]+(dir|directory|stdin)([[:space:]]|$)|${S}gitleaks[[:space:]]+detect[^;&|]*--no-git" "$bare"; then
   deny "gitleaks sur l'arbre de travail lirait les .env : utiliser gitleaks git (commits seulement)."
 fi
-if has '(^|[;&|][[:space:]]*)(env|printenv|export -p|set|export)[[:space:]]*($|[;&|])' "$bare" \
-  || has "${S}(declare|typeset|local)[[:space:]]+-[A-Za-z]*p|${S}compgen[[:space:]]+-[A-Za-z]*[ve]" "$bare"; then
+if has "${S}(env|printenv)([[:space:]]+-[-0-9A-Za-z]+)*[[:space:]]*(\$|[;&|)])|${S}printenv([[:space:]]|\$)" "$bare" \
+  || has "${S}(declare|typeset)([[:space:]]+-[A-Za-z]*[px][A-Za-z]*)?[[:space:]]*(\$|[;&|)])|${S}(declare|typeset|local)[[:space:]]+-[A-Za-z]*p" "$bare" \
+  || has "${S}compgen[[:space:]]+-[A-Za-z]*[ve]" "$bare" \
+  || has '(^|[;&|(][[:space:]]*)(set|export|export -p)[[:space:]]*($|[;&|)])' "$bare"; then
   deny "Afficher l'environnement exposerait des secrets."
 fi
 
 # --- Exécution détournée par awk ou sed (commandes autorisées sans confirmation) ---
 if has "${S}[gmn]?awk([[:space:]]|$)" "$bare"; then
-  if has 'system[[:space:]]*\(|getline|ENVIRON|\|[[:space:]]*"|>[[:space:]]*"' "$cmd" \
+  if has 'system[[:space:]]*\(|getline|ENVIRON|(^|[^A-Za-z_])printf?([[:space:]][^;}]*)?[|>]' "$cmd" \
     || has "${S}[gmn]?awk([[:space:]]+-[^[:space:]]+)*[[:space:]]+(-f|--file)([[:space:]=]|$)" "$bare"; then
     deny "awk ne doit ni lancer de commande (system, getline, tube), ni lire l'environnement, ni écrire de fichier, ni charger un script."
   fi
 fi
-if has "${S}g?sed([[:space:]]|$)" "$bare"; then
-  if has "/[gpIiMm0-9]*e[gpIiMm0-9]*[[:space:]]*(['\";}]|$)|(^|[;{}'\"[:space:]]|[0-9\$/])[eEwW][[:space:]]+[^[:space:]'\"]" "$cmd"; then
-    deny "sed ne doit ni lancer de commande (e) ni écrire de fichier (w)."
+# sed : seuls les segments (entre && et ||) qui appellent sed sont examinés, pour qu'un « 2e » ou un
+# « w » dans une autre commande ne compte pas.
+sed_segments="$(printf '%s\n' "$cmd" | awk '{ gsub(/&&|\|\|/, "\n"); print }' | grep -E "${S}g?sed([[:space:]]|\$)" || true)"
+if [[ -n "$sed_segments" ]]; then
+  if has "/[gpIiMm0-9]*e[gpIiMm0-9]*[[:space:]]*(['\";}]|\$)|(^|[;{}'\"[:space:]]|[0-9\$/])[eEwW][[:space:]]+[^[:space:]'\"]" "$sed_segments" \
+    || has "${S}g?sed([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(-f|--file)([[:space:]=]|\$)" "$bare"; then
+    deny "sed ne doit ni lancer de commande (e), ni écrire de fichier (w), ni charger un script (-f)."
   fi
 fi
 

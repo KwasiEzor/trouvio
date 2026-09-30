@@ -18,11 +18,25 @@ if secret_target "$file"; then
   deny "Accès à $(rel_path "$file") interdit (secrets, CLAUDE.md §6). Utiliser .env.example pour documenter les variables."
 fi
 
-# Grep : un joker ne doit viser ni les .env ni les fichiers cachés (rg les lirait malgré .gitignore).
+# Grep : rg --glob passe outre .gitignore et « * » y attrape le point initial. Refusé : un joker
+# dont le dernier segment couvre un nom de fichier d'environnement (sans tenir compte de la casse),
+# ou une alternative {…} dont un membre commence par un point ou par « env ».
 if [[ "$tool" == "Grep" ]]; then
   glob="$(jq -r '.tool_input.glob // ""' <<<"$input")"
-  if [[ "$glob" == *.env* || "$glob" == .* || "$glob" == */.* ]]; then
-    deny "Grep : joker sur des fichiers cachés ou .env interdit. Nommer les fichiers ou restreindre le joker."
+  seg="${glob##*/}"
+  if [[ -n "$seg" ]]; then
+    shopt -s nocasematch
+    for nom in .env .env.local .env.development .env.development.local .env.test .env.test.local \
+      .env.production .env.production.local .envrc; do
+      # shellcheck disable=SC2053 # $seg est volontairement un motif
+      if [[ "$nom" == $seg ]]; then
+        deny "Grep : ce joker couvre un fichier .env (rg ignore alors .gitignore). Restreindre le joker."
+      fi
+    done
+    shopt -u nocasematch
+  fi
+  if [[ "$glob" =~ [{,][[:space:]]*(\.|[eE][nN][vV]) ]]; then
+    deny "Grep : alternative {…} qui vise un fichier caché ou .env. Restreindre le joker."
   fi
   exit 0
 fi
