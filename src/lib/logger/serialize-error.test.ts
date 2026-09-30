@@ -97,15 +97,19 @@ describe("serializeError", () => {
 
   it("masque les données sensibles du message et de la pile", () => {
     const resultat = serializeError(
-      new Error("utilisateur kwasi@exemple.fr introuvable"),
+      new Error("utilisateur kwasi@example.com introuvable"),
     );
     expect(resultat.message).toBe(`utilisateur ${REDACTED} introuvable`);
-    expect(resultat.stack).not.toContain("kwasi@exemple.fr");
+    expect(resultat.stack).not.toContain("kwasi@example.com");
   });
 
   it.each([
     ["une chaîne", "boum", "boum"],
-    ["un objet", { email: "a@b.fr", code: 3 }, { email: REDACTED, code: 3 }],
+    [
+      "un objet",
+      { email: "a@b.example", code: 3 },
+      { email: REDACTED, code: 3 },
+    ],
     ["null", null, null],
   ])(
     "accepte une valeur lancée qui n'est pas une Error : %s",

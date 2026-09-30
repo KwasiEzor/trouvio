@@ -18,7 +18,7 @@ function evenementSale(): ErrorEvent {
     event_id: "e1",
     environment: "development",
     server_name: "poste-de-kwasi.local",
-    message: "échec pour kwasi@exemple.fr",
+    message: "échec pour kwasi@example.com",
     request: {
       method: "GET",
       url: "https://trouvio.example/offres?token=abc&page=2#haut",
@@ -36,19 +36,19 @@ function evenementSale(): ErrorEvent {
     },
     user: {
       id: "7f9c",
-      email: "kwasi@exemple.fr",
+      email: "kwasi@example.com",
       ip_address: "203.0.113.7",
       username: "kwasi",
     },
-    extra: { adzunaApiKey: "cle", note: "voir a@b.fr" },
-    tags: { source: "adzuna", "user.email": "a@b.fr" },
+    extra: { adzunaApiKey: "cle", note: "voir a@b.example" },
+    tags: { source: "adzuna", "user.email": "a@b.example" },
     contexts: {
       os: { name: "macOS", version: "15" },
-      log: { source: "adzuna", email: "a@b.fr" },
+      log: { source: "adzuna", email: "a@b.example" },
       response: { status_code: 500, headers: { "set-cookie": "x" } },
       // Posé par captureRequestError (onRequestError) : request_path = req.url, query comprise.
       nextjs: {
-        request_path: "/connexion?email=jean%40gmail.com&q=d%C3%A9veloppeur",
+        request_path: "/connexion?email=jean%40example.com&q=d%C3%A9veloppeur",
         router_kind: "App Router",
         router_path: "/connexion",
         route_type: "render",
@@ -58,13 +58,13 @@ function evenementSale(): ErrorEvent {
       values: [
         {
           type: "Error",
-          value: "utilisateur kwasi@exemple.fr introuvable",
+          value: "utilisateur kwasi@example.com introuvable",
           stacktrace: {
             frames: [
               {
                 filename: "app:///page.js",
                 function: "charger",
-                vars: { email: "kwasi@exemple.fr", profil: {} },
+                vars: { email: "kwasi@example.com", profil: {} },
               },
             ],
           },
@@ -179,21 +179,23 @@ describe("scrubEvent", () => {
   it("réduit l'utilisateur à son identifiant interne", () => {
     expect(propre.user).toEqual({ id: "7f9c" });
     expect(
-      scrubEvent({ type: undefined, user: { email: "a@b.fr" } }).user,
+      scrubEvent({ type: undefined, user: { email: "a@b.example" } }).user,
     ).toBeUndefined();
   });
 
   it("masque un identifiant utilisateur qui serait un email", () => {
     expect(
-      scrubEvent({ type: undefined, user: { id: "jean@gmail.com" } }).user,
+      scrubEvent({ type: undefined, user: { id: "jean@example.com" } }).user,
     ).toEqual({ id: REDACTED });
   });
 
   it("masque les données du chemin de l'URL et du nom de transaction", () => {
     const propreChemin = scrubEvent({
       type: undefined,
-      transaction: "GET /u/jean@gmail.com",
-      request: { url: "https://trouvio.example/u/jean%40gmail.com/profil?x=1" },
+      transaction: "GET /u/jean@example.com",
+      request: {
+        url: "https://trouvio.example/u/jean%40example.com/profil?x=1",
+      },
     });
     expect(propreChemin.request?.url).toBe(
       `https://trouvio.example/u/${REDACTED}/profil`,
@@ -247,14 +249,14 @@ describe("scrubEvent", () => {
   it("ne contient plus aucune des valeurs sensibles de l'événement d'origine", () => {
     const texte = JSON.stringify(propre);
     for (const secret of [
-      "kwasi@exemple.fr",
+      "kwasi@example.com",
       "s3cr3t",
       "203.0.113.7",
       "Bearer",
       "token=abc",
       "app_key=CLE",
       "poste-de-kwasi",
-      "jean%40gmail.com",
+      "jean%40example.com",
       "veloppeur",
     ]) {
       expect(texte).not.toContain(secret);
@@ -280,7 +282,7 @@ describe("scrubBreadcrumb", () => {
     };
     const navigation: Breadcrumb = {
       category: "navigation",
-      data: { from: "/connexion?email=a@b.fr", to: "/offres?page=2" },
+      data: { from: "/connexion?email=a@b.example", to: "/offres?page=2" },
     };
     expect(scrubBreadcrumb(fetch).data).toEqual({
       url: "https://x.example/api",
@@ -295,8 +297,8 @@ describe("scrubBreadcrumb", () => {
   it("masque le message d'un fil d'Ariane de console", () => {
     const filConsole: Breadcrumb = {
       category: "console",
-      message: "profil de kwasi@exemple.fr chargé",
-      data: { arguments: ["kwasi@exemple.fr"], logger: "console" },
+      message: "profil de kwasi@example.com chargé",
+      data: { arguments: ["kwasi@example.com"], logger: "console" },
     };
     expect(scrubBreadcrumb(filConsole)).toEqual({
       category: "console",

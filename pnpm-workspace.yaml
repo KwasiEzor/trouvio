@@ -6,6 +6,12 @@ strictDepBuilds: true
 # Refuse une version publiée depuis moins de 24 h (en minutes) : laisse le temps de détecter
 # une version compromise avant de l'installer (chaîne d'approvisionnement).
 minimumReleaseAge: 1440
+# Refuse une version dont le niveau de confiance baisse (ex. publiée sans provenance alors que
+# les précédentes en avaient) : signe classique d'un compte de mainteneur compromis (P0-07).
+# Exception ponctuelle si une montée légitime est bloquée : trustPolicyExclude, justifiée en PR.
+trustPolicy: no-downgrade
+# Refuse qu'une dépendance transitive vienne d'une source exotique (git, tarball) : registre seulement.
+blockExoticSubdeps: true
 # Décision explicite par paquet ayant un script d'installation (défaut : refusé).
 allowBuilds:
   # Script de repli qui télécharge un binaire natif ; le binaire précompilé est déjà fourni par une dépendance optionnelle.

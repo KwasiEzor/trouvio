@@ -33,9 +33,10 @@ rel_path() {
   esac
 }
 
-# Vrai si le nom de fichier est un .env secret (tout .env* sauf .env.example).
+# Vrai si le nom de fichier est un .env secret (tout .env* et .envrc sauf .env.example), sans
+# tenir compte de la casse : APFS (macOS) ouvre .ENV.LOCAL comme .env.local.
 is_secret_env() {
   local base
-  base="$(basename "$1")"
-  [[ "$base" == .env || "$base" == .env.* ]] && [[ "$base" != ".env.example" ]]
+  base="$(basename "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$base" == .env || "$base" == .env.* || "$base" == .envrc ]] && [[ "$base" != ".env.example" ]]
 }

@@ -25,13 +25,24 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
 const secret = () => z.string().min(32);
-// DSN Sentry : https, clé publique en nom d'utilisateur, chemin = identifiant numérique du projet.
+// Hôte d'ingestion d'une organisation Sentry en région UE (ADR 0010) ; l'URL le met en minuscules.
+export const SENTRY_EU_INGEST_HOST = /^o\d+\.ingest\.de\.sentry\.io$/;
+// DSN Sentry : https, clé publique seule (une clé secrète partirait dans le bundle navigateur),
+// hôte d'ingestion UE, chemin = identifiant numérique du projet, ni port, ni query, ni fragment.
 const sentryDsn = () =>
   z.url({ protocol: /^https$/ }).refine((value) => {
     // Zod 4 exécute le refine même si la vérification d'URL a échoué : ne jamais lever ici.
     try {
-      const { username, pathname } = new URL(value);
-      return username !== "" && /^\/\d+$/.test(pathname);
+      const url = new URL(value);
+      return (
+        url.username !== "" &&
+        url.password === "" &&
+        SENTRY_EU_INGEST_HOST.test(url.hostname) &&
+        url.port === "" &&
+        url.search === "" &&
+        url.hash === "" &&
+        /^\/\d+$/.test(url.pathname)
+      );
     } catch {
       return false;
     }
