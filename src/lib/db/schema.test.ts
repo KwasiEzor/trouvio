@@ -10,9 +10,9 @@ import * as schema from "../../../db/schema";
  * (.claude/rules/db.md).
  */
 
-const tables = Object.values(schema)
-  .filter((value): value is PgTable => is(value, PgTable))
-  .map((table) => getTableConfig(table));
+const tables = Object.values(schema).flatMap((value) =>
+  is(value, PgTable) ? [getTableConfig(value)] : [],
+);
 
 function table(name: string) {
   const config = tables.find((candidate) => candidate.name === name);
@@ -97,12 +97,15 @@ describe("schéma", () => {
     (name) => {
       const config = table(name);
       const keyed = keyedColumns(config);
-      for (const fk of foreignKeys(config)) {
-        const covered = keyed.some((columns) =>
-          fk.columns.every((column, i) => columns[i] === column),
-        );
-        expect(covered, fk.columns.join(", ")).toBe(true);
-      }
+      const uncovered = foreignKeys(config)
+        .filter(
+          (fk) =>
+            !keyed.some((columns) =>
+              fk.columns.every((column, i) => columns[i] === column),
+            ),
+        )
+        .map((fk) => fk.columns.join(", "));
+      expect(uncovered).toEqual([]);
     },
   );
 
