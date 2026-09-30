@@ -13,5 +13,6 @@ esac
 case "$(rel_path "$file")" in
   db/migrations/*|pnpm-lock.yaml) exit 0 ;;
 esac
-"$prettier" --write --log-level warn "$file" >/dev/null 2>&1 || true
+# Prettier charge prettier.config.mjs, modifiable par Claude : confiné (ADR 0011).
+confine "$prettier" --write --log-level warn "$file" >/dev/null 2>&1 || true
 exit 0
