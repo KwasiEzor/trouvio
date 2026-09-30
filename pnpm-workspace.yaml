@@ -18,3 +18,6 @@ allowBuilds:
   unrs-resolver: false
   # Son postinstall ne copie que le worker navigateur (msw/browser) ; on n'utilise que msw/node.
   msw: false
+  # Tiré par drizzle-kit et tsx (P1-01) : le postinstall vérifie ou télécharge le binaire natif,
+  # déjà fourni par la dépendance optionnelle @esbuild/<plateforme>.
+  esbuild: false
