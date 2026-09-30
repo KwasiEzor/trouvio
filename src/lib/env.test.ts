@@ -116,6 +116,14 @@ describe("parseEnv — cas nominaux", () => {
   it("considère Sentry comme optionnel", () => {
     expect(parseEnv("sentry", {})).toEqual({});
   });
+
+  it.each([
+    DSN_VALIDE,
+    "https://cle@o1.ingest.de.sentry.io/2",
+    "https://cle@O1.INGEST.DE.SENTRY.IO/2",
+  ])("accepte le DSN d'un projet en région UE : %s", (dsn) => {
+    expect(parseEnv("sentry", { SENTRY_DSN: dsn }).SENTRY_DSN).toBe(dsn);
+  });
 });
 
 describe("parseEnv — limites", () => {
@@ -219,6 +227,33 @@ describe("parseEnv — cas négatifs", () => {
       { SENTRY_DSN: "https://cle@o1.ingest.de.sentry.io/trouvio" },
       "SENTRY_DSN",
     ],
+    // Région UE exigée (ADR 0010) : hôte o<id>.ingest.de.sentry.io, rien d'autre.
+    ...(
+      [
+        ["hors UE (US)", "https://cle@o1.ingest.us.sentry.io/2"],
+        ["hôte d'ingestion sans région", "https://cle@o1.ingest.sentry.io/2"],
+        ["hôte sentry.io nu", "https://cle@sentry.io/2"],
+        [
+          "hôte de.sentry.io (API, pas l'ingestion)",
+          "https://cle@de.sentry.io/2",
+        ],
+        ["sosie suffixé", "https://cle@o1.ingest.de.sentry.io.evil.example/2"],
+        ["sosie par @", "https://cle@o1.ingest.de.sentry.io@evil.example/2"],
+        ["organisation non numérique", "https://cle@ox.ingest.de.sentry.io/2"],
+        ["clé secrète héritée", "https://cle:secret@o1.ingest.de.sentry.io/2"],
+        ["port explicite", "https://cle@o1.ingest.de.sentry.io:8443/2"],
+        ["query string", "https://cle@o1.ingest.de.sentry.io/2?x=1"],
+        ["fragment", "https://cle@o1.ingest.de.sentry.io/2#x"],
+      ] as const
+    ).map(
+      ([cas, dsn]) =>
+        [
+          `DSN Sentry : ${cas}`,
+          "sentry",
+          { SENTRY_DSN: dsn },
+          "SENTRY_DSN",
+        ] as const,
+    ),
   ] as const)("signale %s comme invalide", (_cas, domain, source, name) => {
     const err = capture(() => parseEnv(domain, source));
     expect(err.issues).toContainEqual({ name, reason: "invalide" });
@@ -327,6 +362,19 @@ describe("publicBuildEnv (valeurs publiques figées au build)", () => {
     );
     expect(err.issues).toEqual([{ name: "SENTRY_DSN", reason: "invalide" }]);
     expect(err.message).not.toContain("SENTINELLE");
+  });
+
+  it("refuse au build comme au démarrage un DSN hors UE, sans citer sa valeur", () => {
+    const horsUe = "https://SENTINELLE@o1.ingest.us.sentry.io/2";
+    for (const err of [
+      capture(() => publicBuildEnv({ SENTRY_DSN: horsUe })),
+      capture(() =>
+        assertStartupEnv("web", { ...VALID.core, SENTRY_DSN: horsUe }),
+      ),
+    ]) {
+      expect(err.issues).toEqual([{ name: "SENTRY_DSN", reason: "invalide" }]);
+      expect(err.message).not.toContain("SENTINELLE");
+    }
   });
 
   it("refuse un NODE_ENV inconnu", () => {

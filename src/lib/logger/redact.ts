@@ -72,7 +72,7 @@ const SENSITIVE_PARAMS =
 const SENSITIVE_JSON_FIELDS =
   "access_token|refresh_token|id_token|client_secret|password|api_key|apikey|app_key|token|secret|authorization";
 
-// L'ordre compte : les identifiants d'URL passent avant les emails (« user:mdp@hote.tld »), les
+// L'ordre compte : les identifiants d'URL passent avant les emails (« user:mdp@hote.example »), les
 // IBAN avant les téléphones (dont les chiffres ressemblent à un numéro).
 const VALUE_PATTERNS: readonly (readonly [RegExp, string])[] = [
   [/(\/\/)[^/\s:@]+:[^/\s@]+@/g, `$1${REDACTED}@`],
@@ -91,7 +91,7 @@ const VALUE_PATTERNS: readonly (readonly [RegExp, string])[] = [
     new RegExp(`("(?:${SENSITIVE_JSON_FIELDS})"\\s*:\\s*")[^"]*"`, "gi"),
     `$1${REDACTED}"`,
   ],
-  // Email, y compris percent-encodé (« jean%40gmail.com »).
+  // Email, y compris percent-encodé (« jean%40example.com »).
   [
     /(?<![\w.%+-])[\w.%+-]+(?:@|%40)[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}/g,
     REDACTED,

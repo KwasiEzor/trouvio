@@ -35,7 +35,7 @@ Trouvio traite des données de chercheurs d'emploi : critères, prétentions sal
    - Le DSN est public par nature : il ne permet que d'envoyer des événements.
    - La valeur est figée au build.
 6. **Runtime Node uniquement.** Il n'y a pas de configuration edge ; une route edge ne serait pas surveillée.
-7. **Organisation Sentry en région UE (Frankfurt).** Sentry est un sous-traitant, à citer dans la politique de confidentialité (P7).
+7. **Organisation Sentry en région UE (Frankfurt).** Sentry est un sous-traitant, à citer dans la politique de confidentialité (P7). La région est imposée par `env.ts` : un DSN dont l'hôte n'est pas `o<id>.ingest.de.sentry.io` est refusé au build et au démarrage (P0-07).
 
 ## Conséquences
 - \+ Aucune donnée personnelle ni aucun secret attendu dans les journaux ou chez Sentry. Chaque catégorie de collecte et chaque étape de nettoyage sont testées, avec des preuves par mutation.

@@ -70,9 +70,9 @@ describe("createLogger — format", () => {
 
   it("masque le contexte et le message", () => {
     const { logger, entrees } = harnais();
-    logger.info("envoi à kwasi@exemple.fr", {
+    logger.info("envoi à kwasi@example.com", {
       userId: "7f9c",
-      email: "kwasi@exemple.fr",
+      email: "kwasi@example.com",
       url: "https://api.adzuna.com/v1?app_key=CLE&what=dev",
     });
     const entree = entrees()[0];
@@ -159,7 +159,7 @@ describe("createLogger — signalement des erreurs (Sentry)", () => {
     const erreur = new Error("collecte échouée");
     logger.error("collecte échouée", {
       source: "adzuna",
-      email: "a@b.fr",
+      email: "a@b.example",
       err: erreur,
     });
     expect(report.exception).toHaveBeenCalledTimes(1);
@@ -172,7 +172,7 @@ describe("createLogger — signalement des erreurs (Sentry)", () => {
 
   it("signale un message quand error() n'a pas d'erreur", () => {
     const { logger, report } = harnais();
-    logger.error("quota Adzuna atteint pour a@b.fr", { source: "adzuna" });
+    logger.error("quota Adzuna atteint pour a@b.example", { source: "adzuna" });
     expect(report.message).toHaveBeenCalledWith(
       `quota Adzuna atteint pour ${REDACTED}`,
       { source: "adzuna" },
