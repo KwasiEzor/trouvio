@@ -19,7 +19,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Fuite des secrets du job | Workflow GitHub Actions qui exécute le job (ADR 0008) | Environnement GitHub `production` limité au workflow du job, aucun secret exposé aux PR ni aux forks, pas d'`echo` de variables, journaux relus |
 | Explosion des coûts IA | Boucle, abus | Filtre dur avant IA, plafonds par utilisateur/jour, alerte admin |
 | Brute force / spam | Formulaires auth/contact | Rate limiting, lien magique à usage unique et expirant |
-| Fuite de secrets | Commit, logs, lecture par l'agent | Push protection GitHub (blocage au push, motifs des fournisseurs seulement), gitleaks en CI (motifs génériques compris, après le push), test de garde des littéraux de secrets (`src/test/litteraux-secrets.test.ts`, faux secrets fabriqués à l'exécution), logger sans PII ni secrets. `.env*` : hooks de Claude = **filet** (lecture directe, jokers sur fichiers cachés, recherche récursive, noms reconstruits) ; la **frontière** sera le bac à sable du système (P0-08), car le code lancé par un outil autorisé (`pnpm test`, `dev`, `build`) peut lire `.env.local` |
+| Fuite de secrets | Commit, logs, lecture par l'agent | Push protection GitHub (blocage au push, motifs des fournisseurs seulement), gitleaks en CI (motifs génériques compris, après le push), test de garde des littéraux de secrets (`src/test/litteraux-secrets.test.ts`, faux secrets fabriqués à l'exécution), logger sans PII ni secrets. `.env*` : la **frontière** est le bac à sable Bash de Claude Code (Seatbelt, ADR 0011), qui confine chaque commande et ses descendants, et `confine` pour les hooks qui exécutent du code du dépôt ; les hooks de Claude restent le **filet** (lecture directe, jokers sur fichiers cachés, recherche récursive, noms reconstruits, extraction du trousseau). Voir §7 |
 | Dépendance compromise | Supply chain | Lockfile, `minimumReleaseAge` 24 h, `strictDepBuilds`, Dependabot (délai 7 j), `pnpm audit`, dependency-review, CodeQL |
 | Webhooks falsifiés | Stripe/Telegram | Vérification de signature/secret, idempotence |
 | Fuite par l'outil de suivi d'erreurs | Événement Sentry (requête, cookies, variables locales, messages) | `dataCollection` minimal posé explicitement, `beforeSend`/`beforeBreadcrumb` qui masquent, ni replay ni traces, scrubbers du projet Sentry, région UE (ADR 0010) |
@@ -64,6 +64,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Dependabot : alertes, correctifs de sécurité, mises à jour groupées | GitHub | — |
 | Protection de `main` (ruleset « main protégée ») : PR obligatoire (fusion squash), 6 checks requis (`quality`, `e2e`, `gitleaks`, `audit`, `dependency-review`, `CodeQL`) sur branche à jour, règle `code_scanning`, force-push et suppression interdits, aucune dérogation | GitHub | oui |
 | Hooks locaux (pre-push, garde-fous de Claude) | poste | oui |
+| Bac à sable Bash de Claude Code et sondes (`scripts/test-sandbox.sh`, ADR 0011) | poste | oui (`failIfUnavailable`) |
 
 Workflows : permissions en lecture seule par défaut, actions épinglées par SHA (obligatoire au niveau du dépôt, actions autorisées : GitHub + `pnpm/action-setup`), aucun `pull_request_target`, aucun secret. Vérifiés ponctuellement par zizmor 1.30.1 (P0-04, aucun constat) : le relancer à chaque modification de `.github/`.
 
@@ -74,3 +75,29 @@ Workflows : permissions en lecture seule par défaut, actions épinglées par SH
 4. consigner l'incident (date, portée, révocation).
 
 **Faux positif** (faux secret d'un test, alerte n° 1 du 2026-09-29) : fermer l'alerte avec le motif « Used in tests » et sa justification, puis remplacer le littéral par une valeur fabriquée à l'exécution (`src/test/secrets-factices.ts`).
+
+## 7. Bac à sable de Claude Code (P0-08, ADR 0011)
+**Réglages** (`.claude/settings.json`, bloc `sandbox`) :
+- actif, refus de démarrer sans lui, aucune commande hors bac à sable, aucune approbation automatique ;
+- lecture refusée : `.env*` sauf `.env.example`, `~/.ssh`, `~/.aws`, `~/.docker`, `~/.netrc` ;
+- écriture refusée : les `.env` et `.githooks`, en plus des chemins protégés d'office (réglages, `hooks`, `skills`, `agents` et `commands` de `.claude`, `.git/hooks`, `.git/config`) ;
+- réseau : npm, GitHub, Google Fonts et les domaines `WebFetch` autorisés ; tout autre domaine est demandé.
+
+Les hooks qui exécutent du code du dépôt passent par `confine` (`sandbox-exec`, profil dans `.claude/hooks/lib.sh`).
+
+**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Un serveur avec de vrais secrets, ainsi que `pnpm test:e2e` (Chromium incompatible avec Seatbelt), se lancent dans le terminal de l'utilisateur, **après relecture de `git diff`**.
+
+**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox`, des hooks ou d'une version de Claude Code :
+- 30 sondes sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
+- `.env.local` sondé par code de retour seulement ;
+- contre-épreuves (`.env.example`, écriture dans le dépôt, registre npm par le proxy) et confinement (écriture hors dépôt, dans les garde-fous, connexion directe).
+
+Le mode `hooks`, lancé par l'utilisateur, vérifie `confine` et le branchement des hooks. Preuve noyau : `sandbox_check` vaut 1 dans le bac à sable.
+
+**Résiduels acceptés :**
+- trousseau joignable (jeton `gh`) : filet `guard-bash` seulement ; recommandation, un jeton `gh` à grain fin limité au dépôt ;
+- sortie vers tout port localhost (`allowLocalBinding`) : ne pas laisser de port de débogage ouvert ;
+- façade de domaine possible par les domaines `WebFetch`, et `trustd` ouvert pour `gh` : sorties étroites, les `.env` restant illisibles ;
+- code exécuté ensuite par l'utilisateur hors bac à sable.
+
+**Sortie de secours** pour une session, par l'utilisateur seulement : `claude --settings '{"sandbox":{"enabled":false}}'`.

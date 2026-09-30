@@ -25,7 +25,7 @@
 ✅ Franchie le 2026-09-29 : CI verte sur 7faca3f ; 0 alerte ouverte après fermeture de l'alerte de secret scanning n° 1 (jeton d'exemple de la doc Telegram dans un test). P0-07 ajoutée ensuite, avant P1-01, pour les points de la revue de phase.
 
 ## P1 — Données & authentification
-- [ ] **P1-01** Schéma Drizzle complet (ARCHITECTURE §5) + première migration + seed lu depuis `db/seed.local.json` (ignoré par git ; `db/seed.example.json` commité avec des valeurs fictives). *Accept.* : `pnpm db:migrate` sur base vierge puis seed OK ; aucune donnée personnelle dans le dépôt.
+- [ ] **P1-01** Schéma Drizzle complet (ARCHITECTURE §5) + première migration + seed lu depuis `db/seed.local.json` (ignoré par git ; `db/seed.example.json` commité avec des valeurs fictives). *Accept.* : `pnpm db:migrate` sur base vierge puis seed OK ; aucune donnée personnelle dans le dépôt. Bac à sable (ADR 0011) : trancher la base de dev ou de test **non secrète** des commandes lancées par Claude (option B du plan P0-08 : Postgres local, identifiants jetables, fichier non nommé `.env*`).
 - [ ] **P1-02** Better Auth (email + mot de passe, lien magique), sessions en base, rôles `user`/`admin`. *Accept.* : inscription, connexion, déconnexion testées en E2E.
 - [ ] **P1-03** Helpers d'autorisation (`requireUser`, `requireAdmin`, requêtes scopées par `userId`). *Accept.* : tests IDOR — un utilisateur ne peut lire/modifier aucune ressource d'un autre.
 - [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429.

@@ -19,7 +19,7 @@ arguments: [id]
 2. **Tâches** : découper le plan en étapes suivies (liste de tâches), une étape active à la fois.
 3. **Tests d'abord** (logique métier) : déléguer au sous-agent `test-engineer`, ou les écrire soi-même, puis lancer les tests et **montrer qu'ils échouent pour la bonne raison**. Commit `test(<scope>): …`.
 4. **Implémentation** : le minimum pour passer au vert, étape par étape. Travail d'interface → sous-agent `ui-implementer`. Prompt ou éval → `ai-eval-engineer`. Commit à chaque étape verte (`feat(<scope>): …`).
-5. **Portes** : `pnpm verify` (et `pnpm test:e2e` si un parcours utilisateur est touché). En cas d'échec, corriger la cause, jamais le test ni la règle.
+5. **Portes** : `pnpm verify` (et `pnpm test:e2e` si un parcours utilisateur est touché, lancé par l'utilisateur dans son terminal : Chromium est refusé dans le bac à sable, ADR 0011). En cas d'échec, corriger la cause, jamais le test ni la règle.
 6. **Revues** en parallèle : sous-agent `code-reviewer` ; sous-agent `security-reviewer` si auth, données, API, webhooks ou LLM sont touchés. Corriger tout point bloquant ou important, relancer `pnpm verify`.
 7. **Simplification** : skill `simplify` sur le diff si la revue signale de la complexité.
 8. **Clôture** : cocher `$id` dans `docs/ROADMAP.md`, mettre `Statut : terminé` dans le plan, ajouter en fin de plan une section « Réalisé » (écarts au plan, décisions prises). Commit `docs: …`.
