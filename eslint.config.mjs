@@ -66,6 +66,7 @@ const SENTRY_SYNTAX = [
   "ImportExpression[source.value=/^@sentry\\//]",
   "ImportExpression[source.type='TemplateLiteral'][source.quasis.0.value.raw=/^@sentry\\//]",
   "CallExpression[arguments.0.value=/^@sentry\\//]",
+  "CallExpression[arguments.0.type='TemplateLiteral'][arguments.0.quasis.0.value.raw=/^@sentry\\//]",
 ].map((selector) => ({ selector, message: SENTRY_PATTERN.message }));
 // Code client ou isomorphe (plan P0-06) : …/env, …/lib/env, ../logger, @/lib/logger,
 // …/logger/index sont réservés au serveur (pas …/logger/redact).

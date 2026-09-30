@@ -77,7 +77,9 @@ const EMAIL = /[\w.%+-]+(?:@|%40)([\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,})/g;
 // RFC 2606 et 6761 ; sentry.io = hôte d'un DSN d'essai (« cle@o1.ingest.de.sentry.io »).
 const DOMAINE_RESERVE =
   /(?:^|\.)(?:example\.(?:com|org|net)|example|test|invalid|localhost|sentry\.io)$/i;
-const FICHIER_DE_TEST = /\.test\.tsx?$|^tests\//;
+// Tests, outillage de test, fixtures et exemples de données (db/seed.example.json en P1-01).
+const FICHIER_DE_TEST =
+  /\.test\.tsx?$|^tests\/|^src\/test\/|\/fixtures?\/|\.example\.json$/;
 
 /** Formats reconnus dans un texte : leurs noms seulement, jamais la valeur trouvée. */
 function formatsReconnus(texte: string): string[] {
