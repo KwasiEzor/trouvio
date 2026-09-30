@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PreToolUse(Bash) : bloque les commandes dangereuses ou contraires à CLAUDE.md §6.
-# Filet contre les formes plausibles, pas une frontière : le code lancé par un outil autorisé
-# (pnpm test, dev, build) peut toujours lire les secrets ; la frontière sera le bac à sable (P0-08).
+# Filet contre les formes plausibles, pas une frontière : il ne voit que le texte de la commande.
+# La frontière est le bac à sable Bash de Claude Code (ADR 0011), qui confine aussi les descendants.
 source "$(dirname "$0")/lib.sh"
 require_jq
 cmd="$(jq -r '.tool_input.command // ""')"
@@ -105,6 +105,13 @@ if has "${S}(env|printenv)([[:space:]]+-[-0-9A-Za-z]+)*[[:space:]]*(\$|[;&|)])|$
   || has "${S}compgen[[:space:]]+-[A-Za-z]*[ve]" "$bare" \
   || has '(^|[;&|(][[:space:]]*)(set|export|export -p)[[:space:]]*($|[;&|)])' "$bare"; then
   deny "Afficher l'environnement exposerait des secrets."
+fi
+# Trousseau : le bac à sable le laisse joignable (git et gh s'en servent), le hook refuse d'en extraire.
+if has "${S}gh[[:space:]]+auth[[:space:]]+token([[:space:];&|)]|\$)" "$globs" \
+  || has "${S}gh[[:space:]]+auth[[:space:]]+status[^;&|]*[[:space:]](--show-token|-[A-Za-z]*t[A-Za-z]*)([[:space:];&|)]|\$)" "$globs" \
+  || has "${S}security[[:space:]]+(find-[a-z-]*password|dump-keychain)([[:space:];&|)]|\$)" "$globs" \
+  || has "${S}git[[:space:]]+credential[[:space:]]+fill|${S}git([[:space:]]+|-)credential-[a-z]+[[:space:]]+get([[:space:];&|)]|\$)" "$globs"; then
+  deny "Extraire un jeton ou un mot de passe du trousseau exposerait un secret (ADR 0011)."
 fi
 
 # --- Exécution détournée par awk ou sed (commandes autorisées sans confirmation) ---

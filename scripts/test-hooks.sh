@@ -73,7 +73,7 @@ check allow guard-bash.sh "security find-certificate" "$(bash_ev 'security find-
 check allow guard-bash.sh "sondes du bac à sable"     "$(bash_ev 'bash scripts/test-sandbox.sh')"
 
 # --- guard-bash : lectures indirectes des secrets et exécution détournée (P0-07) ---
-# Le hook est un filet contre les formes plausibles ; la frontière sera le bac à sable (P0-08).
+# Le hook est un filet contre les formes plausibles ; la frontière est le bac à sable (ADR 0011).
 check deny  guard-bash.sh "grep -rn ."                "$(bash_ev 'grep -rn SENTRY_DSN .')"
 check deny  guard-bash.sh "grep -R sans chemin"       "$(bash_ev 'grep -R KEY')"
 check deny  guard-bash.sh "grep -nr ./"               "$(bash_ev 'grep -nr KEY ./')"
