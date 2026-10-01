@@ -24,7 +24,8 @@ const DSN_VALIDE = "https://cle@o450000.ingest.de.sentry.io/4500000000000000";
 const VALID: Record<EnvDomain, EnvSource> = {
   core: { NODE_ENV: "production", APP_URL: "https://trouvio.example" },
   database: {
-    DATABASE_URL: "postgresql://app:mdp@hote.example/trouvio?sslmode=require",
+    DATABASE_URL:
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full",
   },
   databaseMigration: {
     DATABASE_MIGRATION_URL:
@@ -314,9 +315,11 @@ describe("URL des bases de données", () => {
 
   describe.each(VARIABLES)("%s", (name) => {
     it.each([
-      "postgresql://app:mdp@hote.example/trouvio?sslmode=require",
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full",
       "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full&channel_binding=require",
-    ])("accepte une base distante chiffrée : %s", (url) => {
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=require&sslmode=verify-full",
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full&uselibpqcompat=true",
+    ])("accepte une base distante chiffrée et vérifiée : %s", (url) => {
       expect(lire(name, url)).toBe(url);
     });
 
@@ -337,6 +340,23 @@ describe("URL des bases de données", () => {
       [
         "sslmode=prefer",
         "postgresql://app:mdp@hote.example/trouvio?sslmode=prefer",
+      ],
+      // require ne vérifie le certificat qu'en pg 8 ; en pg 9, ou avec uselibpqcompat, plus du tout.
+      [
+        "sslmode=require",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&channel_binding=require",
+      ],
+      [
+        "sslmode=require avec uselibpqcompat",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&uselibpqcompat=true",
+      ],
+      [
+        "sslmode=verify-ca",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-ca",
+      ],
+      [
+        "sslmode=no-verify",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=no-verify",
       ],
       [
         "sosie de localhost",
@@ -367,7 +387,10 @@ describe("URL des bases de données", () => {
   });
 
   it.each([
-    ["une base Neon, même chiffrée", `${fausseUrlPostgres()}?sslmode=require`],
+    [
+      "une base Neon, même chiffrée",
+      `${fausseUrlPostgres()}?sslmode=verify-full`,
+    ],
     ["un sosie de 127.0.0.1", "postgres://t:t@127.0.0.1.evil.example/postgres"],
     [
       "une boucle locale détournée par ?host=",
