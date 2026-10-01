@@ -44,6 +44,7 @@ async function rows() {
       remoteModes: searchProfiles.remoteModes,
       channels: searchProfiles.channels,
       yearsExp: searchProfiles.yearsExp,
+      minSalary: searchProfiles.minSalary,
     })
     .from(users)
     .innerJoin(searchProfiles, eq(searchProfiles.userId, users.id));
@@ -83,7 +84,12 @@ describe("applySeed", () => {
         {
           ...premier,
           name: "Alex Martin-Dupont",
-          profile: { ...premier.profile, threshold: 75, yearsExp: undefined },
+          profile: {
+            ...premier.profile,
+            threshold: 75,
+            yearsExp: undefined,
+            minSalary: undefined,
+          },
         },
       ],
     };
@@ -94,6 +100,7 @@ describe("applySeed", () => {
       name: "Alex Martin-Dupont",
       threshold: 75,
       yearsExp: null,
+      minSalary: null,
     });
     expect(apres?.updatedAt.getTime()).toBeGreaterThan(
       avant?.updatedAt.getTime() ?? Number.POSITIVE_INFINITY,

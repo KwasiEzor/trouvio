@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EnvValidationError } from "@/lib/env";
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
@@ -9,7 +9,19 @@ const LOCALE = "postgres://trouvio:trouvio@127.0.0.1:54329/trouvio_dev";
 const DISTANTE =
   "postgresql://proprio:SENTINELLE@hote-sentinelle.example/trouvio?sslmode=require";
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("db:migrate", () => {
+  it("lit DATABASE_MIGRATION_URL dans l'environnement par défaut", async () => {
+    vi.stubEnv("DATABASE_MIGRATION_URL", LOCALE);
+    const log = fakeLogger();
+    const migrate = vi.fn(async () => ({ applied: 0 }));
+    expect(await main({ log, migrate })).toBe(0);
+    expect(migrate).toHaveBeenCalledOnce();
+  });
+
   it("applique les migrations et le dit, base locale", async () => {
     const log = fakeLogger();
     const migrate = vi.fn(async () => ({ applied: 1 }));

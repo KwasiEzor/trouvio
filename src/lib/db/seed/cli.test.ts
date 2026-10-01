@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
 
@@ -40,7 +40,40 @@ function enoent(): NodeJS.ErrnoException {
   });
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("db:seed", () => {
+  it("lit l'environnement et le fichier sur disque par défaut", async () => {
+    vi.stubEnv("DATABASE_URL", LOCALE);
+    const log = fakeLogger();
+    const apply = vi.fn(async () => ({ users: 1, profiles: 1 }));
+    expect(await main(["--file", "db/seed.example.json"], { apply, log })).toBe(
+      0,
+    );
+    expect(apply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        users: [expect.objectContaining({ email: "alex.martin@example.com" })],
+      }),
+    );
+  });
+
+  it("signale un fichier présent mais illisible", async () => {
+    const { all, log } = deps({
+      readFile: async () => {
+        throw Object.assign(new Error("EACCES: permission denied"), {
+          code: "EACCES",
+        });
+      },
+    });
+    expect(await main([], all)).toBe(1);
+    expect(log.error).toHaveBeenCalledWith("fichier de seed illisible", {
+      file: "db/seed.local.json",
+    });
+  });
+
   it("lit db/seed.local.json par défaut et applique le seed", async () => {
     const { all, readFile, apply, log } = deps();
     expect(await main([], all)).toBe(0);
