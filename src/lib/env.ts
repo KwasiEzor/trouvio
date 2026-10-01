@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isLoopbackUrl } from "./db/target";
+import { effectiveSslMode, isLoopbackUrl } from "./db/target";
 import { LOG_THRESHOLDS } from "./logger/logger";
 
 /**
@@ -33,15 +33,11 @@ const secret = () => z.string().min(32);
 const postgresUrl = () => z.url({ protocol: /^postgres(ql)?$/ });
 // Hors de la boucle locale, TLS exigé : identifiants et données ne circulent jamais en clair.
 const databaseUrl = () =>
-  postgresUrl().refine((value) => {
-    // Zod 4 exécute le refine même si la vérification d'URL a échoué : ne jamais lever ici.
-    try {
-      const sslmode = new URL(value).searchParams.get("sslmode") ?? "";
-      return isLoopbackUrl(value) || TLS_SSLMODES.has(sslmode);
-    } catch {
-      return false;
-    }
-  });
+  // Zod 4 exécute le refine même si la vérification d'URL a échoué : ces deux lectures ne lèvent pas.
+  postgresUrl().refine(
+    (value) =>
+      isLoopbackUrl(value) || TLS_SSLMODES.has(effectiveSslMode(value) ?? ""),
+  );
 // Base des tests d'intégration : boucle locale seulement, pour qu'aucun test ne vise Neon.
 const testDatabaseUrl = () =>
   postgresUrl().refine(isLoopbackUrl).default(DEFAULT_TEST_DATABASE_URL);
