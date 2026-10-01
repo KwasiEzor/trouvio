@@ -70,10 +70,37 @@ describe("validation de l'environnement au démarrage (next.config.ts)", () => {
     );
   });
 
-  it("démarre avec un environnement valide", () => {
-    vi.stubEnv("APP_URL", "https://trouvio.example");
-    expect(config(PHASE_PRODUCTION_SERVER)).toMatchObject({
-      poweredByHeader: false,
+  // Depuis P1-02, le web sert des pages qui lisent la base et signent des sessions.
+  describe("serveur web", () => {
+    const BASE_LOCALE =
+      "postgres://trouvio:trouvio@127.0.0.1:54329/trouvio_dev";
+
+    beforeEach(() => {
+      vi.stubEnv("APP_URL", "https://trouvio.example");
+      vi.stubEnv("DATABASE_URL", BASE_LOCALE);
+      vi.stubEnv("BETTER_AUTH_SECRET", "s".repeat(32));
+    });
+
+    it("démarre avec un environnement valide", () => {
+      expect(config(PHASE_PRODUCTION_SERVER)).toMatchObject({
+        poweredByHeader: false,
+      });
+    });
+
+    it.each(["DATABASE_URL", "BETTER_AUTH_SECRET"])(
+      "refuse de démarrer sans %s",
+      (name) => {
+        vi.stubEnv(name, "");
+        expect(() => config(PHASE_PRODUCTION_SERVER)).toThrow(
+          `Configuration invalide (web) — manquantes : ${name}`,
+        );
+      },
+    );
+
+    it("se construit sans base ni secret", () => {
+      vi.stubEnv("DATABASE_URL", "");
+      vi.stubEnv("BETTER_AUTH_SECRET", "");
+      expect(() => config(PHASE_PRODUCTION_BUILD)).not.toThrow();
     });
   });
 });
