@@ -28,7 +28,7 @@
 - [x] **P1-01** Schéma Drizzle complet (ARCHITECTURE §5) + première migration + seed lu depuis `db/seed.local.json` (ignoré par git ; `db/seed.example.json` commité avec des valeurs fictives). *Accept.* : `pnpm db:migrate` sur base vierge puis seed OK ; aucune donnée personnelle dans le dépôt. Bac à sable (ADR 0011) : trancher la base de dev ou de test **non secrète** des commandes lancées par Claude (option B du plan P0-08 : Postgres local, identifiants jetables, fichier non nommé `.env*`). Plan : `docs/plans/P1-01.md` ; tranché par l'ADR 0012 (Postgres Docker local).
 - [ ] **P1-02** Better Auth (email + mot de passe, lien magique), sessions en base, rôles `user`/`admin`. *Accept.* : inscription, connexion, déconnexion testées en E2E. *Note P1-01* : `users` existe déjà (compatible Better Auth, `modelName: "users"`, id en `uuid` généré par Postgres) ; `sessions`, `accounts` et `verifications` sont générées par la CLI Better Auth puis ajoutées par une migration additive ; `database` et `auth` entrent dans `STARTUP_DOMAINS` ; le job CI `e2e` reçoit le service Postgres de `quality` ; vérifier que Better Auth met l'email en minuscules (check `users_email_lowercase_check`).
 - [ ] **P1-03** Helpers d'autorisation (`requireUser`, `requireAdmin`, requêtes scopées par `userId`). *Accept.* : tests IDOR — un utilisateur ne peut lire/modifier aucune ressource d'un autre.
-- [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429.
+- [ ] **P1-04** Rate limiting sur routes d'auth et formulaires publics. *Accept.* : test dépassement → 429. *Note P1-02* : le limiteur intégré de Better Auth (actif en production seulement, en mémoire : 3 requêtes / 10 s sur `/sign-in*` et `/sign-up*`, 5 / 60 s sur le lien magique) ne couvre que le handler HTTP, pas les appels `auth.api.*` ; Next conserve un `x-forwarded-for` envoyé par le client (`advanced.ipAddress.trustedProxies` à régler derrière le reverse proxy) ; stockage hors mémoire à trancher ; ne jamais activer `disableIpTracking`, qui coupe le limiteur.
 - [ ] **P1-05** En-têtes de sécurité (SECURITY §3) : CSP avec nonce (via `proxy.ts`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`. *Accept.* : test vérifiant chaque en-tête sur une page et une route API ; aucun script autorisé par `unsafe-inline`. *Note P0-06* : Sentry navigateur exige `connect-src https://o<id>.ingest.de.sentry.io` (ou `tunnelRoute` fixe exclu du `matcher` de `proxy.ts`) ; `requestId` transmis au logger par `child()`.
 **Porte P1** : tests d'autorisation verts, revue `security-reviewer` sans point bloquant.
 
@@ -53,14 +53,14 @@
 ## P4 — Diffusion
 - [ ] **P4-01** Sélection du digest (≥ seuil, tri, max 10, offres exclues ou marquées « pas pertinent » retirées). *Accept.* : tests unitaires.
 - [ ] **P4-02** Canal **Telegram** (bot, liaison du compte par code à usage unique). *Accept.* : message reçu depuis l'environnement local via un bot Telegram de test.
-- [ ] **P4-03** Canal **Email** (Resend, template sobre, lien de désinscription). *Accept.* : email reçu, rendu vérifié.
+- [ ] **P4-03** Canal **Email** (Resend, template sobre, lien de désinscription). *Accept.* : email reçu, rendu vérifié. *Note P1-02* : brancher Resend sur le port `AuthMailer` (`resolveAuthMailer`, `src/lib/auth/mailer.ts`) pour les emails d'authentification, servis jusque-là par la seule boîte d'envoi locale (échec fermé ailleurs) ; ajouter `email` à `STARTUP_DOMAINS.web`.
 - [ ] **P4-04** Idempotence des envois (`deliveries`). *Accept.* : double exécution → un seul message.
 
 ## P5 — Orchestration
 - [ ] **P5-01** `runDailyJob()` (orchestration collecte → scoring → digest) + point d'entrée CLI `pnpm job:run`, verrou `pg_advisory_lock` (ADR 0008). *Accept.* : test d'intégration de bout en bout avec sources et LLM simulés ; un second lancement concurrent s'arrête sans rien faire. *Note P0-06* : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `flush` avant la sortie ; `process.exitCode = 1` plutôt que `process.exit()` (sur un pipe, stdout est asynchrone et la dernière ligne serait perdue) ; journaux Actions publics = agrégats seulement (ARCHITECTURE §9).
 - [ ] **P5-02** Workflow `daily-job.yml` : exécution quotidienne de `pnpm job:run` dans GitHub Actions + déclenchement manuel, secrets dans un environnement GitHub `production` limité à ce workflow. *Accept.* : exécution planifiée réussie, aucun secret dans les journaux du workflow.
 - [ ] **P5-03** Observabilité du job (`job_runs`, alertes Sentry en cas d'échec). *Accept.* : échec simulé d'une source → alerte, les autres sources continuent. *Note P0-06* : une capture par source et par exécution (quota gratuit de 5 000 erreurs/mois) ; un `logger.error` sans `err` s'intitule « Object.message » dans Sentry : lui donner une empreinte (`fingerprint`) par message.
-- [ ] **P5-04** Rétention des offres (SECURITY §4, « offres brutes 90 jours ») : purge quotidienne des offres non référencées par une candidature et plus anciennes que la durée fixée, ou de leur `raw`. *Accept.* : test d'intégration — une offre ancienne sans candidature est purgée, une offre liée à une candidature est conservée (`applications.offer_id` en `restrict`). Purger aussi `raw` des offres conservées par une candidature. Ajoutée par le plan P1-01 (Q8).
+- [ ] **P5-04** Rétention des offres (SECURITY §4, « offres brutes 90 jours ») : purge quotidienne des offres non référencées par une candidature et plus anciennes que la durée fixée, ou de leur `raw`. *Accept.* : test d'intégration — une offre ancienne sans candidature est purgée, une offre liée à une candidature est conservée (`applications.offer_id` en `restrict`). Purger aussi `raw` des offres conservées par une candidature. Ajoutée par le plan P1-01 (Q8). *Note P1-02* : purger aussi les lignes expirées de `sessions` et de `verifications`.
 **Porte P5 = Jalon M1** : 7 jours consécutifs de digest sans intervention → **début de l'auto-test (2 semaines)**, ajustement du prompt (v2) à partir des retours.
 
 ## P6 — Application web (espace connecté)
@@ -69,15 +69,15 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 - [ ] **P6-02** Fil d'offres (bandeau digest, stats, filtres, cartes avec anneau de score, « pas pertinent »).
 - [ ] **P6-03** Détail d'une offre (analyse, compétences, actions, offres similaires).
 - [ ] **P6-04** Suivi kanban (changement de statut, relance suggérée).
-- [ ] **P6-05** Configuration (profil, localisation/contrat, seuil avec aperçu, canaux, fréquence).
+- [ ] **P6-05** Configuration (profil, localisation/contrat, seuil avec aperçu, canaux, fréquence). *Note P1-02* : `/update-user` de Better Auth est désactivé ; le rouvrir pour le nom (vide après une inscription par lien magique) sans exposer `role` ni `plan`.
 - [ ] **P6-06** Statistiques (courbe, sources, entonnoir, export CSV).
 *Accept. global* : parcours E2E « se connecter → consulter une offre → l'ajouter au suivi → la marquer postulée » ; audit accessibilité sans erreur critique.
 
 ## P7 — Site public & pages légales
 - [ ] **P7-01** Accueil, Fonctionnalités, Tarifs, Contact (maquettes de référence), SEO (métadonnées, sitemap, OG).
-- [ ] **P7-02** Connexion / Inscription redessinées (disposition scindée).
+- [ ] **P7-02** Connexion / Inscription redessinées (disposition scindée). *Note P1-02* : réinitialisation du mot de passe et lien « Mot de passe oublié ? » (absents avant : le lien magique sert d'accès de secours) ; composants shadcn `input` et `label` ; logique et textes déjà dans `src/features/auth`.
 - [ ] **P7-03** Mentions légales, politique de confidentialité (RGPD), cookies (consentement minimal : aucun traceur non essentiel par défaut).
-- [ ] **P7-04** Export et suppression de compte (droits RGPD). *Accept.* : suppression effective vérifiée en base.
+- [ ] **P7-04** Export et suppression de compte (droits RGPD). *Accept.* : suppression effective vérifiée en base. *Note P1-02* : `/delete-user` et `/change-email` de Better Auth sont désactivés ; supprimer aussi les lignes de `verifications` liées à l'email.
 
 ## P8 — Administration
 - [ ] **P8-01** Tableau de bord admin (utilisateurs, MRR, coût IA, rétention, quotas sources) — accès `admin` uniquement.
@@ -90,7 +90,7 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 - [ ] **P9-03** Limites par formule (sources, canaux, modèle IA, plafond de coût IA ; plafond fixe pour la formule Gratuite).
 
 ## P10 — Durcissement & lancement
-- [ ] **P10-01** Audit sécurité final (`/security-audit`), correction de tous les points hauts.
+- [ ] **P10-01** Audit sécurité final (`/security-audit`), correction de tous les points hauts. *Note P1-02* : contrôle des mots de passe compromis (plugin `haveibeenpwned` de Better Auth, qui échoue fermé : décider de la conduite quand le service ne répond pas).
 - [ ] **P10-02** Dockerfile (sortie `standalone`), déploiement Hostinger VPS via GitHub Actions, HTTPS, reverse proxy ; point d'entrée qui valide l'environnement avant `server.js` (ARCHITECTURE §8). *Accept.* : conteneur lancé sans `APP_URL` → sortie code 1, noms des variables manquantes affichés sans valeur. *Note P0-06* : `SENTRY_DSN` présent au build (figé dans le bundle navigateur) ; projet Sentry de production ; upload des source maps avec un jeton de build réservé à la production (`sourcemaps.disable` à revoir) ; dans ce projet, *Allowed Domains* limités au domaine de l'app et filtres entrants (localhost, navigateurs anciens) ; rétention courte des journaux Docker (Next y écrit les erreurs serveur brutes, hors logger) ; `user.geo` (ville) déduit par Sentry de l'IP de connexion malgré « IP non stockées » : règle de nettoyage avancée sur `$user.geo`, vérifiée par un essai. *Note P1-01* : `.dockerignore` excluant `db/seed.*.json` (sauf l'exemple) et `db/local/`.
 - [ ] **P10-03** Sauvegardes (Neon PITR + export), runbook incident (`docs/RUNBOOK.md`).
 - [ ] **P10-04** Tests de charge légers (100 utilisateurs simulés sur le job quotidien).
