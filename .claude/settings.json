@@ -14,7 +14,8 @@
         "~/.ssh",
         "~/.aws",
         "~/.docker",
-        "~/.netrc"
+        "~/.netrc",
+        "./db/seed.local.json"
       ],
       "allowRead": [
         "./",
@@ -138,6 +139,7 @@
       "Read(./.env.test.local)",
       "Read(./.env.production)",
       "Read(./.env.production.local)",
+      "Read(./db/seed.local.json)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(sudo *)"
