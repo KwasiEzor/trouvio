@@ -67,6 +67,22 @@ jobs:
     name: e2e
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Postgres du serveur testé (P1-02 : sessions et comptes en base). Même image, au même digest,
+    # et même initialisation que le job quality (local-parity.test.ts). La base trouvio_e2e est
+    # recréée et migrée par `pnpm e2e:prepare` (playwright.config.ts). Identifiants jetables,
+    # secret d'authentification tiré à chaque exécution : aucun secret GitHub.
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,6 +93,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: psql -v ON_ERROR_STOP=1 -f db/local/init.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54329"
+          PGUSER: postgres
+          PGPASSWORD: postgres
       # Pas de cache des navigateurs (déconseillé par Playwright) ; headless shell seul.
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm test:e2e
