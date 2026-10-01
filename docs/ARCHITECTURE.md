@@ -56,8 +56,8 @@ src/
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé
-db/                      schema.ts, migrations/
-scripts/                 job-run.ts (point d'entrée CLI du job), test-hooks.sh
+db/                      schema.ts, migrations/, seed.example.json, local/ (Postgres Docker non secret, ADR 0012)
+scripts/                 job-run.ts (point d'entrée CLI du job), db-migrate.ts, db-seed.ts, test-hooks.sh
 prompts/                 scoring.v1.md, ...
 evals/                   jeu de référence + script d'évaluation
 tests/e2e/               Playwright (build de production, axe)
@@ -76,15 +76,23 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 ## 5. Modèle de données (Drizzle)
 | Table | Colonnes clés | Contraintes |
 |---|---|---|
-| `users` | id, email, name, role (`user`/`admin`), plan, created_at | email unique |
-| `search_profiles` | user_id, titles[], skills[], years_exp, languages[], zone, remote_mode, contracts[], min_salary, excluded_keywords[], excluded_companies[], threshold, channels jsonb, send_hour, frequency | 1 par user |
+| `users` | id, email, name, email_verified, image, role (`user`/`admin`), plan (`free`/`economy`/`comfort`), created_at, updated_at | email unique, en minuscules |
+| `search_profiles` | user_id, titles[], skills[], years_exp, languages[], zone, remote_modes[], contracts[], min_salary, excluded_keywords[], excluded_companies[], threshold, channels jsonb, send_hour, frequency | 1 par user (clé primaire user_id) ; threshold 0–100, send_hour 0–23 |
 | `job_offers` | id, source, external_id, dedup_hash, canonical_offer_id (null = offre canonique), title, company, location, contract, salary_min, salary_max, remote, description, url, published_at, raw jsonb | unique (source, external_id) ; index dedup_hash ; FK canonical_offer_id → job_offers.id |
 | `offer_scores` | user_id, offer_id, score, strengths[], concerns[], reason, status (`scored`/`unscored`), model, prompt_version, input_tokens, output_tokens, cost_usd, created_at | unique (user_id, offer_id) |
 | `offer_feedback` | user_id, offer_id, verdict (`not_relevant`/`relevant`), created_at | unique (user_id, offer_id) |
-| `applications` | id, user_id, offer_id, status (`to_review`/`applied`/`follow_up`/`closed`), applied_at, notes, updated_at | unique (user_id, offer_id) |
-| `deliveries` | id, user_id, channel, digest_date, offer_ids[], status, error | unique (user_id, channel, digest_date) |
+| `applications` | id, user_id, offer_id, status (`to_review`/`applied`/`follow_up`/`closed`), applied_at, notes, updated_at | unique (user_id, offer_id) ; offer_id en `restrict` |
+| `deliveries` | id, user_id, channel, digest_date, offer_ids[], status, error, sent_at | unique (user_id, channel, digest_date) ; 10 offres au plus |
 | `job_runs` | id, kind, started_at, finished_at, status, stats jsonb | — |
-| Better Auth | sessions, accounts, verifications | gérées par la bibliothèque |
+| Better Auth | sessions, accounts, verifications | gérées par la bibliothèque, ajoutées en P1-02 (`users` est déjà sa table utilisateur) |
+
+**Conventions (P1-01, `db/schema.ts`)** :
+- noms SQL en snake_case ; identifiants `uuid` par `gen_random_uuid()` ; horodatages `timestamptz` ;
+- enums Postgres dont les valeurs, en anglais, viennent de `src/lib/db/enums.ts` (partagées avec Zod) ; les libellés français vivent dans l'interface ;
+- `min_salary` est un salaire brut annuel en euros ; `send_hour`, une heure de Bruxelles ; `zone`, un texte libre en attendant P2-00 ;
+- `remote_mode` devient le tableau `remote_modes` : un profil accepte plusieurs modes ;
+- **toute table à `user_id` le référence en cascade et commence une clé ou un index par lui** : la suppression de compte est effective, et les requêtes scopées (P1-03) sont indexées. Invariants vérifiés par `src/lib/db/schema.test.ts` ;
+- `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures.
 
 **Dédoublonnage** : `dedup_hash = sha256(norm(company) + norm(title) + norm(city))`, utilisé **uniquement entre sources différentes**. Dans une même source, `external_id` fait foi : deux offres distinctes au même intitulé ne sont jamais fusionnées. Quand une offre d'une autre source a le même hash, elle pointe vers l'offre canonique (`canonical_offer_id`) ; seules les offres canoniques sont scorées et envoyées.
 
@@ -100,11 +108,12 @@ Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécuri
 
 ## 8. Configuration (variables d'environnement)
 - **Seul point d'accès** : `src/lib/env.ts` (interdit ailleurs par ESLint et par le hook `guard-code`).
-- **Domaines** : `core`, `database`, `auth`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
+- **Domaines** : `core`, `database`, `databaseMigration`, `testDatabase`, `auth`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
 - **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : aujourd'hui `core` et `sentry` pour `web` et `job` (le DSN reste optionnel, mais un DSN invalide empêche le démarrage au lieu de désactiver Sentry sans rien dire). **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
 - **Où** : `next.config.ts`, uniquement pour les phases serveur (`next start`, `next dev`) ; futur CLI du job (`scripts/job-run.ts`) : première instruction. Le **build n'exige aucun secret**. (`instrumentation.ts` ne convient pas : chargé après « Ready », une erreur y laisse le processus vivant.)
 - **Limite `standalone` (production, ADR 0006)** : le `server.js` généré embarque la config figée au build et **n'évalue pas** `next.config.ts` au démarrage. Le point d'entrée du conteneur doit donc appeler `assertStartupEnv("web")` avant de charger `server.js` (P10-02).
 - **Erreurs** : noms des variables manquantes ou invalides, jamais leurs valeurs.
+- **Bases (P1-01, ADR 0012)** : `DATABASE_URL` (rôle applicatif, DML) et `DATABASE_MIGRATION_URL` (rôle propriétaire, lu par `db:migrate` seulement) exigent `sslmode=require` ou `verify-full` hors boucle locale. `TEST_DATABASE_URL` vaut par défaut la base Docker `127.0.0.1:54329` et refuse tout hôte hors boucle locale. Les commandes `db:*:local` lisent `db/local/dev.vars` (non secret) ; `db:*:neon` lisent `.env.local` et ne se lancent que dans le terminal de l'utilisateur.
 - **Valeurs publiées au navigateur** : seulement `SENTRY_DSN` et `NODE_ENV`, figés au build par `compiler.define` (`publicBuildEnv()`, lus par `src/lib/observability/public-config.ts`). Aucune variable `NEXT_PUBLIC_`. En production (P10-02), le DSN doit donc être présent **au build**. Le DSN n'est accepté qu'en région UE (`https://<clé>@o<id>.ingest.de.sentry.io/<projet>`, `SENTRY_EU_INGEST_HOST`), sans clé secrète, port, query ni fragment (P0-07).
 - **`LOG_LEVEL`** (domaine `core`) : `debug | info | warn | error | silent`, `info` par défaut ; `silent` pendant les tests (Vitest).
 - **Variables interdites** : `SENTRY_TRACES_SAMPLE_RATE`, que le SDK Sentry lirait hors `env.ts` pour activer les traces, fait refuser le démarrage (`assertStartupEnv`). `SENTRY_NAME` et `SENTRY_SPOTLIGHT` sont neutralisées par les options du SDK.

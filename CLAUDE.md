@@ -17,7 +17,7 @@ pnpm dev | lint | typecheck | test
 pnpm test:coverage  # tests + seuils de couverture (80 % par fichier sur src/lib et features/*/core)
 pnpm test:e2e       # Playwright sur build de production (exigé si un parcours est touché ; lancé par l'utilisateur, §6)
 pnpm eval:scoring   # évaluation du prompt de scoring
-pnpm db:generate | db:migrate
+pnpm db:generate | db:check | db:migrate:local | db:seed:local   # base Docker locale, lancée par l'utilisateur : pnpm db:local:up (ADR 0012)
 pnpm verify         # lint + typecheck + test:coverage + format:check + build — porte de qualité
 bash scripts/verifie-modifs.sh  # format + typecheck + tests liés ; exigé par le hook Stop si du TS a changé
 ```
