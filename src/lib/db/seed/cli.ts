@@ -120,7 +120,13 @@ function isNotFound(err: unknown): boolean {
   return err instanceof Error && "code" in err && err.code === "ENOENT";
 }
 
-function countLabel({ users, profiles }: { users: number; profiles: number }) {
-  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
-  return `${plural(users, "utilisateur")}, ${plural(profiles, "profil")}`;
+function countLabel({
+  created,
+  updated,
+}: {
+  created: number;
+  updated: number;
+}) {
+  const s = (n: number) => (n > 1 ? "s" : "");
+  return `${created} utilisateur${s(created)} créé${s(created)}, ${updated} modifié${s(updated)}`;
 }
