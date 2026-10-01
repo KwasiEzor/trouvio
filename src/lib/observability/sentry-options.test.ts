@@ -230,6 +230,24 @@ describe("scrubEvent", () => {
     });
   });
 
+  it("retire les valeurs liées d'une requête échouée du message d'exception", () => {
+    const propreRequete = scrubEvent({
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value:
+              'Failed query: select * from "users" where "name" = $1\nparams: Camille Fictif,987654',
+          },
+        ],
+      },
+    });
+    expect(propreRequete.exception?.values?.[0]?.value).toBe(
+      `Failed query: select * from "users" where "name" = $1\nparams: ${REDACTED}`,
+    );
+  });
+
   it("masque le message d'exception et retire les variables locales des frames", () => {
     const exception = propre.exception?.values?.[0];
     expect(exception?.value).toBe(`utilisateur ${REDACTED} introuvable`);

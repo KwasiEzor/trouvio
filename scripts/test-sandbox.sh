@@ -127,6 +127,22 @@ else
   must_fail "ouverture en ajout de $E.local (n'écrit rien)" ': >>"$ROOT/$E.local"'
 fi
 
+echo "--- Seed personnel db/seed.local.json (plan P1-01, Q5)"
+seed_listed() {
+  local f
+  for f in "$ROOT"/db/*; do [[ "${f##*/}" == seed.local.json ]] && return 0; done
+  return 1
+}
+if seed_listed; then
+  # Fichier réel de l'utilisateur : jamais réécrit, sondé par code de retour seul.
+  must_fail "db/seed.local.json : cat" 'cat -- "$ROOT/db/seed.local.json"'
+  must_fail "db/seed.local.json : node -e" 'node -e "require(\"fs\").readFileSync(process.argv[1])" "$ROOT/db/seed.local.json"'
+else
+  # Pas de canari à sa place : le bac à sable refuse aussi de supprimer un fichier qu'il ne peut
+  # pas lire, le canari resterait (mesuré le 2026-10-01).
+  echo "SAUTÉ   db/seed.local.json absent"
+fi
+
 echo "--- Contre-épreuves (doivent réussir)"
 if [[ -n "$(cat -- "$EXAMPLE" 2>/dev/null)" ]]; then report ok "lecture de $E.example"; else report ko "lecture de $E.example"; fi
 out="$(bash -c 'f="$ROOT/sonde-p008-ecriture"; echo "$MARK" >"$f" && cat "$f"; rm -f "$f"' 2>&1)"

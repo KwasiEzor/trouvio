@@ -1,0 +1,29 @@
+{
+  "users": [
+    {
+      "email": "alex.martin@example.com",
+      "name": "Alex Martin",
+      "role": "admin",
+      "plan": "free",
+      "profile": {
+        "titles": ["Développeur full-stack"],
+        "skills": ["TypeScript", "React", "PostgreSQL"],
+        "yearsExp": 5,
+        "languages": ["fr", "en"],
+        "zone": "Namur",
+        "remoteModes": ["hybrid", "remote"],
+        "contracts": ["permanent", "freelance"],
+        "minSalary": 45000,
+        "excludedKeywords": ["stage"],
+        "excludedCompanies": [],
+        "threshold": 60,
+        "channels": {
+          "telegram": { "enabled": true },
+          "email": { "enabled": false }
+        },
+        "sendHour": 7,
+        "frequency": "daily"
+      }
+    }
+  ]
+}

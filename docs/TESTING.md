@@ -12,7 +12,7 @@
 
 ## Règles
 - Aucun appel réseau réel dans `pnpm test` : sources et Anthropic sont simulés (MSW). Les appels réels sont réservés à `pnpm eval:scoring` et aux tests manuels.
-- Base de données de test isolée (conteneur Postgres en CI, ou branche Neon dédiée), réinitialisée par suite.
+- Base de données de test isolée : Postgres Docker local (`pnpm db:local:up`) et service Postgres en CI, même image (ADR 0012). Chaque fichier de test a sa propre base, clonée d'un modèle migré, puis supprimée.
 - Couverture minimale : **80 %** sur `features/*/core` et `lib/`, suivie en CI.
 - Chaque bug corrigé ajoute un test de non-régression.
 - Les tests E2E utilisent des comptes créés par seed, jamais de vraies données.
@@ -26,12 +26,20 @@
 ## Commandes et conventions (P0-03)
 | Commande | Rôle |
 |---|---|
-| `pnpm test` | Vitest, deux projets : `node` (`*.test.ts`) et `dom` (`*.test.tsx`, jsdom + Testing Library) |
+| `pnpm test` | Vitest, trois projets : `node` (`*.test.ts`), `dom` (`*.test.tsx`, jsdom + Testing Library) et `db` (`*.db.test.ts`, vrai Postgres) |
 | `pnpm test:coverage` | idem + couverture v8 et seuils (inclus dans `pnpm verify`) |
 | `pnpm test:e2e` | Playwright (chromium) sur un **build de production** (`next build` + `next start` sur le port 3100, `APP_URL` fourni par la config, aucun fichier `.env`) ; contrôle d'accessibilité axe (WCAG A/AA) |
 | `pnpm exec vitest run --project dom` | un seul projet |
+| `pnpm db:check` | dérive entre `db/schema.ts` et `db/migrations` (inclus dans `pnpm verify`) |
 
 - **Tests colocalisés**, `globals: false` (imports explicites depuis `vitest`).
+- **Base de données** (P1-01, ADR 0012) :
+  - projet `db` : `src/test/db/global-setup.ts` migre une base modèle, puis chaque fichier ouvre sa base avec `openTestDatabase({ migrated })`, et `resetData` la vide entre deux tests ;
+  - `TEST_DATABASE_URL` vaut par défaut `127.0.0.1:54329` et refuse tout hôte hors boucle locale : aucun test ne vise Neon ;
+  - base injoignable : erreur « lance `pnpm db:local:up` », jamais de test sauté. `pnpm test` et `pnpm verify` exigent donc Docker lancé (Docker Desktop sur le poste, service en CI) ;
+  - invariants du schéma vérifiés sans base (`src/lib/db/schema.test.ts`) : cascade RGPD, index sur `user_id` et sur chaque clé étrangère, unicités d'idempotence ;
+  - un code d'erreur Postgres se lit dans `error.cause` (drizzle enveloppe l'erreur de `pg`) ; `ON DELETE RESTRICT` renvoie `23001`, pas `23503` ;
+  - une exécution interrompue (Ctrl-C) peut laisser des bases `trouvio_test_*` dans le volume Docker. Elles sont sans effet sur les exécutions suivantes ; pour repartir de zéro, dans le terminal : `pnpm db:local:down`, `docker volume rm trouvio_trouvio-pg`, puis `pnpm db:local:up`.
 - **Composants** : Testing Library pour les composants synchrones ; Server Components `async`, layouts et parcours complets en E2E (recommandation Next).
 - **Réseau** : serveur MSW partagé (`src/test/msw/server.ts`) démarré pour tous les tests, **sans handler par défaut** ; chaque test déclare ses réponses (`server.use(http.get(...))`) avec des URL en `.test` ; une requête non simulée échoue (`onUnhandledRequest: "error"`). Futures sources : fixtures dans `src/features/sources/<id>/__fixtures__/`, fabriques de handlers partagées au même endroit si besoin ; Anthropic simulé de la même façon (le SDK passe par `fetch`).
 - **Couverture** : tous les fichiers de `src/` comptent (même jamais chargés) ; seuils 80 % **par fichier** sur `src/lib/**` et `src/features/*/core/**` (un fichier de pure configuration s'exclut explicitement, avec justification relue en PR) ; pas de seuil sur `src/app` (couvert par l'E2E). Un seuil ne s'abaisse jamais pour faire passer.

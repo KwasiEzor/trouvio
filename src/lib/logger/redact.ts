@@ -119,6 +119,20 @@ export function isSensitiveKey(key: string): boolean {
   );
 }
 
+// drizzle-orm (DrizzleQueryError) recopie les valeurs liées dans son message, donc dans sa pile :
+// « Failed query: <sql>\nparams: <valeurs> », la pile reprenant ensuite à « \n    at ».
+const QUERY_PARAMS = "\nparams:";
+const STACK_FRAME = "\n    at ";
+
+/** Retire les valeurs liées d'une requête recopiées dans un message ou une pile d'erreur. */
+export function maskQueryValues(text: string): string {
+  const start = text.indexOf(QUERY_PARAMS);
+  if (start === -1) return text;
+  const frames = text.indexOf(STACK_FRAME, start);
+  const rest = frames === -1 ? "" : text.slice(frames);
+  return `${text.slice(0, start)}${QUERY_PARAMS} ${REDACTED}${rest}`;
+}
+
 /** Masque les motifs sensibles d'un texte, puis le tronque à `max` caractères. */
 export function redactString(text: string, max = MAX_STRING): string {
   let result = text.slice(0, MAX_SCAN);

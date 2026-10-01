@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import { describe, expect, it } from "vitest";
 
 import { EnvValidationError } from "../env";
@@ -120,6 +121,40 @@ describe("serializeError", () => {
       });
     },
   );
+
+  it("retire les valeurs d'une requête échouée : paramètres, ligne fautive, contexte SQL", () => {
+    const pg = Object.assign(
+      new Error(
+        'new row for relation "search_profiles" violates check constraint',
+      ),
+      {
+        code: "23514",
+        constraint: "search_profiles_threshold_check",
+        detail: "Failing row contains (Camille Fictif, Namur, 987654).",
+        where: "SQL function sentinelle line 1",
+        internalQuery: "select 'sentinelle'",
+      },
+    );
+    const erreur = new DrizzleQueryError(
+      'insert into "search_profiles" ("name", "zone", "min_salary") values ($1, $2, $3)',
+      ["Camille Fictif", "Namur", 987654],
+      pg,
+    );
+    const resultat = serializeError(erreur);
+    const texte = JSON.stringify(resultat);
+    expect(texte).not.toMatch(/Camille|Namur|987654|sentinelle/);
+    expect(resultat.message).toBe(
+      `Failed query: insert into "search_profiles" ("name", "zone", "min_salary") values ($1, $2, $3)\nparams: ${REDACTED}`,
+    );
+    expect(resultat["query"]).toContain("values ($1, $2, $3)");
+    expect(resultat.stack).toMatch(
+      /^Error: Failed query: [\s\S]*\nparams: \[REDACTED\]\n {4}at /,
+    );
+    expect(resultat.cause).toMatchObject({
+      code: "23514",
+      constraint: "search_profiles_threshold_check",
+    });
+  });
 
   it("sérialise EnvValidationError avec les noms de variables, sans valeur", () => {
     const erreur = new EnvValidationError("web", [

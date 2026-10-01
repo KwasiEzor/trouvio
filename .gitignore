@@ -28,8 +28,9 @@ CLAUDE.local.md
 .DS_Store
 *.log
 
-# seed personnel (profil réel, jamais commité)
-db/seed.local.json
+# seed personnel (profil réel, jamais commité), copies comprises ; seul l'exemple fictif est suivi
+db/seed.*.json
+!db/seed.example.json
 
 # certificats locaux et journaux pnpm
 *.pem

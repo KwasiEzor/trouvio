@@ -15,6 +15,7 @@ import {
   type EnvDomain,
   type EnvSource,
 } from "./env";
+import { fausseUrlPostgres } from "@/test/secrets-factices";
 
 const SECRET_32 = "x".repeat(32);
 const DSN_VALIDE = "https://cle@o450000.ingest.de.sentry.io/4500000000000000";
@@ -23,7 +24,15 @@ const DSN_VALIDE = "https://cle@o450000.ingest.de.sentry.io/4500000000000000";
 const VALID: Record<EnvDomain, EnvSource> = {
   core: { NODE_ENV: "production", APP_URL: "https://trouvio.example" },
   database: {
-    DATABASE_URL: "postgresql://app:mdp@hote.example/trouvio?sslmode=require",
+    DATABASE_URL:
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full",
+  },
+  databaseMigration: {
+    DATABASE_MIGRATION_URL:
+      "postgresql://proprio:mdp@hote.example/trouvio?sslmode=verify-full",
+  },
+  testDatabase: {
+    TEST_DATABASE_URL: "postgres://trouvio:trouvio@localhost:55432/postgres",
   },
   auth: { BETTER_AUTH_SECRET: SECRET_32 },
   anthropic: {
@@ -290,6 +299,128 @@ describe("parseEnv — cas négatifs", () => {
       { name: "FRANCE_TRAVAIL_CLIENT_ID", reason: "manquante" },
       { name: "FRANCE_TRAVAIL_CLIENT_SECRET", reason: "manquante" },
     ]);
+  });
+});
+
+describe("URL des bases de données", () => {
+  const DOMAINE_DE = {
+    DATABASE_URL: "database",
+    DATABASE_MIGRATION_URL: "databaseMigration",
+  } as const;
+  const VARIABLES = Object.keys(DOMAINE_DE) as (keyof typeof DOMAINE_DE)[];
+  const lire = (name: keyof typeof DOMAINE_DE, url: string) =>
+    (parseEnv(DOMAINE_DE[name], { [name]: url }) as Record<string, string>)[
+      name
+    ];
+
+  describe.each(VARIABLES)("%s", (name) => {
+    it.each([
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full",
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full&channel_binding=require",
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=require&sslmode=verify-full",
+      "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-full&uselibpqcompat=true",
+    ])("accepte une base distante chiffrée et vérifiée : %s", (url) => {
+      expect(lire(name, url)).toBe(url);
+    });
+
+    it.each([
+      "postgres://trouvio:trouvio@127.0.0.1:54329/trouvio_dev",
+      "postgres://trouvio:trouvio@localhost:54329/trouvio_dev",
+      "postgres://trouvio:trouvio@[::1]:54329/trouvio_dev",
+    ])("accepte une base locale sans TLS : %s", (url) => {
+      expect(lire(name, url)).toBe(url);
+    });
+
+    it.each([
+      ["sans sslmode", "postgresql://app:mdp@hote.example/trouvio"],
+      [
+        "sslmode=disable",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=disable",
+      ],
+      [
+        "sslmode=prefer",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=prefer",
+      ],
+      // require ne vérifie le certificat qu'en pg 8 ; en pg 9, ou avec uselibpqcompat, plus du tout.
+      [
+        "sslmode=require",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&channel_binding=require",
+      ],
+      [
+        "sslmode=require avec uselibpqcompat",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&uselibpqcompat=true",
+      ],
+      [
+        "sslmode=verify-ca",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=verify-ca",
+      ],
+      [
+        "sslmode=no-verify",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=no-verify",
+      ],
+      [
+        "sosie de localhost",
+        "postgres://app:mdp@localhost.evil.example/trouvio",
+      ],
+      [
+        "sosie de 127.0.0.1",
+        "postgres://app:mdp@127.0.0.1.evil.example/trouvio",
+      ],
+      [
+        "boucle locale détournée par ?host=",
+        "postgres://app:mdp@127.0.0.1/trouvio?host=hote.example",
+      ],
+      [
+        "sslmode=require suivi de sslmode=disable (pg retient le dernier)",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&sslmode=disable",
+      ],
+    ])("refuse une base distante non chiffrée (%s)", (_cas, url) => {
+      const err = capture(() => parseEnv(DOMAINE_DE[name], { [name]: url }));
+      expect(err.issues).toEqual([{ name, reason: "invalide" }]);
+    });
+  });
+
+  it("donne à TEST_DATABASE_URL la base Docker locale par défaut", () => {
+    expect(parseEnv("testDatabase", {})).toEqual({
+      TEST_DATABASE_URL: "postgres://trouvio:trouvio@127.0.0.1:54329/postgres",
+    });
+  });
+
+  it.each([
+    [
+      "une base Neon, même chiffrée",
+      `${fausseUrlPostgres()}?sslmode=verify-full`,
+    ],
+    ["un sosie de 127.0.0.1", "postgres://t:t@127.0.0.1.evil.example/postgres"],
+    [
+      "une boucle locale détournée par ?host=",
+      "postgres://t:t@127.0.0.1:54329/postgres?host=ep-x.example.neon.tech",
+    ],
+    ["un autre protocole", "mysql://t:t@127.0.0.1:3306/postgres"],
+  ])("refuse pour TEST_DATABASE_URL %s", (_cas, url) => {
+    const err = capture(() =>
+      parseEnv("testDatabase", { TEST_DATABASE_URL: url }),
+    );
+    expect(err.issues).toEqual([
+      { name: "TEST_DATABASE_URL", reason: "invalide" },
+    ]);
+  });
+
+  it("ne cite jamais l'URL refusée dans l'erreur", () => {
+    const err = capture(() =>
+      parseEnvDomains(
+        ["database", "databaseMigration", "testDatabase"],
+        {
+          DATABASE_URL: "postgresql://app:SENTINELLE_A@hote.example/trouvio",
+          DATABASE_MIGRATION_URL:
+            "postgresql://proprio:SENTINELLE_B@hote.example/trouvio",
+          TEST_DATABASE_URL: "postgres://t:SENTINELLE_C@hote.example/postgres",
+        },
+        "test",
+      ),
+    );
+    expect(err.message).not.toMatch(/SENTINELLE|hote\.example/);
+    expect(err.issues).toHaveLength(3);
   });
 });
 

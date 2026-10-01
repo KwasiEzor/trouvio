@@ -31,6 +31,10 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - Mots de passe : hachage géré par Better Auth (algorithme moderne), longueur minimale 8, vérification contre les mots de passe compromis si possible.
 - Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`. Limite connue : Next écrit lui-même sur stderr le message et la pile brute d'une erreur serveur, hors logger ; les journaux du conteneur ont donc une rétention courte (P10-02).
 - Principe du moindre privilège : rôle DB applicatif sans droits DDL en production ; le job GitHub Actions utilise ce même rôle, jamais le propriétaire de la base.
+  - `DATABASE_URL` = rôle applicatif `trouvio_app` (DML) ; `DATABASE_MIGRATION_URL` = propriétaire du schéma, lu par `pnpm db:migrate` seulement. TLS vérifié exigé hors boucle locale : `sslmode=verify-full` seulement (`require` ne vérifie le certificat qu'en pg 8, plus avec `uselibpqcompat` ni en pg 9). Remplacer le `sslmode=require` des chaînes Neon.
+  - Mise en place sur Neon, par l'utilisateur, **avant** la première migration : `CREATE ROLE trouvio_app LOGIN` en SQL, **sans mot de passe** (un rôle créé dans la console recevrait `neon_superuser`), puis le mot de passe par `\password trouvio_app` dans psql (seul un hachage SCRAM part : rien en clair dans l'historique de l'éditeur SQL ni dans les journaux), `GRANT USAGE ON SCHEMA public TO trouvio_app`, `ALTER DEFAULT PRIVILEGES FOR ROLE <propriétaire> IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO trouvio_app`, branche Neon de sauvegarde, puis `pnpm db:migrate:neon`. Contrôle : en `trouvio_app`, `CREATE TABLE` échoue, `SELECT` réussit, et le rôle n'a aucun droit sur le schéma `drizzle` (journal des migrations).
+  - Seed : refusé en production et sur une base distante sans `--allow-remote` ; erreurs sans aucune valeur du fichier ; comptes créés et comptes modifiés comptés à part (l'upsert par email écrase un compte existant) (ADR 0012).
+  - Erreurs de requête : drizzle recopie les valeurs liées dans le message (« params: … ») et pg met la ligne fautive dans `detail`. `serializeError` et le `beforeSend` de Sentry les retirent (`maskQueryValues`).
 
 ## 4. RGPD (Belgique — autorité : APD)
 - Base légale : exécution du contrat (service) ; consentement pour tout traceur non essentiel.
@@ -79,13 +83,13 @@ Workflows : permissions en lecture seule par défaut, actions épinglées par SH
 ## 7. Bac à sable de Claude Code (P0-08, ADR 0011)
 **Réglages** (`.claude/settings.json`, bloc `sandbox`) :
 - actif, refus de démarrer sans lui, aucune commande hors bac à sable, aucune approbation automatique ;
-- lecture : tout `~` refusé, puis rouvert au plus juste (projet, runtime Node, config git et `gh`, jeton de Vitest, shell de Claude) ; `.env*` du projet refusés à tout niveau, sauf `.env.example` ; le trousseau de session est donc invisible : aucun jeton joignable ;
+- lecture : tout `~` refusé, puis rouvert au plus juste (projet, runtime Node, config git et `gh`, jeton de Vitest, shell de Claude) ; `.env*` du projet refusés à tout niveau, sauf `.env.example` ; `db/seed.local.json` (données personnelles du seed) refusé depuis P1-01 ; le trousseau de session est donc invisible : aucun jeton joignable ;
 - écriture : projet et dossier temporaire seulement ; jamais les `.env`, `.githooks`, `node_modules` (paquets, `.bin`, `.pnpm`), ni les chemins protégés d'office (réglages, `hooks`, `skills`, `agents` et `commands` de `.claude`, `.git/hooks`, `.git/config`) ; ni store ni cache pnpm ;
 - réseau : npm, `github.com` (`git fetch`), Google Fonts et les domaines `WebFetch` autorisés ; tout autre domaine est demandé.
 
 Les hooks n'exécutent aucun code du dépôt (bash, jq et git seulement) : le hook Stop exige l'empreinte notée par `scripts/verifie-modifs.sh`, que Claude lance dans le bac à sable.
 
-**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Se lancent dans le terminal de l'utilisateur (jamais par `!`) : un serveur avec de vrais secrets, `pnpm test:e2e` (Chromium incompatible avec Seatbelt), `pnpm install` / `pnpm add`, `git push` et les commandes `gh` (trousseau fermé ; jeton à grain fin limité au dépôt).
+**Aucun secret dans le bac à sable.** Les commandes lancées par Claude tournent sans `.env.local`, comme la CI. Leur base de données est le Postgres Docker local, sans secret, en boucle locale, avec un rôle non superutilisateur (ADR 0012). Se lancent dans le terminal de l'utilisateur (jamais par `!`) : un serveur avec de vrais secrets, `pnpm test:e2e` (Chromium incompatible avec Seatbelt), `pnpm install` / `pnpm add`, `git push` et les commandes `gh` (trousseau fermé ; jeton à grain fin limité au dépôt).
 
 Avant de lancer ces commandes :
 - relire `git diff` et `git status` ;
@@ -93,9 +97,10 @@ Avant de lancer ces commandes :
 
 **Aucune session Claude ne modifie le code pendant qu'un processus avec de vrais secrets tourne hors bac à sable** (`next dev` recharge chaque modification).
 
-**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 37 sondes :
+**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 37 sondes, 39 quand `db/seed.local.json` existe :
 - 16 sondes de lecture sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
 - 5 sondes sur `.env.local`, par code de retour seulement ;
+- 2 sondes sur `db/seed.local.json`, par code de retour seulement (sautées s'il est absent : le bac à sable refuse aussi de supprimer un fichier qu'il ne peut pas lire, donc pas de canari à sa place) ;
 - 5 contre-épreuves, qui doivent réussir ;
 - 11 sondes de confinement : lecture de `~`, trousseau invisible, création d'un `.env` en majuscules, écriture dans `~`, le store, `node_modules` et les garde-fous, connexion directe.
 
@@ -103,7 +108,7 @@ Preuve noyau : `sandbox_check` vaut 1 dans le bac à sable.
 
 **Résiduels acceptés :**
 - jeton de Vitest lisible (protège l'interface web de Vitest, inutilisée ici) ;
-- sortie vers tout port localhost (`allowLocalBinding`) : ne pas laisser de port de débogage ouvert ;
+- sortie vers tout port localhost (`allowLocalBinding`) : ne pas laisser de port de débogage ouvert, et **aucun serveur de base de données hors bac à sable en `trust` sur la boucle locale** (ADR 0012 : un superutilisateur joignable lirait `.env.local` par `COPY … FROM PROGRAM`). Un Postgres Homebrew en écoute sur 5432 a été arrêté le 2026-10-01 pour cette raison ;
 - façade de domaine possible par les domaines `WebFetch`, et push vers un dépôt tiers par `github.com` avec des identifiants apportés : sorties étroites, les secrets restant illisibles ;
 - code exécuté ensuite par l'utilisateur hors bac à sable : règles ci-dessus.
 

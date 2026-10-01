@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { effectiveSslMode, isLoopbackUrl } from "./db/target";
 import { LOG_THRESHOLDS } from "./logger/logger";
 
 /**
@@ -21,10 +22,27 @@ export type EnvIssue = {
 const DEFAULT_APP_URL = "http://localhost:3000";
 const DEFAULT_SCORING_MODEL = "claude-haiku-4-5-20251001";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+// Base Docker locale de db/local/compose.yaml (ADR 0012) : identifiants jetables, boucle locale.
+const DEFAULT_TEST_DATABASE_URL =
+  "postgres://trouvio:trouvio@127.0.0.1:54329/postgres";
+// verify-full seulement : require ne vérifie le certificat qu'en pg 8 (avec un avertissement), plus
+// du tout avec uselibpqcompat ni à partir de pg 9 ; verify-ca ne vérifie pas le nom d'hôte.
+const TLS_SSLMODES = new Set(["verify-full"]);
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
 const secret = () => z.string().min(32);
+const postgresUrl = () => z.url({ protocol: /^postgres(ql)?$/ });
+// Hors de la boucle locale, TLS exigé : identifiants et données ne circulent jamais en clair.
+const databaseUrl = () =>
+  // Zod 4 exécute le refine même si la vérification d'URL a échoué : ces deux lectures ne lèvent pas.
+  postgresUrl().refine(
+    (value) =>
+      isLoopbackUrl(value) || TLS_SSLMODES.has(effectiveSslMode(value) ?? ""),
+  );
+// Base des tests d'intégration : boucle locale seulement, pour qu'aucun test ne vise Neon.
+const testDatabaseUrl = () =>
+  postgresUrl().refine(isLoopbackUrl).default(DEFAULT_TEST_DATABASE_URL);
 // Hôte d'ingestion d'une organisation Sentry en région UE (ADR 0010) ; l'URL le met en minuscules.
 export const SENTRY_EU_INGEST_HOST = /^o\d+\.ingest\.de\.sentry\.io$/;
 // DSN Sentry : https, clé publique seule (une clé secrète partirait dans le bundle navigateur),
@@ -56,7 +74,11 @@ const shapes = {
     APP_URL: httpUrl().optional(),
     LOG_LEVEL: z.enum(LOG_THRESHOLDS).default("info"),
   },
-  database: { DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }) },
+  // Rôle applicatif (DML seulement) : application, job, seed.
+  database: { DATABASE_URL: databaseUrl() },
+  // Rôle propriétaire du schéma (DDL) : lu par db:migrate seulement.
+  databaseMigration: { DATABASE_MIGRATION_URL: databaseUrl() },
+  testDatabase: { TEST_DATABASE_URL: testDatabaseUrl() },
   auth: { BETTER_AUTH_SECRET: secret() },
   anthropic: {
     ANTHROPIC_API_KEY: required(),
@@ -113,6 +135,8 @@ const core = z
 export const envSchemas = {
   core,
   database: z.object(shapes.database),
+  databaseMigration: z.object(shapes.databaseMigration),
+  testDatabase: z.object(shapes.testDatabase),
   auth: z.object(shapes.auth),
   anthropic: z.object(shapes.anthropic),
   franceTravail: z.object(shapes.franceTravail),
@@ -129,6 +153,8 @@ export type Env<D extends EnvDomain> = z.output<(typeof envSchemas)[D]>;
 export const envVariables: Record<EnvDomain, readonly string[]> = {
   core: Object.keys(shapes.core),
   database: Object.keys(shapes.database),
+  databaseMigration: Object.keys(shapes.databaseMigration),
+  testDatabase: Object.keys(shapes.testDatabase),
   auth: Object.keys(shapes.auth),
   anthropic: Object.keys(shapes.anthropic),
   franceTravail: Object.keys(shapes.franceTravail),

@@ -33,7 +33,7 @@ Claude Code propose un bac à sable pour Bash : Seatbelt sur macOS. Il confine c
    - **Trousseau fermé** : le refus de lecture de `~` rend le trousseau de session invisible (`security default-keychain` échoue ; mesuré). Aucun jeton n'est joignable depuis le bac à sable. `git push`, `gh pr create` et les autres commandes `gh` sont donc lancés par l'utilisateur ; Claude suit la CI par l'outil PR de l'application. `enableWeakerNetworkIsolation` et `api.github.com`, qui ne servaient qu'à `gh`, sont retirés.
 5. **Variables.** `NEXT_TELEMETRY_DISABLED=1`. `WATCHPACK_POLLING=true` : FSEvents est refusé, et sans scrutation `next dev` échoue en `EMFILE` et redémarre en boucle. Il reste **sans rechargement à chaud** : Claude le relance après une modification.
 6. **Aucun secret dans le bac à sable.** `pnpm test`, `verify`, `build` et `dev` lancés par Claude tournent **sans `.env.local`**, comme la CI, avec les valeurs par défaut non secrètes de `src/lib/env.ts`. Next journalise `Failed to load env … EPERM` : c'est attendu.
-   - Base de dev non secrète : décidée en P1-01.
+   - Base de dev non secrète : Postgres Docker local, sans secret (ADR 0012, P1-01).
    - Masquage des clés d'API par `sandbox.credentials` (`mask`, réglage utilisateur) : étudié en P3.
 7. **Ce qui tourne hors bac à sable est lancé par l'utilisateur, dans son terminal**, jamais par `!` : ce mode s'exécute hors bac à sable et renvoie la sortie dans la conversation. Ce sont :
    - `pnpm test:e2e`, car Seatbelt refuse à Chromium l'enregistrement Mach de ses processus, et en processus unique il plante à la navigation ; la CI rejoue les E2E sur chaque PR ;
@@ -48,7 +48,7 @@ Claude Code propose un bac à sable pour Bash : Seatbelt sur macOS. Il confine c
 8. **Hooks sans code du dépôt.** Les hooks n'exécutent que bash, jq et git. Le hook Stop compare l'empreinte des fichiers TypeScript modifiés à celle que note `scripts/verifie-modifs.sh`. Claude lance ce script dans son bac à sable : il formate, vérifie les types et lance les tests liés. Un test de `scripts/test-hooks.sh`, en CI, vérifie qu'aucun hook déclaré n'exécute d'outil du dépôt.
    - Un profil `sandbox-exec` maison (`confine`) a été écarté : parti de « tout permis sauf… », il laissait des sorties (Launch Services, Apple Events, `launchctl`, sockets Unix, `/private/tmp`).
 9. **Le filet reste.** `guard-bash` refuse plus tôt, avec un message clair, et couvre aussi Read, Grep et Edit. Il refuse aussi d'extraire du trousseau : `gh auth token`, `gh auth status --show-token`, `security find-*-password`, `security dump-keychain`, `security -i`, `git credential fill` et `GIT_TRACE_REDACT=0`. `guard-files` demande confirmation pour `.mcp.json`, `.vscode/` et `.git/`.
-10. **Preuve.** `scripts/test-sandbox.sh` : 37 sondes.
+10. **Preuve.** `scripts/test-sandbox.sh` : 37 sondes, plus 2 sur `db/seed.local.json` quand il existe (P1-01, ADR 0012).
     - Méthode : un canari `.env.canary` (non secret, ignoré par git) et un témoin lisible ; chaque sonde de lecture doit lire le témoin et échouer sur le canari. Sa sortie n'est jamais affichée ; `.env.local` n'est sondé que par code de retour.
     - Les sondes couvrent aussi la lecture de `~`, le trousseau, la création d'un `.env` en majuscules, l'écriture du store, de `node_modules` et des garde-fous, et la connexion directe.
 
