@@ -53,7 +53,7 @@ async function rows() {
 
 describe("applySeed", () => {
   it("crée l'utilisateur et son profil depuis l'exemple", async () => {
-    expect(await applySeed(t.db, EXEMPLE)).toEqual({ users: 1, profiles: 1 });
+    expect(await applySeed(t.db, EXEMPLE)).toEqual({ created: 1, updated: 0 });
     expect(await rows()).toEqual([
       expect.objectContaining({
         email: "alex.martin@example.com",
@@ -69,7 +69,7 @@ describe("applySeed", () => {
   it("est idempotent : relancé, il garde le même utilisateur", async () => {
     await applySeed(t.db, EXEMPLE);
     const [avant] = await rows();
-    expect(await applySeed(t.db, EXEMPLE)).toEqual({ users: 1, profiles: 1 });
+    expect(await applySeed(t.db, EXEMPLE)).toEqual({ created: 0, updated: 1 });
     const apres = await rows();
     expect(apres).toHaveLength(1);
     expect(apres[0]?.id).toBe(avant?.id);

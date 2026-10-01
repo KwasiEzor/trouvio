@@ -17,7 +17,7 @@ const DISTANTE =
 function deps(overrides: Partial<SeedCliDeps> = {}) {
   const log = fakeLogger();
   const readFile = vi.fn(async (_path: string) => EXEMPLE);
-  const apply = vi.fn(async () => ({ users: 1, profiles: 1 }));
+  const apply = vi.fn(async () => ({ created: 1, updated: 0 }));
   return {
     log,
     readFile,
@@ -49,7 +49,7 @@ describe("db:seed", () => {
   it("lit l'environnement et le fichier sur disque par défaut", async () => {
     vi.stubEnv("DATABASE_URL", LOCALE);
     const log = fakeLogger();
-    const apply = vi.fn(async () => ({ users: 1, profiles: 1 }));
+    const apply = vi.fn(async () => ({ created: 1, updated: 0 }));
     expect(await main(["--file", "db/seed.example.json"], { apply, log })).toBe(
       0,
     );
@@ -86,8 +86,8 @@ describe("db:seed", () => {
       }),
     );
     expect(log.info).toHaveBeenCalledWith(
-      "1 utilisateur, 1 profil (base locale)",
-      { users: 1, profiles: 1 },
+      "1 utilisateur créé, 0 modifié (base locale)",
+      { created: 1, updated: 0 },
     );
   });
 
@@ -99,12 +99,12 @@ describe("db:seed", () => {
 
   it("accorde le pluriel", async () => {
     const { all, log } = deps({
-      apply: async () => ({ users: 2, profiles: 2 }),
+      apply: async () => ({ created: 2, updated: 3 }),
     });
     await main([], all);
     expect(log.info).toHaveBeenCalledWith(
-      "2 utilisateurs, 2 profils (base locale)",
-      { users: 2, profiles: 2 },
+      "2 utilisateurs créés, 3 modifiés (base locale)",
+      { created: 2, updated: 3 },
     );
   });
 
@@ -179,8 +179,8 @@ describe("db:seed", () => {
     expect(await main(["--allow-remote"], all)).toBe(0);
     expect(apply).toHaveBeenCalledOnce();
     expect(log.info).toHaveBeenCalledWith(
-      "1 utilisateur, 1 profil (base distante)",
-      { users: 1, profiles: 1 },
+      "1 utilisateur créé, 0 modifié (base distante)",
+      { created: 1, updated: 0 },
     );
     expect(everythingLogged(log)).not.toMatch(/sentinelle/i);
   });
