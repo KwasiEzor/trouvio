@@ -25,7 +25,9 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 // Base Docker locale de db/local/compose.yaml (ADR 0012) : identifiants jetables, boucle locale.
 const DEFAULT_TEST_DATABASE_URL =
   "postgres://trouvio:trouvio@127.0.0.1:54329/postgres";
-const TLS_SSLMODES = new Set(["require", "verify-full"]);
+// verify-full seulement : require ne vérifie le certificat qu'en pg 8 (avec un avertissement), plus
+// du tout avec uselibpqcompat ni à partir de pg 9 ; verify-ca ne vérifie pas le nom d'hôte.
+const TLS_SSLMODES = new Set(["verify-full"]);
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
