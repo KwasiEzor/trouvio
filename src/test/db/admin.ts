@@ -3,19 +3,15 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
 
 import { createPool } from "@/lib/db/client";
-import { getEnv } from "@/lib/env";
+
+import { testDatabaseUrl } from "./url";
+
+export { testDatabaseUrl };
 
 /**
  * Administration du Postgres de test (Docker local ou service de la CI) : créer et supprimer des
  * bases. Sans dépendance à Vitest : sert aussi à préparer la base des E2E (src/test/e2e).
  */
-
-/** URL de la base de test, sur la base nommée (base d'administration par défaut). */
-export function testDatabaseUrl(database?: string): string {
-  const url = new URL(getEnv("testDatabase").TEST_DATABASE_URL);
-  if (database) url.pathname = `/${database}`;
-  return url.toString();
-}
 
 /** Ouvre la base d'administration, vérifie qu'elle répond, exécute fn, puis ferme. */
 export async function withAdmin<T>(

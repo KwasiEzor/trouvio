@@ -1,11 +1,11 @@
 import path from "node:path";
 
-import { testDatabaseUrl } from "@/test/db/admin";
+import { testDatabaseUrl } from "@/test/db/url";
 
 /**
  * Environnement des E2E, partagé par playwright.config.ts (serveur testé), la préparation de la
  * base et les tests qui lisent la boîte d'envoi. Tout est en boucle locale : TEST_DATABASE_URL
- * refuse une base distante (src/lib/env.ts).
+ * refuse une base distante (src/lib/env.ts). Module léger : chargé par chaque worker Playwright.
  */
 
 export const E2E_DATABASE = "trouvio_e2e";
