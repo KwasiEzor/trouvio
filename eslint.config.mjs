@@ -69,11 +69,13 @@ const SENTRY_SYNTAX = [
   "CallExpression[arguments.0.type='TemplateLiteral'][arguments.0.quasis.0.value.raw=/^@sentry\\//]",
 ].map((selector) => ({ selector, message: SENTRY_PATTERN.message }));
 // Code client ou isomorphe (plan P0-06) : …/env, …/lib/env, ../logger, @/lib/logger,
-// …/logger/index sont réservés au serveur (pas …/logger/redact).
+// …/logger/index sont réservés au serveur (pas …/logger/redact). Idem pour la base (P1-01) :
+// …/db/* (sauf db/enums, valeurs partagées), pg et drizzle-orm.
 const SERVER_ONLY_PATTERN = {
-  regex: "(^|/)(env|logger(/index)?)$",
+  regex:
+    "(^|/)(env|logger(/index)?)$|(^|/)db/(?!enums$)|^(pg|drizzle-orm)(/|$)",
   message:
-    "Code client ou isomorphe : ni src/lib/env.ts ni le logger serveur (@/lib/logger) ; configuration navigateur via @/lib/observability/public-config.",
+    "Code client ou isomorphe : ni src/lib/env.ts, ni le logger serveur (@/lib/logger), ni la base (lib/db, pg, drizzle-orm) ; configuration navigateur via @/lib/observability/public-config.",
 };
 
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),

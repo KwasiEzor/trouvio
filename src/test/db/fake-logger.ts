@@ -1,10 +1,18 @@
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 
 import type { Logger } from "@/lib/logger";
 
+export type FakeLogger = {
+  debug: Mock<Logger["debug"]>;
+  info: Mock<Logger["info"]>;
+  warn: Mock<Logger["warn"]>;
+  error: Mock<Logger["error"]>;
+  child: Mock<Logger["child"]>;
+};
+
 /** Logger factice : chaque niveau est un vi.fn() inspectable. */
-export function fakeLogger() {
-  const logger = {
+export function fakeLogger(): FakeLogger {
+  const logger: FakeLogger = {
     debug: vi.fn<Logger["debug"]>(),
     info: vi.fn<Logger["info"]>(),
     warn: vi.fn<Logger["warn"]>(),

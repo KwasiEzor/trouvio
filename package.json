@@ -18,7 +18,17 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm format:check && pnpm build",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check && node scripts/db-check-drift.mjs",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:migrate:local": "node --env-file=db/local/dev.vars --import tsx scripts/db-migrate.ts",
+    "db:migrate:neon": "node --env-file=.env.local --import tsx scripts/db-migrate.ts",
+    "db:seed": "tsx scripts/db-seed.ts",
+    "db:seed:local": "node --env-file=db/local/dev.vars --import tsx scripts/db-seed.ts",
+    "db:seed:neon": "node --env-file=.env.local --import tsx scripts/db-seed.ts",
+    "db:local:up": "docker compose -f db/local/compose.yaml up -d --wait",
+    "db:local:down": "docker compose -f db/local/compose.yaml down",
+    "verify": "pnpm lint && pnpm typecheck && pnpm db:check && pnpm test:coverage && pnpm format:check && pnpm build",
     "prepare": "node scripts/setup-githooks.mjs"
   },
   "dependencies": {
