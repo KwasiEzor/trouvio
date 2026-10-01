@@ -1,0 +1,30 @@
+# Postgres local de Trouvio (ADR 0012) : base de dev et de test NON secrète, lancée par
+# l'utilisateur dans son terminal (pnpm db:local:up ; Docker est hors du bac à sable de Claude).
+# Même image, au même digest, que le service Postgres de la CI (local-parity.test.ts).
+name: trouvio
+
+services:
+  postgres:
+    # PG 18, comme le projet Neon (plan P1-01, Q1).
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      # Superutilisateur jetable, réservé à l'initialisation ; Trouvio se connecte en « trouvio ».
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Boucle locale seulement : 0.0.0.0 exposerait la base au réseau local (Docker Desktop).
+      # 54329 évite un Postgres déjà installé sur 5432.
+      - "127.0.0.1:54329:5432"
+    volumes:
+      # Depuis PG 18, l'image stocke ses données sous /var/lib/postgresql/18/docker.
+      - trouvio-pg:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # En TCP : pendant l'initialisation, le serveur n'écoute que sur son socket Unix.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  trouvio-pg:
