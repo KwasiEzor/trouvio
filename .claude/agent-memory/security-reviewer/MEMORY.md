@@ -1,3 +1,4 @@
 - [Faits revue env P0-02](project_env-review-facts.md) — standalone ignore next.config.ts ; contournements ESLint/hook ; tests sentinelles sans fichier de secrets
 - [Vecteurs Sentry v11](project_sentry-v11-leak-vectors.md) — sessions, logs sans garde, env SENTRY_*, request_path avec query ; hors beforeSend
 - [Garde Bash P0-07](project_p0-07-guard-bypasses.md) — contournements corrigés, faux positif Telegram, résiduel = bac à sable P0-08
+- [Faits revue DB P1-01](project_p1-01-db-review-facts.md) — ?host= pg, DrizzleQueryError params, superuser Docker, seed.local inscriptible
