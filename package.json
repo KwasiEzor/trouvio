@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:local": "node --env-file=db/local/dev.vars scripts/dev-local.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
