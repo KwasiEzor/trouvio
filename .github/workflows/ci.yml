@@ -24,6 +24,20 @@ jobs:
     name: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # Postgres des tests d'intégration (projet Vitest db, ADR 0012) : même image, au même digest,
+    # que db/local/compose.yaml (local-parity.test.ts). Identifiants jetables, aucune donnée réelle.
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,7 +52,15 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Identique au poste local : lint, typecheck, tests + couverture, format, build.
+      # Rôle trouvio non superutilisateur et base trouvio_dev, comme en local (db/local/init.sql).
+      - run: psql -v ON_ERROR_STOP=1 -f db/local/init.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54329"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+      # Identique au poste local : lint, typecheck, dérive des migrations, tests + couverture
+      # (projet db sur le service Postgres, TEST_DATABASE_URL par défaut), format, build.
       - run: pnpm verify
 
   e2e:
