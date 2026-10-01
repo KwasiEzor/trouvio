@@ -268,7 +268,8 @@ describe("suppressions", () => {
     expect(
       await pgFailure(t.db.delete(jobOffers).where(eq(jobOffers.id, offerId))),
     ).toMatchObject({
-      code: "23503",
+      // 23001 restrict_violation (ON DELETE RESTRICT), pas 23503 (NO ACTION).
+      code: "23001",
       constraint: "applications_offer_id_job_offers_id_fk",
     });
   });
