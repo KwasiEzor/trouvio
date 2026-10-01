@@ -32,6 +32,13 @@ describe("base Postgres locale", () => {
     expect(ports).toEqual(["127.0.0.1:54329:5432"]);
   });
 
+  it("ferme le superutilisateur à toute connexion par mot de passe", () => {
+    // Le bac à sable joint tout port localhost : seul le socket du conteneur doit l'ouvrir.
+    expect(read("db/local/init.sql")).toMatch(
+      /^alter role postgres password null;$/m,
+    );
+  });
+
   it("crée en CI le même rôle non superutilisateur qu'en local", () => {
     expect(ci).toContain("-f db/local/init.sql");
     expect(read("db/local/init.sql")).toMatch(/\bnosuperuser\b/);
@@ -42,8 +49,19 @@ describe("seed personnel", () => {
   const git = (...args: string[]) =>
     execFileSync("git", args, { encoding: "utf8" });
 
-  it("est ignoré par git et absent du dépôt", () => {
-    expect(() => git("check-ignore", "-q", "db/seed.local.json")).not.toThrow();
-    expect(git("ls-files", "db/seed.local.json")).toBe("");
+  it.each([
+    "db/seed.local.json",
+    "db/seed.neon.json",
+    "db/seed.local.bak.json",
+  ])("%s est ignoré par git et absent du dépôt", (file) => {
+    expect(() => git("check-ignore", "-q", file)).not.toThrow();
+    expect(git("ls-files", file)).toBe("");
+  });
+
+  it("garde l'exemple fictif dans le dépôt", () => {
+    expect(() => git("check-ignore", "-q", "db/seed.example.json")).toThrow();
+    expect(git("ls-files", "db/seed.example.json")).toBe(
+      "db/seed.example.json\n",
+    );
   });
 });
