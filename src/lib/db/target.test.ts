@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeTarget, isLoopbackUrl } from "./target";
+import { describeTarget, effectiveSslMode, isLoopbackUrl } from "./target";
 
 describe("isLoopbackUrl", () => {
   it.each([
@@ -18,8 +18,33 @@ describe("isLoopbackUrl", () => {
     "postgres://app:mdp@127.0.0.1.evil.example/trouvio",
     "postgres://app:mdp@10.0.0.1/trouvio",
     "pas une url",
+    // pg donne la priorité au paramètre host sur l'hôte de l'URL.
+    "postgres://u:p@127.0.0.1:54329/db?host=ep-x.example.neon.tech",
+    "postgres://u:p@localhost/db?sslmode=disable&host=hote.example",
+    "postgres://u:p@127.0.0.1/db?HOST=hote.example",
+    "postgres://u:p@127.0.0.1/db?hostaddr=192.0.2.10",
+    // pg réencode une URL qui contient une espace ou un % isolé avant de la lire.
+    "postgres://u:p@127.0.0.1/d b",
   ])("considère comme distante : %s", (url) => {
     expect(isLoopbackUrl(url)).toBe(false);
+  });
+});
+
+describe("effectiveSslMode", () => {
+  it.each([
+    ["postgresql://a:b@hote.example/x?sslmode=require", "require"],
+    [
+      "postgresql://a:b@hote.example/x?sslmode=require&sslmode=disable",
+      "disable",
+    ],
+    [
+      "postgresql://a:b@hote.example/x?sslmode=disable&sslmode=verify-full",
+      "verify-full",
+    ],
+    ["postgresql://a:b@hote.example/x", undefined],
+    ["pas une url", undefined],
+  ])("lit le sslmode retenu par pg (dernière occurrence) : %s", (url, mode) => {
+    expect(effectiveSslMode(url)).toBe(mode);
   });
 });
 

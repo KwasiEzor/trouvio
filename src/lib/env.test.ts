@@ -346,6 +346,14 @@ describe("URL des bases de données", () => {
         "sosie de 127.0.0.1",
         "postgres://app:mdp@127.0.0.1.evil.example/trouvio",
       ],
+      [
+        "boucle locale détournée par ?host=",
+        "postgres://app:mdp@127.0.0.1/trouvio?host=hote.example",
+      ],
+      [
+        "sslmode=require suivi de sslmode=disable (pg retient le dernier)",
+        "postgresql://app:mdp@hote.example/trouvio?sslmode=require&sslmode=disable",
+      ],
     ])("refuse une base distante non chiffrée (%s)", (_cas, url) => {
       const err = capture(() => parseEnv(DOMAINE_DE[name], { [name]: url }));
       expect(err.issues).toEqual([{ name, reason: "invalide" }]);
@@ -361,6 +369,10 @@ describe("URL des bases de données", () => {
   it.each([
     ["une base Neon, même chiffrée", `${fausseUrlPostgres()}?sslmode=require`],
     ["un sosie de 127.0.0.1", "postgres://t:t@127.0.0.1.evil.example/postgres"],
+    [
+      "une boucle locale détournée par ?host=",
+      "postgres://t:t@127.0.0.1:54329/postgres?host=ep-x.example.neon.tech",
+    ],
     ["un autre protocole", "mysql://t:t@127.0.0.1:3306/postgres"],
   ])("refuse pour TEST_DATABASE_URL %s", (_cas, url) => {
     const err = capture(() =>

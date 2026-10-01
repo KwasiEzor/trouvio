@@ -48,6 +48,16 @@ describe("assertSeedAllowed", () => {
     expect(err.message).toBe("Seed refusé en production.");
   });
 
+  it("refuse une boucle locale détournée par ?host= sans --allow-remote", () => {
+    expect(() =>
+      assertSeedAllowed({
+        nodeEnv: "development",
+        databaseUrl: `${LOCALE}?host=hote.example`,
+        allowRemote: false,
+      }),
+    ).toThrow(SeedRefusedError);
+  });
+
   it("refuse une base distante sans --allow-remote, sans citer l'URL", () => {
     const err = refus(() =>
       assertSeedAllowed({
