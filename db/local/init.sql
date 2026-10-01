@@ -4,3 +4,6 @@
 -- Mot de passe jetable : base en boucle locale seulement, aucune donnée réelle.
 create role trouvio login password 'trouvio' nosuperuser nocreaterole createdb;
 create database trouvio_dev owner trouvio;
+-- Superutilisateur fermé à toute connexion par mot de passe : le bac à sable de Claude joint tout
+-- port localhost. Il reste joignable par le socket du conteneur (docker exec … psql -U postgres).
+alter role postgres password null;
