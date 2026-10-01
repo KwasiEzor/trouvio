@@ -128,7 +128,6 @@ else
 fi
 
 echo "--- Seed personnel db/seed.local.json (plan P1-01, Q5)"
-SEED="$ROOT/db/seed.local.json"
 seed_listed() {
   local f
   for f in "$ROOT"/db/*; do [[ "${f##*/}" == seed.local.json ]] && return 0; done

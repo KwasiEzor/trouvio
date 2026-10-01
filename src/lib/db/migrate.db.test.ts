@@ -29,7 +29,8 @@ describe("runMigrations sur une base vierge", () => {
     t = await openTestDatabase({ migrated: false });
   });
   afterAll(async () => {
-    await t.close();
+    // t reste indéfini si openTestDatabase a échoué (base injoignable) : ne pas masquer son message.
+    await t?.close();
   });
 
   it("applique toutes les migrations du journal, puis plus rien", async () => {

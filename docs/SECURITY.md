@@ -96,7 +96,7 @@ Avant de lancer ces commandes :
 
 **Aucune session Claude ne modifie le code pendant qu'un processus avec de vrais secrets tourne hors bac à sable** (`next dev` recharge chaque modification).
 
-**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 39 sondes (37 en P0-08) :
+**Preuve.** `bash scripts/test-sandbox.sh`, à relancer après toute modification du bloc `sandbox` ou d'une version de Claude Code. Le script compte 37 sondes, 39 quand `db/seed.local.json` existe :
 - 16 sondes de lecture sur un canari `.env.canary` (non secret, ignoré par git), chacune validée sur un témoin lisible ;
 - 5 sondes sur `.env.local`, par code de retour seulement ;
 - 2 sondes sur `db/seed.local.json`, par code de retour seulement (sautées s'il est absent : le bac à sable refuse aussi de supprimer un fichier qu'il ne peut pas lire, donc pas de canari à sa place) ;

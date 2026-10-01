@@ -8,7 +8,7 @@ import { createDatabase, createPool } from "../client";
 import { describeTarget } from "../target";
 import { applySeed } from "./apply";
 import { assertSeedAllowed, type SeedGuardInput } from "./guard";
-import { parseSeedText } from "./seed-file";
+import { parseSeedText, type SeedFile } from "./seed-file";
 
 /**
  * pnpm db:seed [--file <chemin>] [--allow-remote] : écrit les comptes et profils du fichier de
@@ -38,10 +38,20 @@ export async function main(
   }: SeedCliDeps = {},
 ): Promise<number> {
   let options: { file: string; allowRemote: boolean };
-  let target: Omit<SeedGuardInput, "allowRemote">;
   try {
     options = parseOptions(args);
+  } catch (err) {
+    log.error("options invalides", { err });
+    return 1;
+  }
+  let target: Omit<SeedGuardInput, "allowRemote">;
+  try {
     target = readTarget();
+  } catch (err) {
+    log.error("configuration invalide", { err });
+    return 1;
+  }
+  try {
     assertSeedAllowed({ ...target, allowRemote: options.allowRemote });
   } catch (err) {
     log.error("seed refusé", { err });
@@ -63,6 +73,14 @@ export async function main(
     return 1;
   }
 
+  let seed: SeedFile;
+  try {
+    seed = parseSeedText(text);
+  } catch (err) {
+    log.error("fichier de seed invalide", { file: options.file, err });
+    return 1;
+  }
+
   const where = describeTarget(target.databaseUrl);
   const pool = createPool(
     target.databaseUrl,
@@ -73,7 +91,7 @@ export async function main(
     log,
   );
   try {
-    const counts = await apply(createDatabase(pool), parseSeedText(text));
+    const counts = await apply(createDatabase(pool), seed);
     log.info(`${countLabel(counts)} (${where})`, counts);
     return 0;
   } catch (err) {

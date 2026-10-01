@@ -78,12 +78,12 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 |---|---|---|
 | `users` | id, email, name, email_verified, image, role (`user`/`admin`), plan (`free`/`economy`/`comfort`), created_at, updated_at | email unique, en minuscules |
 | `search_profiles` | user_id, titles[], skills[], years_exp, languages[], zone, remote_modes[], contracts[], min_salary, excluded_keywords[], excluded_companies[], threshold, channels jsonb, send_hour, frequency | 1 par user (clé primaire user_id) ; threshold 0–100, send_hour 0–23 |
-| `job_offers` | id, source, external_id, dedup_hash, canonical_offer_id (null = offre canonique), title, company, location, contract, salary_min, salary_max, remote, description, url, published_at, raw jsonb | unique (source, external_id) ; index dedup_hash ; FK canonical_offer_id → job_offers.id |
+| `job_offers` | id, source, external_id, dedup_hash, canonical_offer_id (null = offre canonique), title, company, location, contract, salary_min, salary_max, remote, description, url, published_at, raw jsonb | unique (source, external_id) ; index dedup_hash ; FK canonical_offer_id → job_offers.id (`set null`), jamais elle-même ; dedup_hash = sha256 hexadécimal ; url en http(s) ; salaires ≥ 0 et min ≤ max ; index partiel des offres canoniques par date |
 | `offer_scores` | user_id, offer_id, score, strengths[], concerns[], reason, status (`scored`/`unscored`), model, prompt_version, input_tokens, output_tokens, cost_usd, created_at | unique (user_id, offer_id) |
 | `offer_feedback` | user_id, offer_id, verdict (`not_relevant`/`relevant`), created_at | unique (user_id, offer_id) |
 | `applications` | id, user_id, offer_id, status (`to_review`/`applied`/`follow_up`/`closed`), applied_at, notes, updated_at | unique (user_id, offer_id) ; offer_id en `restrict` |
 | `deliveries` | id, user_id, channel, digest_date, offer_ids[], status, error, sent_at | unique (user_id, channel, digest_date) ; 10 offres au plus |
-| `job_runs` | id, kind, started_at, finished_at, status, stats jsonb | — |
+| `job_runs` | id, kind, started_at, finished_at, status, stats jsonb | finished_at ≥ started_at ; index partiel des runs réussis (kind, started_at) |
 | Better Auth | sessions, accounts, verifications | gérées par la bibliothèque, ajoutées en P1-02 (`users` est déjà sa table utilisateur) |
 
 **Conventions (P1-01, `db/schema.ts`)** :

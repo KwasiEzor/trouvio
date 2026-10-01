@@ -16,6 +16,8 @@ function files(dir) {
 try {
   cpSync(MIGRATIONS, copy, { recursive: true });
   const before = files(copy);
+  // Mêmes dialecte et schéma que drizzle.config.ts (à garder alignés : casing, schemaFilter…) ;
+  // seul --out change.
   // drizzle-kit préfixe --out par « ./ » : lui passer un chemin relatif.
   const output = execFileSync(
     join("node_modules", ".bin", "drizzle-kit"),
@@ -34,7 +36,7 @@ try {
   if (added.length === 0 && !output.includes("No schema changes")) {
     // drizzle-kit peut sortir en code 0 après une erreur : exiger sa confirmation explicite.
     process.stderr.write(
-      "drizzle-kit n'a pas confirmé l'absence de changement.\n",
+      `drizzle-kit n'a pas confirmé l'absence de changement. Sa sortie :\n${output}\n`,
     );
     process.exitCode = 1;
   } else if (added.length > 0) {

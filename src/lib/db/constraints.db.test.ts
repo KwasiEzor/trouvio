@@ -13,6 +13,7 @@ import {
   applications,
   deliveries,
   jobOffers,
+  jobRuns,
   offerFeedback,
   offerScores,
   searchProfiles,
@@ -26,7 +27,8 @@ beforeAll(async () => {
   t = await openTestDatabase({ migrated: true });
 });
 afterAll(async () => {
-  await t.close();
+  // t reste indéfini si openTestDatabase a échoué (base injoignable) : ne pas masquer son message.
+  await t?.close();
 });
 beforeEach(async () => {
   await resetData(t.db);
@@ -136,6 +138,56 @@ describe("contraintes de validité", () => {
     ).toMatchObject({
       code: "23514",
       constraint: "search_profiles_threshold_check",
+    });
+  });
+
+  it.each([
+    ["send_hour", { sendHour: 24 }, "search_profiles_send_hour_check"],
+    ["years_exp", { yearsExp: 61 }, "search_profiles_years_exp_check"],
+    ["min_salary", { minSalary: -1 }, "search_profiles_min_salary_check"],
+  ] as const)(
+    "refuse un profil dont %s est hors bornes",
+    async (_champ, valeurs, constraint) => {
+      const userId = await makeUser();
+      expect(
+        await pgFailure(
+          t.db
+            .insert(searchProfiles)
+            .values({ userId, zone: "Namur", ...valeurs }),
+        ),
+      ).toMatchObject({ code: "23514", constraint });
+    },
+  );
+
+  it("refuse un nombre de jetons négatif", async () => {
+    const userId = await makeUser();
+    const offerId = await makeOffer();
+    expect(
+      await pgFailure(
+        t.db.insert(offerScores).values({
+          userId,
+          offerId,
+          status: "unscored",
+          model: "claude-haiku-4-5-20251001",
+          promptVersion: "v1",
+          inputTokens: -1,
+        }),
+      ),
+    ).toMatchObject({ code: "23514", constraint: "offer_scores_usage_check" });
+  });
+
+  it("refuse une exécution du job terminée avant d'avoir commencé", async () => {
+    expect(
+      await pgFailure(
+        t.db.insert(jobRuns).values({
+          kind: "daily",
+          startedAt: new Date("2026-10-01T06:00:00Z"),
+          finishedAt: new Date("2026-10-01T05:00:00Z"),
+        }),
+      ),
+    ).toMatchObject({
+      code: "23514",
+      constraint: "job_runs_finished_after_started_check",
     });
   });
 

@@ -26,7 +26,8 @@ beforeAll(async () => {
   t = await openTestDatabase({ migrated: true });
 });
 afterAll(async () => {
-  await t.close();
+  // t reste indéfini si openTestDatabase a échoué (base injoignable) : ne pas masquer son message.
+  await t?.close();
 });
 beforeEach(async () => {
   await resetData(t.db);

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { EnvValidationError } from "@/lib/env";
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
 
 import { main, type SeedCliDeps } from "./cli";
@@ -120,22 +121,46 @@ describe("db:seed", () => {
     );
   });
 
-  it("échoue sans citer le contenu d'un fichier illisible", async () => {
+  it("rejette un fichier invalide avant d'ouvrir la base, sans citer son contenu", async () => {
     const { all, log, apply } = deps({
       readFile: async () => '{ "users": [ { "email": "sentinelle@example.com" ',
     });
     expect(await main([], all)).toBe(1);
     expect(apply).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      "fichier de seed invalide",
+      expect.objectContaining({ file: "db/seed.local.json" }),
+    );
     expect(everythingLogged(log)).not.toMatch(/sentinelle/i);
   });
 
+  it("distingue une configuration invalide d'un refus de la garde", async () => {
+    const { all, log, readFile } = deps({
+      readTarget: () => {
+        throw new EnvValidationError("database", [
+          { name: "DATABASE_URL", reason: "manquante" },
+        ]);
+      },
+    });
+    expect(await main([], all)).toBe(1);
+    expect(readFile).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      "configuration invalide",
+      expect.objectContaining({ err: expect.any(EnvValidationError) }),
+    );
+  });
+
   it("refuse la production sans lire le fichier", async () => {
-    const { all, readFile, apply } = deps({
+    const { all, readFile, apply, log } = deps({
       readTarget: () => ({ nodeEnv: "production", databaseUrl: LOCALE }),
     });
     expect(await main(["--allow-remote"], all)).toBe(1);
     expect(readFile).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      "seed refusé",
+      expect.objectContaining({ err: expect.any(Error) }),
+    );
   });
 
   it("refuse une base distante sans --allow-remote, sans la citer", async () => {
@@ -161,9 +186,13 @@ describe("db:seed", () => {
   });
 
   it("refuse une option inconnue", async () => {
-    const { all, readFile } = deps();
+    const { all, readFile, log } = deps();
     expect(await main(["--force"], all)).toBe(1);
     expect(readFile).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      "options invalides",
+      expect.objectContaining({ err: expect.any(Error) }),
+    );
   });
 
   it("échoue proprement si l'écriture en base échoue", async () => {
