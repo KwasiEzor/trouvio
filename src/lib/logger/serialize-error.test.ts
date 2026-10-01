@@ -148,7 +148,7 @@ describe("serializeError", () => {
     );
     expect(resultat["query"]).toContain("values ($1, $2, $3)");
     expect(resultat.stack).toMatch(
-      /^Error: Failed query: .*\nparams: \[REDACTED\]\n {4}at /s,
+      /^Error: Failed query: [\s\S]*\nparams: \[REDACTED\]\n {4}at /,
     );
     expect(resultat.cause).toMatchObject({
       code: "23514",

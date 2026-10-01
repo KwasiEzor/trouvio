@@ -6,7 +6,7 @@ import type {
   Integration,
 } from "@sentry/core";
 
-import { redact, redactString } from "../logger/redact";
+import { maskQueryValues, redact, redactString } from "../logger/redact";
 
 /**
  * Options Sentry communes au serveur et au navigateur (ADR 0010). Pur et isomorphe : aucune
@@ -153,7 +153,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
 function scrubException(exception: Exception): Exception {
   const result: Exception = { ...exception };
   if (exception.value !== undefined)
-    result.value = redactString(exception.value);
+    result.value = redactString(maskQueryValues(exception.value));
   if (exception.stacktrace?.frames)
     result.stacktrace = {
       ...exception.stacktrace,

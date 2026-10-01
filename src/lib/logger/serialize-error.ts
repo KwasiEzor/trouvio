@@ -1,4 +1,10 @@
-import { CIRCULAR, redact, redactString } from "./redact";
+import {
+  CIRCULAR,
+  maskQueryValues,
+  redact,
+  redactString,
+  REDACTED,
+} from "./redact";
 
 /**
  * Erreur prête pour un journal JSON : nom, message et pile masqués, propriétés propres (code,
@@ -21,6 +27,14 @@ const MAX_ERRORS = 20;
 // Une pile porte plus d'information utile qu'un message : borne plus large.
 const MAX_STACK = 8_000;
 const RESERVED = new Set(["name", "message", "stack", "cause", "errors"]);
+// Valeurs d'une requête échouée : paramètres liés (DrizzleQueryError), ligne fautive ou clé en
+// double (detail de pg), contexte SQL interne (where, internalQuery). Jamais journalisées.
+const QUERY_VALUE_KEYS = new Set([
+  "params",
+  "detail",
+  "where",
+  "internalQuery",
+]);
 
 type State = { readonly seen: WeakSet<Error>; count: number };
 
@@ -40,14 +54,20 @@ function serialize(
   state.seen.add(error);
 
   const own = Object.fromEntries(
-    Object.entries(error).filter(([key]) => !RESERVED.has(key)),
+    Object.entries(error)
+      .filter(([key]) => !RESERVED.has(key))
+      .map(([key, value]) => [
+        key,
+        QUERY_VALUE_KEYS.has(key) ? REDACTED : value,
+      ]),
   );
   const result: SerializedError = {
     name: error.name,
-    message: redactString(error.message),
+    message: redactString(maskQueryValues(error.message)),
     ...(redact(own) as Record<string, unknown>),
   };
-  if (error.stack) result.stack = redactString(error.stack, MAX_STACK);
+  if (error.stack)
+    result.stack = redactString(maskQueryValues(error.stack), MAX_STACK);
 
   if (error.cause !== undefined) {
     const cause = follow(error.cause, depth, state);
