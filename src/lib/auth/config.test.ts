@@ -84,14 +84,17 @@ describe("options de Better Auth", () => {
   });
 
   it("désactive les routes hors périmètre", () => {
-    expect(options.disabledPaths).toEqual(
-      expect.arrayContaining([
-        "/update-user",
-        "/change-email",
-        "/delete-user",
-        "/sign-in/social",
-      ]),
-    );
+    expect(options.disabledPaths).toEqual([
+      "/update-user",
+      "/change-email",
+      "/delete-user",
+      "/delete-user/callback",
+      "/sign-in/social",
+      "/link-social",
+      "/unlink-account",
+      "/request-password-reset",
+      "/reset-password",
+    ]);
   });
 
   it("stocke le jeton du lien magique haché, valable 10 minutes, nextCookies en dernier", () => {

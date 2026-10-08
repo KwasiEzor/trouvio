@@ -9,8 +9,9 @@ import {
 } from "./policy";
 
 /**
- * Schémas des formulaires d'authentification : retour immédiat dans le navigateur. Better Auth
- * revalide tout côté serveur, avec les mêmes bornes (src/lib/auth).
+ * Schémas des formulaires d'authentification : retour immédiat dans le navigateur. Côté serveur,
+ * Better Auth borne le mot de passe ; le nom est coupé et l'image ignorée par un hook
+ * (src/lib/auth/config.ts).
  */
 
 const { invalidEmail, nameRequired, passwordRequired, passwordTooShort } =

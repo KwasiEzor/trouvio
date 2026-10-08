@@ -12,6 +12,7 @@ import {
   AUTH_PATHS,
   EMAIL_VERIFICATION_TTL_SECONDS,
   MAGIC_LINK_TTL_SECONDS,
+  NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   SESSION_REFRESH_SECONDS,
@@ -39,8 +40,10 @@ export type AuthDeps = {
   readonly log: Logger;
 };
 
-// Routes hors périmètre : profil et compte (P6-05, P7-04), fournisseurs externes (aucun).
-const DISABLED_PATHS = [
+// Routes hors périmètre : profil et compte (P6-05, P7-04), fournisseurs externes (aucun),
+// réinitialisation du mot de passe (P7-02). Comparaison au chemin exact : /reset-password/:token
+// reste servi, mais sans /request-password-reset aucun jeton n'est émis (réponse 400).
+export const DISABLED_PATHS = [
   "/update-user",
   "/change-email",
   "/delete-user",
@@ -48,6 +51,8 @@ const DISABLED_PATHS = [
   "/sign-in/social",
   "/link-social",
   "/unlink-account",
+  "/request-password-reset",
+  "/reset-password",
 ];
 
 export function buildAuthOptions({
@@ -120,6 +125,19 @@ export function buildAuthOptions({
       updateAge: SESSION_REFRESH_SECONDS,
     },
     databaseHooks: {
+      user: {
+        create: {
+          // Better Auth ne borne ni le nom ni l'image envoyés par le client (sign-up, lien magique).
+          before: (user) =>
+            Promise.resolve({
+              data: {
+                ...user,
+                name: user.name.trim().slice(0, NAME_MAX_LENGTH),
+                image: null,
+              },
+            }),
+        },
+      },
       session: {
         create: {
           // Minimisation (SECURITY §4) : le limiteur calcule l'IP à la volée, sans la stocker.

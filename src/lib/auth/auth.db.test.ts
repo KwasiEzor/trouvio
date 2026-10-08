@@ -12,6 +12,7 @@ import {
   vi,
 } from "vitest";
 
+import { NAME_MAX_LENGTH } from "@/features/auth/core/policy";
 import { applySeed } from "@/lib/db/seed/apply";
 import { parseSeedText } from "@/lib/db/seed/seed-file";
 import {
@@ -26,6 +27,7 @@ import {
 } from "@/test/db/test-database";
 
 import { accounts, sessions, users, verifications } from "../../../db/schema";
+import { DISABLED_PATHS } from "./config";
 import { createAuth, type Auth } from "./index";
 import type { AuthEmail, AuthEmailKind } from "./mailer";
 
@@ -485,17 +487,90 @@ describe("refus", () => {
   );
 
   it.each([
-    "/update-user",
-    "/change-email",
-    "/delete-user",
-    "/sign-in/social",
-    "/link-social",
-    "/unlink-account",
-  ])("ne sert pas %s", async (path) => {
+    "https://evil.example/fil",
+    "//evil.example/fil",
+    "/\\evil.example",
+  ])(
+    "refuse la redirection externe %s à l'ouverture d'un lien",
+    async (target) => {
+      for (const param of ["callbackURL", "errorCallbackURL"]) {
+        const query = new URLSearchParams({ token: "jeton", [param]: target });
+        const response = await call(`/magic-link/verify?${query}`, {
+          method: "GET",
+        });
+        expect(response.status, param).toBe(403);
+        expect(response.headers.get("location"), param).toBeNull();
+      }
+    },
+  );
+
+  it.each(DISABLED_PATHS)("ne sert pas %s", async (path) => {
     const cookie = await verifiedUser();
-    const response = await call(path, { cookie, body: { role: "admin" } });
-    expect(response.status).toBe(404);
+    for (const method of ["GET", "POST"] as const) {
+      const response = await call(path, {
+        method,
+        cookie,
+        body: method === "POST" ? { role: "admin" } : undefined,
+      });
+      expect(response.status, method).toBe(404);
+    }
     expect((await userRow("alex@example.com"))?.role).toBe("user");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Champs libres et comptes non prouvés
+// ---------------------------------------------------------------------------------------------
+
+describe("champs écrits par le client", () => {
+  it("borne le nom et ignore l'image à l'inscription", async () => {
+    await signUp("alex@example.com", {
+      name: "n".repeat(5000),
+      image: "https://evil.example/pixel.png",
+    });
+    const row = await userRow("alex@example.com");
+    expect(row?.name).toHaveLength(NAME_MAX_LENGTH);
+    expect(row?.image).toBeNull();
+  });
+
+  it("borne le nom d'un compte créé par lien magique", async () => {
+    await call("/sign-in/magic-link", {
+      body: { email: "nouveau@example.com", name: "n".repeat(5000) },
+    });
+    await call(pathOf(lastEmail("magic-link").url), { method: "GET" });
+    expect(
+      (await userRow("nouveau@example.com"))?.name.length,
+    ).toBeLessThanOrEqual(NAME_MAX_LENGTH);
+  });
+});
+
+describe("compte non vérifié repris par lien magique (pré-détournement)", () => {
+  it("retire le mot de passe posé par un tiers et ses sessions", async () => {
+    // Un tiers inscrit l'adresse de la victime avec son propre mot de passe, sans la vérifier.
+    await signUp("victime@example.com");
+    // La victime se connecte par lien magique.
+    await requestMagicLink("victime@example.com");
+    const response = await call(pathOf(lastEmail("magic-link").url), {
+      method: "GET",
+    });
+    const cookie = sessionCookie(response);
+    expect(await sessionFor(cookie)).toMatchObject({
+      user: { email: "victime@example.com" },
+    });
+
+    const user = await userRow("victime@example.com");
+    expect(user?.emailVerified).toBe(true);
+    expect(
+      await t.db
+        .select()
+        .from(accounts)
+        .where(eq(accounts.userId, user?.id ?? "")),
+    ).toEqual([]);
+    const tiers = await call("/sign-in/email", {
+      body: { email: "victime@example.com", password: PASSWORD },
+    });
+    expect(tiers.status).toBe(401);
+    expect(await t.db.select().from(sessions)).toHaveLength(1);
   });
 });
 
