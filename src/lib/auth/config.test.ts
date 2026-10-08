@@ -94,6 +94,15 @@ describe("options de Better Auth", () => {
       "/unlink-account",
       "/request-password-reset",
       "/reset-password",
+      "/list-sessions",
+      "/revoke-session",
+      "/revoke-sessions",
+      "/revoke-other-sessions",
+      "/update-session",
+      "/list-accounts",
+      "/account-info",
+      "/get-access-token",
+      "/refresh-token",
     ]);
   });
 

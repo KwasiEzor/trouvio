@@ -43,6 +43,8 @@ export type AuthDeps = {
 // Routes hors périmètre : profil et compte (P6-05, P7-04), fournisseurs externes (aucun),
 // réinitialisation du mot de passe (P7-02). Comparaison au chemin exact : /reset-password/:token
 // reste servi, mais sans /request-password-reset aucun jeton n'est émis (réponse 400).
+// Sessions et comptes (P1-03, Q3) : aucune fonctionnalité ne les sert ; /list-sessions rendrait au
+// navigateur les jetons de toutes les sessions. À rouvrir avec leurs tests IDOR (P7-04).
 export const DISABLED_PATHS = [
   "/update-user",
   "/change-email",
@@ -53,6 +55,15 @@ export const DISABLED_PATHS = [
   "/unlink-account",
   "/request-password-reset",
   "/reset-password",
+  "/list-sessions",
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+  "/update-session",
+  "/list-accounts",
+  "/account-info",
+  "/get-access-token",
+  "/refresh-token",
 ];
 
 export function buildAuthOptions({
