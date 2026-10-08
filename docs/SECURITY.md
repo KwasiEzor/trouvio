@@ -28,6 +28,12 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - En-têtes : `Content-Security-Policy` (sans `unsafe-inline` pour les scripts), `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
 - Validation Zod de **toutes** les entrées (params, body, query, env, sorties LLM, réponses des API sources).
 - Server Actions et routes API : vérification d'auth + d'appartenance en première ligne.
+- Contrôle d'accès (P1-03, ADR 0014) :
+  - `requireUser` / `requireAdmin` (pages, Server Actions) et `authorizeRoute` (Route Handlers, 401/403 en `no-store`) en première ligne, hors de tout `try/catch` ; un non-admin reçoit un 404 ; refus admin journalisé avec le seul `userId` ;
+  - session validée en échec fermé (id uuid, rôle connu, email vérifié) et réduite à un DTO ; une panne de lecture de session remonte au lieu de déconnecter ;
+  - identifiant utilisateur des requêtes : type `UserId` fabriqué depuis la session seulement (cast refusé par ESLint) ; toute requête sur une table à `user_id` passe par `ownedBy`, jointures comprises ; registre des tables possédées gardé par un test de parité ;
+  - accès aux données interdit aux routes, pages, actions, composants et `core/` (ESLint) : il passe par les dépôts de domaine ;
+  - routes Better Auth de sessions et de comptes désactivées (`/list-sessions` rendrait les jetons au navigateur), à rouvrir avec leurs tests IDOR.
 - Mots de passe : hachage scrypt par Better Auth, 12 à 128 caractères (P1-02 : seul facteur, sans contrôle des mots de passe compromis, reporté à P10-01 ; ADR 0013).
 - Authentification (P1-02, ADR 0013) :
   - vérification d'email obligatoire avant la connexion par mot de passe ; réponses identiques pour une adresse inscrite ou non (inscription 200, connexion 401, lien magique 200) ;
@@ -56,6 +62,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 
 ## 5. Checklist de revue (à passer pour toute PR touchant auth, données, API ou LLM)
 - [ ] Chaque nouvelle route/action vérifie l'authentification **et** l'appartenance de la ressource
+- [ ] Toute requête sur une table à `user_id` passe par `ownedBy` avec un `UserId` de session, et sa matrice IDOR utilise `seedTwoTenants` (`src/test/db/tenants.ts`)
 - [ ] Entrées validées par Zod, erreurs renvoyées sans détail interne
 - [ ] Aucun secret, token ou PII dans le code, les logs ou les messages d'erreur
 - [ ] Contenu externe (offres, webhooks) traité comme non fiable

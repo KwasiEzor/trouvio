@@ -58,7 +58,7 @@
 - [ ] **P4-04** Idempotence des envois (`deliveries`). *Accept.* : double exécution → un seul message.
 
 ## P5 — Orchestration
-- [ ] **P5-01** `runDailyJob()` (orchestration collecte → scoring → digest) + point d'entrée CLI `pnpm job:run`, verrou `pg_advisory_lock` (ADR 0008). *Accept.* : test d'intégration de bout en bout avec sources et LLM simulés ; un second lancement concurrent s'arrête sans rien faire. *Note P0-06* : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `flush` avant la sortie ; `process.exitCode = 1` plutôt que `process.exit()` (sur un pipe, stdout est asynchrone et la dernière ligne serait perdue) ; journaux Actions publics = agrégats seulement (ARCHITECTURE §9).
+- [ ] **P5-01** `runDailyJob()` (orchestration collecte → scoring → digest) + point d'entrée CLI `pnpm job:run`, verrou `pg_advisory_lock` (ADR 0008). *Accept.* : test d'intégration de bout en bout avec sources et LLM simulés ; un second lancement concurrent s'arrête sans rien faire. *Note P0-06* : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `flush` avant la sortie ; `process.exitCode = 1` plutôt que `process.exit()` (sur un pipe, stdout est asynchrone et la dernière ligne serait perdue) ; journaux Actions publics = agrégats seulement (ARCHITECTURE §9). *Note P1-03* : le job lit les données de tous les utilisateurs et fabrique des `UserId` depuis la base : constructeur `trustedUserId` réservé à `src/features/jobs/**` (import interdit ailleurs par ESLint) ; requêtes toujours par `ownedBy` (ADR 0014).
 - [ ] **P5-02** Workflow `daily-job.yml` : exécution quotidienne de `pnpm job:run` dans GitHub Actions + déclenchement manuel, secrets dans un environnement GitHub `production` limité à ce workflow. *Accept.* : exécution planifiée réussie, aucun secret dans les journaux du workflow.
 - [ ] **P5-03** Observabilité du job (`job_runs`, alertes Sentry en cas d'échec). *Accept.* : échec simulé d'une source → alerte, les autres sources continuent. *Note P0-06* : une capture par source et par exécution (quota gratuit de 5 000 erreurs/mois) ; un `logger.error` sans `err` s'intitule « Object.message » dans Sentry : lui donner une empreinte (`fingerprint`) par message.
 - [ ] **P5-04** Rétention des offres (SECURITY §4, « offres brutes 90 jours ») : purge quotidienne des offres non référencées par une candidature et plus anciennes que la durée fixée, ou de leur `raw`. *Accept.* : test d'intégration — une offre ancienne sans candidature est purgée, une offre liée à une candidature est conservée (`applications.offer_id` en `restrict`). Purger aussi `raw` des offres conservées par une candidature. Ajoutée par le plan P1-01 (Q8). *Note P1-02* : purger aussi les lignes expirées de `sessions` et de `verifications`.
@@ -67,8 +67,8 @@
 ## P6 — Application web (espace connecté)
 Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration, Statistiques).
 - [ ] **P6-01** Layout applicatif (barre latérale, en-tête, carte formule). 
-- [ ] **P6-02** Fil d'offres (bandeau digest, stats, filtres, cartes avec anneau de score, « pas pertinent »).
-- [ ] **P6-03** Détail d'une offre (analyse, compétences, actions, offres similaires).
+- [ ] **P6-02** Fil d'offres (bandeau digest, stats, filtres, cartes avec anneau de score, « pas pertinent »). *Note P1-03* : dépôt de domaine avec `ownedBy` dans les conditions de jointure (scores, retours, candidatures) et matrice IDOR par `seedTwoTenants` ; `requireUser` en première ligne de la page et de chaque action.
+- [ ] **P6-03** Détail d'une offre (analyse, compétences, actions, offres similaires). *Note P1-03* : `job_offers` est partagée (sans `user_id`) : l'offre est lisible par tout utilisateur connecté, mais score, retour et suivi restent scopés par `ownedBy` ; `raw` jamais rendu ; id de chemin validé par `resourceIdSchema`.
 - [ ] **P6-04** Suivi kanban (changement de statut, relance suggérée).
 - [ ] **P6-05** Configuration (profil, localisation/contrat, seuil avec aperçu, canaux, fréquence). *Note P1-02* : `/update-user` de Better Auth est désactivé ; le rouvrir pour le nom (vide après une inscription par lien magique) sans exposer `role` ni `plan`.
 - [ ] **P6-06** Statistiques (courbe, sources, entonnoir, export CSV).
@@ -78,10 +78,10 @@ Référence visuelle : `docs/design/mockups/` (Main, Offre, Suivi, Configuration
 - [ ] **P7-01** Accueil, Fonctionnalités, Tarifs, Contact (maquettes de référence), SEO (métadonnées, sitemap, OG).
 - [ ] **P7-02** Connexion / Inscription redessinées (disposition scindée). *Note P1-02* : réinitialisation du mot de passe et lien « Mot de passe oublié ? » (absents avant : le lien magique sert d'accès de secours) ; composants shadcn `input` et `label` ; logique et textes déjà dans `src/features/auth`.
 - [ ] **P7-03** Mentions légales, politique de confidentialité (RGPD), cookies (consentement minimal : aucun traceur non essentiel par défaut).
-- [ ] **P7-04** Export et suppression de compte (droits RGPD). *Accept.* : suppression effective vérifiée en base. *Note P1-02* : `/delete-user` et `/change-email` de Better Auth sont désactivés ; supprimer aussi les lignes de `verifications` liées à l'email.
+- [ ] **P7-04** Export et suppression de compte (droits RGPD). *Accept.* : suppression effective vérifiée en base. *Note P1-02* : `/delete-user` et `/change-email` de Better Auth sont désactivés ; supprimer aussi les lignes de `verifications` liées à l'email. *Note P1-03* : `/list-sessions`, `/list-accounts` et les routes de révocation de Better Auth sont désactivées (ADR 0014) ; ne les rouvrir qu'avec leurs tests IDOR.
 
 ## P8 — Administration
-- [ ] **P8-01** Tableau de bord admin (utilisateurs, MRR, coût IA, rétention, quotas sources) — accès `admin` uniquement.
+- [ ] **P8-01** Tableau de bord admin (utilisateurs, MRR, coût IA, rétention, quotas sources) — accès `admin` uniquement. *Note P1-03* : `requireAdmin` sur la page **et** sur chaque action ou route (`authorizeRoute("admin")`) ; lectures inter-utilisateurs par un dépôt admin dédié, hors `ownedBy`.
 - [ ] **P8-02** Alertes (quota source > 80 %, coût IA d'un utilisateur > 30 % du prix de sa formule).
 **Porte P8 = Jalon M2 (bêta)** : revue sécurité complète, sauvegarde/restauration testée, 20 testeurs invités.
 
