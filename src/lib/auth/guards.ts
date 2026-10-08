@@ -57,7 +57,9 @@ export async function requireAdmin(): Promise<CurrentUser> {
 
 export async function authorizeRoute(
   need: AccessNeed,
-): Promise<{ ok: true; user: CurrentUser } | { ok: false; response: Response }> {
+): Promise<
+  { ok: true; user: CurrentUser } | { ok: false; response: Response }
+> {
   const decision = await decide(need);
   if (decision.ok) return decision;
   const unauthenticated = decision.reason === "unauthenticated";
