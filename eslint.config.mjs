@@ -78,6 +78,65 @@ const SERVER_ONLY_PATTERN = {
     "Code client ou isomorphe : ni src/lib/env.ts, ni le logger serveur (@/lib/logger), ni la base (lib/db, pg, drizzle-orm) ; configuration navigateur via @/lib/observability/public-config.",
 };
 
+// Accès aux données confiné (P1-03, ADR 0014) : dans src/, seuls lib/db, l'instance Better Auth et
+// les dépôts de domaine (src/features/<d>/repo.ts, queries.ts) importent le schéma, la base, pg ou
+// drizzle-orm (liste de fichiers autorisés : un nouvel emplacement est interdit par défaut). Tout
+// …/db/* sauf db/enums et db/target (purs, sans base), y compris par « ./ » intercalés ou suffixe .js.
+const DATA_ACCESS_MESSAGE =
+  "Accès aux données réservé aux dépôts (src/features/<domaine>/repo.ts) : requêtes scopées par ownedBy et un UserId tiré de la session (ADR 0014).";
+const DATA_ACCESS_REGEX =
+  "(^|/)db/(\\./)*(?!(enums|target)(\\.js)?$)[^/]|^(pg|drizzle-orm)(/|$)";
+const DATA_ACCESS_PATTERN = {
+  regex: DATA_ACCESS_REGEX,
+  message: DATA_ACCESS_MESSAGE,
+};
+// import() dynamique, que no-restricted-imports ne voit pas.
+const DATA_ACCESS_SYNTAX = [
+  `ImportExpression[source.value=/${DATA_ACCESS_REGEX.replaceAll("/", "\\/")}/]`,
+  `ImportExpression[source.type='TemplateLiteral'][source.quasis.0.value.raw=/${DATA_ACCESS_REGEX.replaceAll("/", "\\/")}/]`,
+].map((selector) => ({ selector, message: DATA_ACCESS_MESSAGE }));
+// Le kit de test (src/test/**) fabrique des UserId : jamais importé par le code livré.
+const TEST_IMPORT_PATTERN = {
+  regex: "(^|/)test/",
+  message: "Code livré : aucun import du harnais de tests (src/test/**).",
+};
+// Un UserId ne se fabrique qu'à partir de la session (src/lib/auth/access.ts) : ni cast (y compris
+// par alias, nom qualifié ou CurrentUser["id"]), ni UserId dans une Server Action (son argument
+// vient du client). Les tests et src/test/** en sont exemptés.
+const USER_ID_MESSAGE =
+  "UserId : uniquement depuis la session (requireUser, authorizeRoute), jamais casté ni reçu du client (ADR 0014).";
+const USER_ID_SYNTAX = [
+  "TSAsExpression > TSTypeReference[typeName.name='UserId']",
+  "TSTypeAssertion > TSTypeReference[typeName.name='UserId']",
+  "TSAsExpression > TSTypeReference[typeName.right.name='UserId']",
+  "TSTypeAssertion > TSTypeReference[typeName.right.name='UserId']",
+  "TSAsExpression > TSIndexedAccessType[objectType.typeName.name='CurrentUser']",
+  "ImportSpecifier[imported.name='UserId'][local.name!='UserId']",
+  "Program:has(> ExpressionStatement[directive='use server']) TSTypeReference[typeName.name='UserId']",
+].map((selector) => ({ selector, message: USER_ID_MESSAGE }));
+// La marque Zod est structurelle : la recréer hors de access.ts fabriquerait des UserId.
+const USER_ID_BRAND_SYNTAX = [
+  {
+    selector:
+      "CallExpression[callee.property.name='brand'] TSLiteralType[literal.value='UserId']",
+    message: USER_ID_MESSAGE,
+  },
+];
+// Le propriétaire d'une ligne ne change jamais : pas de userId dans un .set({…}) (ADR 0014).
+const USER_ID_SET_SYNTAX = [
+  {
+    selector:
+      "CallExpression[callee.property.name='set'] > ObjectExpression > Property[key.name='userId']",
+    message:
+      "Jamais userId dans un set : le propriétaire d'une ligne ne change pas (ADR 0014).",
+  },
+];
+const USER_ID_ALL_SYNTAX = [
+  ...USER_ID_SYNTAX,
+  ...USER_ID_BRAND_SYNTAX,
+  ...USER_ID_SET_SYNTAX,
+];
+
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),
 // en plus des hooks .claude/hooks/ qui ne protègent que les éditions de Claude.
 const eslintConfig = defineConfig([
@@ -147,10 +206,97 @@ const eslintConfig = defineConfig([
         "error",
         { object: "process", property: "env", message: ENV_MESSAGE },
       ],
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...SENTRY_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...SENTRY_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
         { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN, SENTRY_PATTERN] },
+      ],
+    },
+  },
+  // Kit de test (src/test/**) : peut fabriquer des UserId (comptes de test créés en base).
+  {
+    files: ["src/test/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...SENTRY_SYNTAX],
+    },
+  },
+  // Code livré de src/ : accès aux données interdit hors des fichiers autorisés (ADR 0014), harnais
+  // de tests interdit, any non typé interdit dans les arguments et affectations (un req.json()
+  // passé tel quel à une requête). Les blocs plus précis qui suivent reprennent ces interdits.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "src/test/**",
+      "src/lib/env.ts",
+      "src/lib/db/**",
+      "src/lib/auth/index.ts",
+      "src/lib/auth/config.ts",
+      "src/features/*/repo.ts",
+      "src/features/*/queries.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...SENTRY_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [
+            CN_PATTERN,
+            SENTRY_PATTERN,
+            DATA_ACCESS_PATTERN,
+            TEST_IMPORT_PATTERN,
+          ],
+        },
+      ],
+    },
+  },
+  // Fichiers autorisés à accéder aux données : mêmes interdits, sauf la base.
+  {
+    files: [
+      "src/lib/db/**/*.ts",
+      "src/lib/auth/index.ts",
+      "src/lib/auth/config.ts",
+      "src/features/*/repo.ts",
+      "src/features/*/queries.ts",
+    ],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [CN_PATTERN, SENTRY_PATTERN, TEST_IMPORT_PATTERN],
+        },
+      ],
+    },
+  },
+  // Seul fabricant de UserId : la marque Zod y est permise.
+  {
+    files: ["src/lib/auth/access.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...SENTRY_SYNTAX,
+        ...USER_ID_SYNTAX,
+        ...USER_ID_SET_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
       ],
     },
   },
@@ -158,10 +304,22 @@ const eslintConfig = defineConfig([
   {
     files: ["src/lib/env.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...SENTRY_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...SENTRY_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
-        { patterns: [CN_PATTERN, SENTRY_PATTERN] },
+        {
+          patterns: [
+            CN_PATTERN,
+            SENTRY_PATTERN,
+            DATA_ACCESS_PATTERN,
+            TEST_IMPORT_PATTERN,
+          ],
+        },
       ],
     },
   },
@@ -171,7 +329,10 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: ENV_IMPORT_PATHS, patterns: [SENTRY_PATTERN] },
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [SENTRY_PATTERN, DATA_ACCESS_PATTERN, TEST_IMPORT_PATTERN],
+        },
       ],
     },
   },
@@ -182,8 +343,25 @@ const eslintConfig = defineConfig([
       "src/instrumentation.ts",
       "src/sentry.server.config.ts",
       "src/lib/logger/index.ts",
-      "src/**/*.test.{ts,tsx}",
     ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [CN_PATTERN, DATA_ACCESS_PATTERN, TEST_IMPORT_PATTERN],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...ENV_SYNTAX],
       "no-restricted-imports": [
@@ -203,7 +381,12 @@ const eslintConfig = defineConfig([
     ],
     ignores: ["**/*.test.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
         {
@@ -234,7 +417,12 @@ const eslintConfig = defineConfig([
     files,
     ignores: ["**/*.test.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...USER_ID_ALL_SYNTAX,
+        ...DATA_ACCESS_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
         {

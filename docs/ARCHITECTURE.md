@@ -54,10 +54,10 @@ src/
     auth/                politique, schémas des formulaires, messages, textes des emails, formulaires
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, client, mailer), rate-limit, http, design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, access et guards : requireUser, requireAdmin, authorizeRoute ; client, mailer), db (client, owned : registre des tables possédées et ownedBy), rate-limit, http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
-  test/                  harnais de tests : setup Vitest, serveur MSW partagé
+  test/                  harnais de tests : setup Vitest, serveur MSW partagé, bases de test et kit IDOR (db/), harnais Better Auth (auth/)
 db/                      schema.ts, migrations/, seed.example.json, local/ (Postgres Docker non secret, ADR 0012)
 scripts/                 job-run.ts (point d'entrée CLI du job), db-migrate.ts, db-seed.ts, test-hooks.sh
 prompts/                 scoring.v1.md, ...
@@ -96,6 +96,7 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 - `min_salary` est un salaire brut annuel en euros ; `send_hour`, une heure de Bruxelles ; `zone`, un texte libre en attendant P2-00 ;
 - `remote_mode` devient le tableau `remote_modes` : un profil accepte plusieurs modes ;
 - **toute table à `user_id` le référence en cascade et commence une clé ou un index par lui** : la suppression de compte est effective, et les requêtes scopées (P1-03) sont indexées. Invariants vérifiés par `src/lib/db/schema.test.ts` ;
+- **requêtes scopées (P1-03, ADR 0014)** : les tables à `user_id` sont recensées dans `src/lib/db/owned.ts` (`USER_OWNED_TABLES`, plus `AUTH_OWNED_TABLES` gérées par Better Auth seul) ; toute requête applicative sur l'une d'elles passe par `ownedBy(table, userId, …)` avec un `UserId` tiré de la session. Une table à `user_id` ajoutée sans entrer au registre fait échouer `schema.test.ts` ;
 - `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures ;
 - `users`, `sessions`, `accounts` et `verifications` appartiennent à Better Auth (`usePlural`, sans CLI, ADR 0013) : propriétés Drizzle aux noms de ses champs, accord gardé par le test de parité de `schema.test.ts` et par le contrôle de schéma de Better Auth à l'exécution.
 

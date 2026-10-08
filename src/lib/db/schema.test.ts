@@ -9,6 +9,7 @@ import { fakeLogger } from "@/test/db/fake-logger";
 
 import * as schema from "../../../db/schema";
 import { createDatabase, createPool } from "./client";
+import { AUTH_OWNED_TABLES, USER_OWNED_TABLES } from "./owned";
 
 /**
  * Invariants du schéma, vérifiés sans base : suppression de compte effective (RGPD, P7-04),
@@ -155,6 +156,26 @@ describe("schéma", () => {
     ];
     expect(uniques).toContainEqual(columns);
   });
+});
+
+/**
+ * Registre des tables possédées (P1-03, ADR 0014) : une nouvelle table à user_id doit y entrer
+ * (requêtes par ownedBy, matrice IDOR de src/lib/db/owned.db.test.ts) ou être déclarée gérée par
+ * Better Auth seul.
+ */
+describe("registre des tables possédées", () => {
+  it("recense exactement les tables à user_id", () => {
+    expect(
+      [...Object.keys(USER_OWNED_TABLES), ...AUTH_OWNED_TABLES].sort(),
+    ).toEqual(withUserId.map((config) => config.name).sort());
+  });
+
+  it.each(Object.entries(USER_OWNED_TABLES))(
+    "%s : la clé du registre est le nom SQL de la table",
+    (name, ownedTable) => {
+      expect(getTableConfig(ownedTable).name).toBe(name);
+    },
+  );
 });
 
 /**

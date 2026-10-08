@@ -25,10 +25,22 @@ import {
   resetData,
   type TestDatabase,
 } from "@/test/db/test-database";
+import {
+  BASE,
+  buildTestAuth,
+  callAuth,
+  lastEmail as lastEmailOf,
+  PASSWORD,
+  pathOf,
+  SESSION_COOKIE,
+  sessionCookie,
+  signUpVerified,
+  type Call,
+} from "@/test/auth/harness";
 
 import { accounts, sessions, users, verifications } from "../../../db/schema";
 import { DISABLED_PATHS } from "./config";
-import { createAuth, type Auth } from "./index";
+import type { Auth } from "./index";
 import type { AuthEmail, AuthEmailKind } from "./mailer";
 
 /**
@@ -36,28 +48,13 @@ import type { AuthEmail, AuthEmailKind } from "./mailer";
  * limiteur intégré n'est actif qu'en production : les négatifs nombreux vivent ici.
  */
 
-const BASE = "http://localhost:3000";
-const PASSWORD = "un mot de passe assez long";
-const SESSION_COOKIE = "better-auth.session_token";
-
 let t: TestDatabase;
 let auth: Auth;
 let log: FakeLogger;
 let outbox: AuthEmail[];
 
 function build(baseURL = BASE): Auth {
-  return createAuth({
-    db: t.db,
-    baseURL,
-    secret: "s".repeat(32),
-    mailer: {
-      send: (email) => {
-        outbox.push(email);
-        return Promise.resolve();
-      },
-    },
-    log,
-  });
+  return buildTestAuth({ db: t.db, outbox, log, baseURL });
 }
 
 beforeAll(async () => {
@@ -81,40 +78,11 @@ afterEach(() => {
 // Aides
 // ---------------------------------------------------------------------------------------------
 
-type Call = {
-  method?: "GET" | "POST";
-  body?: unknown;
-  cookie?: string | undefined;
-  origin?: string | null;
-  instance?: Auth;
-};
-
 async function call(
   path: string,
-  { method = "POST", body, cookie, origin = BASE, instance = auth }: Call = {},
+  { instance = auth, ...options }: Call & { instance?: Auth } = {},
 ) {
-  const headers = new Headers();
-  if (body !== undefined) headers.set("content-type", "application/json");
-  if (cookie !== undefined) headers.set("cookie", cookie);
-  if (origin !== null) headers.set("origin", origin);
-  const base = instance.options.baseURL ?? BASE;
-  return instance.handler(
-    new Request(`${base}/api/auth${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      redirect: "manual",
-    }),
-  );
-}
-
-/** Valeur « nom=valeur » du cookie de session posé par une réponse, ou undefined. */
-function sessionCookie(response: Response): string | undefined {
-  const raw = response.headers
-    .getSetCookie()
-    .find((line) => line.split("=")[0]?.endsWith(SESSION_COOKIE));
-  const pair = raw?.split(";")[0];
-  return pair === undefined || pair.endsWith("=") ? undefined : pair;
+  return callAuth(instance, path, options);
 }
 
 function setCookieLine(response: Response): string {
@@ -126,15 +94,7 @@ function setCookieLine(response: Response): string {
 }
 
 function lastEmail(kind: AuthEmailKind): AuthEmail {
-  const email = outbox.filter((candidate) => candidate.kind === kind).at(-1);
-  if (email === undefined) throw new Error(`aucun email « ${kind} »`);
-  return email;
-}
-
-/** Chemin et paramètres d'un lien reçu, rejoués sur le handler. */
-function pathOf(url: string): string {
-  const parsed = new URL(url);
-  return `${parsed.pathname.replace(/^\/api\/auth/, "")}${parsed.search}`;
+  return lastEmailOf(outbox, kind);
 }
 
 async function signUp(email: string, extra: Record<string, unknown> = {}) {
@@ -145,13 +105,7 @@ async function signUp(email: string, extra: Record<string, unknown> = {}) {
 
 /** Inscription puis clic sur le lien de vérification : rend le cookie de session. */
 async function verifiedUser(email = "alex@example.com"): Promise<string> {
-  await signUp(email);
-  const response = await call(pathOf(lastEmail("verification").url), {
-    method: "GET",
-  });
-  const cookie = sessionCookie(response);
-  if (cookie === undefined) throw new Error("vérification sans session");
-  return cookie;
+  return signUpVerified(auth, outbox, email);
 }
 
 async function sessionFor(cookie: string | undefined) {
@@ -244,7 +198,7 @@ describe("inscription", () => {
 describe("connexion par mot de passe", () => {
   it("refuse la connexion avant vérification, et renvoie un lien", async () => {
     await signUp("alex@example.com");
-    outbox = [];
+    outbox.length = 0;
     const response = await call("/sign-in/email", {
       body: { email: "alex@example.com", password: PASSWORD },
     });
@@ -526,6 +480,36 @@ describe("refus", () => {
     }
     expect(statuses).toEqual([404, 404]);
     expect((await userRow("alex@example.com"))?.role).toBe("user");
+  });
+});
+
+// Liste blanche (P1-03) : une montée de better-auth qui ajoute une route la fait échouer, au lieu de
+// l'ouvrir en silence. Toute route hors de cette liste entre dans DISABLED_PATHS.
+const SERVED_PATHS = [
+  // Rappel OAuth : aucun fournisseur social configuré, la route répond en erreur.
+  "/callback/:id",
+  "/error",
+  "/get-session",
+  "/magic-link/verify",
+  "/ok",
+  // Sert le jeton émis par /request-password-reset, désactivée : aucun jeton n'existe.
+  "/reset-password/:token",
+  "/send-verification-email",
+  "/sign-in/email",
+  "/sign-in/magic-link",
+  "/sign-out",
+  "/sign-up/email",
+  "/verify-email",
+];
+
+describe("routes servies", () => {
+  it("se limitent à la liste blanche", () => {
+    const disabled: readonly string[] = DISABLED_PATHS;
+    const served = Object.values(auth.api)
+      .map((endpoint) => endpoint.path)
+      .filter((path) => path !== undefined && !disabled.includes(path))
+      .sort();
+    expect(served).toEqual(SERVED_PATHS);
   });
 });
 
