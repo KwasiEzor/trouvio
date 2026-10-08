@@ -5,3 +5,4 @@
 - [Theme et UI](project_ui-theme-facts.md) — contrastes tokens (blanc/brand 3.46 KO) ; shadcn importe le paquet cn ; cn a configurer pour text-* ; next/font casse le build hors ligne
 - [Sentry et logs](project_sentry-logging-facts.md) — Sentry v11 dataCollection permissif, sourcemaps Turbopack, SENTRY_DSN implicite, carrier par version, logs Actions publics
 - [Bac a sable Claude Code](project_sandbox-facts.md) — autoAllow true par defaut ; CLI 2.1.42 vs app 2.1.284 ; Next/Vite sous EPERM ; hooks hors bac a sable ; pnpm PATH
+- [Autorisation](project_authz-facts.md) — Drizzle generique KO sans cast (ownedBy OK) ; Better Auth : session gagne sur userId, list-sessions expose jetons ; forbidden() experimental
