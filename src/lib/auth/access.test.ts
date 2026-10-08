@@ -90,13 +90,10 @@ describe("resourceIdSchema", () => {
     expect(resourceIdSchema.safeParse(ALEX_ID).success).toBe(true);
   });
 
-  it.each([
-    "",
-    "1",
-    "' or 1=1 --",
-    ALEX_ID.slice(0, -1),
-    `{${ALEX_ID}}`,
-  ])("refuse %j", (value) => {
-    expect(resourceIdSchema.safeParse(value).success).toBe(false);
-  });
+  it.each(["", "1", "' or 1=1 --", ALEX_ID.slice(0, -1), `{${ALEX_ID}}`])(
+    "refuse %j",
+    (value) => {
+      expect(resourceIdSchema.safeParse(value).success).toBe(false);
+    },
+  );
 });
