@@ -58,7 +58,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | `pnpm verify` (lint typé, typecheck, tests + couverture, format, build) | CI `quality` | oui (check requis) |
 | E2E Playwright + axe sur build de production | CI `e2e` | oui |
 | gitleaks v8.30.1 (binaire vérifié), historique complet du code à fusionner (pas les autres branches) | Security `gitleaks` | oui |
-| `pnpm audit --audit-level high` (prod + dev), aussi chaque lundi | Security `audit` | oui |
+| `pnpm audit --audit-level high` (prod + dev), aussi chaque lundi. Exceptions une par une dans `pnpm-workspace.yaml` (`auditConfig.ignoreGhsas`), seulement sans version corrigée, avec justification et date de revue : GHSA-vfj7-8cjw-p6xm (`braces`, dev seulement, revue au plus tard le 2026-11-08, P0-09) | Security `audit` | oui |
 | dependency-review (nouvelle dépendance vulnérable, gravité haute) | Security `dependency-review` (PR) | oui |
 | CodeQL `security-extended` (JS/TS), aussi chaque lundi ; règle `code_scanning` du ruleset : fusion refusée si une alerte de sécurité **moyenne** ou plus, ou une erreur, est introduite (P0-07) ; une alerte écartée l'est avec sa justification en PR | CodeQL + ruleset | oui |
 | Tests des hooks de Claude (`scripts/test-hooks.sh`) : refus attendus et contre-épreuves | CI `quality` | oui |

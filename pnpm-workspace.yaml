@@ -21,3 +21,12 @@ allowBuilds:
   # Tiré par drizzle-kit et tsx (P1-01) : le postinstall vérifie ou télécharge le binaire natif,
   # déjà fourni par la dépendance optionnelle @esbuild/<plateforme>.
   esbuild: false
+# Alertes d'audit ignorées, une par une, justifiées et revues (SECURITY §6). Toute autre alerte
+# haute fait toujours échouer `pnpm audit --audit-level high` (check CI `audit`).
+auditConfig:
+  ignoreGhsas:
+    # braces ≤ 3.0.3, déni de service par motifs très imbriqués (haute, 2026-09-18). Aucune version
+    # corrigée. Dépendance de dev seulement (eslint-config-next → @next/eslint-plugin-next →
+    # fast-glob 3.3.1 → micromatch), sur des motifs écrits par nous. À revoir au plus tard le
+    # 2026-11-08, ou dès qu'une version corrigée ou un plugin sans fast-glob 3.3.1 paraît.
+    - GHSA-vfj7-8cjw-p6xm
