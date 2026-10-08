@@ -113,6 +113,10 @@ describe("SignInForm (connexion par mot de passe)", () => {
         screen.getByRole("button", { name: "Se connecter" }),
       ).toBeDisabled(),
     );
+    // Second envoi (touche Entrée) pendant l'attente : ignoré.
+    fireEvent.submit(
+      screen.getByRole("form", { name: "Connexion avec ton mot de passe" }),
+    );
     expect(signInEmail).toHaveBeenCalledTimes(1);
   });
 });

@@ -55,7 +55,9 @@ export function SignInForm() {
         setPending(false);
         return;
       }
-      // Le bouton reste désactivé jusqu'au changement de page.
+      // Le bouton reste désactivé jusqu'au changement de page. Avec callbackURL (gardée pour le lien
+      // de vérification renvoyé), le client de Better Auth recharge déjà vers /fil : la navigation
+      // du routeur est un filet, sans effet si le rechargement part avant.
       router.push(AUTH_PATHS.afterSignIn);
       router.refresh();
     } catch {

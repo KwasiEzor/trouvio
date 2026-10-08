@@ -292,12 +292,13 @@ describe("vérification d'email", () => {
     expect(await t.db.select().from(sessions)).toHaveLength(1);
   });
 
-  it("refuse un jeton altéré", async () => {
-    await signUp("alex@example.com");
+  it("refuse un jeton altéré et renvoie vers /fil?error=… (traité par la page)", async () => {
+    await signUp("alex@example.com", { callbackURL: "/fil" });
     const url = new URL(lastEmail("verification").url);
     url.searchParams.set("token", `${url.searchParams.get("token")}x`);
     const response = await call(pathOf(url.toString()), { method: "GET" });
     expect(sessionCookie(response)).toBeUndefined();
+    expect(response.headers.get("location")).toMatch(/^\/fil\?error=/);
     expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
   });
 });
@@ -493,27 +494,37 @@ describe("refus", () => {
   ])(
     "refuse la redirection externe %s à l'ouverture d'un lien",
     async (target) => {
+      const results = [];
       for (const param of ["callbackURL", "errorCallbackURL"]) {
         const query = new URLSearchParams({ token: "jeton", [param]: target });
         const response = await call(`/magic-link/verify?${query}`, {
           method: "GET",
         });
-        expect(response.status, param).toBe(403);
-        expect(response.headers.get("location"), param).toBeNull();
+        results.push({
+          param,
+          status: response.status,
+          location: response.headers.get("location"),
+        });
       }
+      expect(results).toEqual([
+        { param: "callbackURL", status: 403, location: null },
+        { param: "errorCallbackURL", status: 403, location: null },
+      ]);
     },
   );
 
   it.each(DISABLED_PATHS)("ne sert pas %s", async (path) => {
     const cookie = await verifiedUser();
+    const statuses = [];
     for (const method of ["GET", "POST"] as const) {
       const response = await call(path, {
         method,
         cookie,
         body: method === "POST" ? { role: "admin" } : undefined,
       });
-      expect(response.status, method).toBe(404);
+      statuses.push(response.status);
     }
+    expect(statuses).toEqual([404, 404]);
     expect((await userRow("alex@example.com"))?.role).toBe("user");
   });
 });

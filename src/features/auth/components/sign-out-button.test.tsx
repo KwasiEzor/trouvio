@@ -63,6 +63,7 @@ describe("SignOutButton (déconnexion)", () => {
         screen.getByRole("button", { name: "Se déconnecter" }),
       ).toBeDisabled(),
     );
+    cliquer();
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 });

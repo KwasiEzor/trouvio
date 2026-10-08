@@ -9,8 +9,13 @@ import { prendreEmail } from "./outbox";
 /**
  * Parcours d'authentification sur le build de production (P1-02, critère A1). En série : un seul
  * compte, créé par le parcours d'inscription, sur un domaine réservé. Le limiteur intégré de Better
- * Auth est actif (production) : 3 requêtes / 10 s sur /sign-in* et /sign-up*. Le fichier en fait
- * au plus trois ; les négatifs nombreux vivent dans src/lib/auth/auth.db.test.ts.
+ * Auth est actif (production), par IP et par chemin exact : 3 requêtes / 10 s sur /sign-up/email et
+ * /sign-in/email, 5 / 60 s sur le lien magique. Budget de ce fichier : 1 /sign-up/email,
+ * 2 /sign-in/email, 1 /sign-in/magic-link. Un troisième essai de connexion ferait un 429 : les
+ * négatifs nombreux vivent dans src/lib/auth/auth.db.test.ts.
+ *
+ * Les alertes se cherchent dans <main> : Next ajoute après l'hydratation un annonceur de route
+ * (role="alert", shadow DOM ouvert) que page.getByRole verrait aussi.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -59,7 +64,9 @@ test("inscription, vérification, connexion, déconnexion, lien magique", async 
   await inscription.getByLabel("Adresse email").fill(EMAIL);
   await inscription.getByLabel("Mot de passe").fill(PASSWORD);
   await inscription.getByRole("button", { name: "Créer mon compte" }).click();
-  await expect(page.getByRole("status")).toContainText("Vérifie ta boîte mail");
+  await expect(page.getByRole("main").getByRole("status")).toContainText(
+    "Vérifie ta boîte mail",
+  );
 
   // Lien de vérification : connecté, arrivée sur /fil.
   const verification = await prendreEmail(EMAIL, "verification");
@@ -103,7 +110,7 @@ test("inscription, vérification, connexion, déconnexion, lien magique", async 
   await lien
     .getByRole("button", { name: "Recevoir un lien de connexion" })
     .click();
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.getByRole("main").getByRole("status")).toContainText(
     "un lien vient d'y être envoyé",
   );
   const magique = await prendreEmail(EMAIL, "magic-link");
@@ -115,7 +122,7 @@ test("inscription, vérification, connexion, déconnexion, lien magique", async 
   await seDeconnecter(page);
   await page.goto(magique.url);
   await expect(page).toHaveURL(/\/connexion\?erreur=lien/);
-  await expect(page.getByRole("alert")).toHaveText(
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
     "Ce lien n'est plus valable. Demande-en un nouveau.",
   );
 });

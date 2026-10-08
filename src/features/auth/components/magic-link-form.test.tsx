@@ -90,6 +90,8 @@ describe("MagicLinkForm (lien de connexion)", () => {
         screen.getByRole("button", { name: "Recevoir un lien de connexion" }),
       ).toBeDisabled(),
     );
+    // Second envoi (touche Entrée) pendant l'attente : ignoré.
+    fireEvent.submit(screen.getByRole("form", { name: "Connexion par lien" }));
     expect(signInMagicLink).toHaveBeenCalledTimes(1);
   });
 });

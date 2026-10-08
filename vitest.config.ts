@@ -21,6 +21,9 @@ export default defineConfig({
         "src/test/**",
         "**/__fixtures__/**",
         "**/*.d.ts",
+        // Pure configuration (createAuthClient) : le client est un Proxy qui répond à tout chemin,
+        // un test unitaire n'y prouverait rien. Couvert par l'E2E tests/e2e/auth.spec.ts.
+        "src/lib/auth/client.ts",
       ],
       reporter: ["text", "html"],
       // docs/TESTING.md : 80 % pour chaque fichier de lib/ et de la logique pure des domaines.
