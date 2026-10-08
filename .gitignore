@@ -17,6 +17,8 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+# boîtes d'envoi des emails d'authentification (dev et E2E), liens de connexion en clair
+.tmp/
 evals/results/
 
 # Claude Code — fichiers personnels

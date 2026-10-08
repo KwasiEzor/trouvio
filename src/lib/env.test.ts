@@ -35,6 +35,7 @@ const VALID: Record<EnvDomain, EnvSource> = {
     TEST_DATABASE_URL: "postgres://trouvio:trouvio@localhost:55432/postgres",
   },
   auth: { BETTER_AUTH_SECRET: SECRET_32 },
+  authEmail: { AUTH_EMAIL_OUTBOX_DIR: "/tmp/trouvio-boite-envoi" },
   anthropic: {
     ANTHROPIC_API_KEY: "cle-anthropic",
     ANTHROPIC_MODEL_SCORING: "claude-haiku-4-5-20251001",
@@ -56,6 +57,13 @@ const VALID: Record<EnvDomain, EnvSource> = {
     SENTRY_DSN: "https://cle@o450000.ingest.de.sentry.io/4500000000000000",
   },
   cron: { CRON_SECRET: SECRET_32 },
+};
+
+/** Ce que le web exige au démarrage depuis P1-02 : core, base, authentification. */
+const WEB_VALIDE: EnvSource = {
+  ...VALID.core,
+  ...VALID.database,
+  ...VALID.auth,
 };
 
 const domains = Object.keys(envSchemas) as EnvDomain[];
@@ -179,9 +187,9 @@ describe("parseEnv — limites", () => {
     );
   });
 
-  it("exige au démarrage core et sentry (DSN optionnel mais jamais invalide), web comme job", () => {
+  it("exige au démarrage core et sentry (DSN optionnel mais jamais invalide), et pour le web la base et l'authentification (P1-02)", () => {
     expect(STARTUP_DOMAINS).toEqual({
-      web: ["core", "sentry"],
+      web: ["core", "sentry", "database", "auth"],
       job: ["core", "sentry"],
     });
   });
@@ -430,41 +438,134 @@ describe("assertStartupEnv", () => {
       assertStartupEnv("web", { NODE_ENV: "production" }),
     );
     expect(err.message).toBe(
-      "Configuration invalide (web) — manquantes : APP_URL",
+      "Configuration invalide (web) — manquantes : APP_URL, BETTER_AUTH_SECRET, DATABASE_URL",
     );
   });
 
-  it("laisse démarrer le job avec un environnement valide", () => {
+  it("refuse de démarrer le web sans base ni secret d'authentification", () => {
+    const err = capture(() => assertStartupEnv("web", VALID.core));
+    expect(err.issues).toEqual([
+      { name: "BETTER_AUTH_SECRET", reason: "manquante" },
+      { name: "DATABASE_URL", reason: "manquante" },
+    ]);
+  });
+
+  it("laisse démarrer le web avec une base et un secret d'authentification", () => {
+    expect(() => assertStartupEnv("web", WEB_VALIDE)).not.toThrow();
+  });
+
+  it("laisse démarrer le job avec un environnement valide, sans base ni secret d'authentification", () => {
     expect(() => assertStartupEnv("job", VALID.core)).not.toThrow();
   });
 
-  it.each(["web", "job"] as const)(
-    "refuse de démarrer (%s) si SENTRY_TRACES_SAMPLE_RATE est posée (le SDK la lirait hors env.ts)",
-    (runtime) => {
+  // SENTRY_TRACES_SAMPLE_RATE activerait les traces ; BETTER_AUTH_SECRETS prendrait le pas sur le
+  // secret validé ici ; BETTER_AUTH_TRUSTED_ORIGINS s'ajouterait aux origines de confiance (CSRF,
+  // callbackURL) ; les deux dernières piloteraient la télémétrie de Better Auth.
+  describe.each([
+    "SENTRY_TRACES_SAMPLE_RATE",
+    "BETTER_AUTH_SECRETS",
+    "BETTER_AUTH_TRUSTED_ORIGINS",
+    "BETTER_AUTH_TELEMETRY",
+    "BETTER_AUTH_TELEMETRY_ENDPOINT",
+  ])("%s (lue par un SDK hors de env.ts)", (name) => {
+    it.each(["web", "job"] as const)(
+      "refuse de démarrer (%s) si elle est posée, sans citer sa valeur",
+      (runtime) => {
+        const err = capture(() =>
+          assertStartupEnv(runtime, { ...WEB_VALIDE, [name]: "0.SENTINELLE" }),
+        );
+        expect(err.issues).toEqual([{ name, reason: "interdite" }]);
+        expect(err.message).toBe(
+          `Configuration invalide (${runtime}) — interdites : ${name}`,
+        );
+        expect(err.message).not.toContain("SENTINELLE");
+      },
+    );
+
+    it("est ignorée si elle est vide", () => {
+      expect(() =>
+        assertStartupEnv("web", { ...WEB_VALIDE, [name]: " " }),
+      ).not.toThrow();
+    });
+  });
+});
+
+// La boîte d'envoi écrit les liens d'authentification en clair sur disque : dev et E2E seulement.
+describe("AUTH_EMAIL_OUTBOX_DIR (boîte d'envoi sur disque)", () => {
+  const DOSSIER = "/tmp/SENTINELLE-boite";
+  const LOCALES = [
+    undefined,
+    "http://localhost:3000",
+    "http://localhost:3100",
+    "http://127.0.0.1:3000",
+  ];
+  const DISTANTES = [
+    "https://trouvio.example",
+    "http://trouvio.example",
+    "http://localhost.evil.example",
+    "http://127.0.0.1.evil.example",
+    "pas-une-url",
+  ];
+
+  it("est optionnelle", () => {
+    expect(parseEnv("authEmail", {})).toEqual({});
+  });
+
+  it.each(LOCALES)("est acceptée quand APP_URL vaut %s", (appUrl) => {
+    const source = { AUTH_EMAIL_OUTBOX_DIR: DOSSIER, APP_URL: appUrl };
+    expect(parseEnv("authEmail", source)).toEqual({
+      AUTH_EMAIL_OUTBOX_DIR: DOSSIER,
+    });
+    expect(() =>
+      assertStartupEnv("web", {
+        ...VALID.database,
+        ...VALID.auth,
+        ...source,
+      }),
+    ).not.toThrow();
+  });
+
+  it("est acceptée par un serveur de production en boucle locale (next start des E2E)", () => {
+    expect(() =>
+      assertStartupEnv("web", {
+        ...WEB_VALIDE,
+        APP_URL: "http://localhost:3100",
+        AUTH_EMAIL_OUTBOX_DIR: DOSSIER,
+      }),
+    ).not.toThrow();
+  });
+
+  it.each(DISTANTES)(
+    "est refusée à la lecture quand APP_URL vaut %s",
+    (appUrl) => {
       const err = capture(() =>
-        assertStartupEnv(runtime, {
-          ...VALID.core,
-          SENTRY_TRACES_SAMPLE_RATE: "0.SENTINELLE",
+        parseEnv("authEmail", {
+          AUTH_EMAIL_OUTBOX_DIR: DOSSIER,
+          APP_URL: appUrl,
         }),
       );
       expect(err.issues).toEqual([
-        { name: "SENTRY_TRACES_SAMPLE_RATE", reason: "interdite" },
+        { name: "AUTH_EMAIL_OUTBOX_DIR", reason: "invalide" },
       ]);
-      expect(err.message).toBe(
-        `Configuration invalide (${runtime}) — interdites : SENTRY_TRACES_SAMPLE_RATE`,
-      );
       expect(err.message).not.toContain("SENTINELLE");
     },
   );
 
-  it("ignore SENTRY_TRACES_SAMPLE_RATE vide", () => {
-    expect(() =>
-      assertStartupEnv("web", {
-        ...VALID.core,
-        SENTRY_TRACES_SAMPLE_RATE: " ",
-      }),
-    ).not.toThrow();
-  });
+  it.each(["web", "job"] as const)(
+    "interdit le démarrage (%s) hors boucle locale, sans citer le dossier",
+    (runtime) => {
+      const err = capture(() =>
+        assertStartupEnv(runtime, {
+          ...WEB_VALIDE,
+          AUTH_EMAIL_OUTBOX_DIR: DOSSIER,
+        }),
+      );
+      expect(err.issues).toEqual([
+        { name: "AUTH_EMAIL_OUTBOX_DIR", reason: "interdite" },
+      ]);
+      expect(err.message).not.toContain("SENTINELLE");
+    },
+  );
 });
 
 describe("publicBuildEnv (valeurs publiques figées au build)", () => {
@@ -500,7 +601,7 @@ describe("publicBuildEnv (valeurs publiques figées au build)", () => {
     for (const err of [
       capture(() => publicBuildEnv({ SENTRY_DSN: horsUe })),
       capture(() =>
-        assertStartupEnv("web", { ...VALID.core, SENTRY_DSN: horsUe }),
+        assertStartupEnv("web", { ...WEB_VALIDE, SENTRY_DSN: horsUe }),
       ),
     ]) {
       expect(err.issues).toEqual([{ name: "SENTRY_DSN", reason: "invalide" }]);

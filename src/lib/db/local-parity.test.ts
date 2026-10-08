@@ -25,6 +25,24 @@ describe("base Postgres locale", () => {
     expect(ci.match(IMAGE)?.[1]).toBe(compose.match(IMAGE)?.[1]);
   });
 
+  // Le job e2e sert l'application sur une vraie base depuis P1-02 (sessions, comptes).
+  it("donne au job e2e le même Postgres, initialisé de la même façon, qu'au job quality", () => {
+    const images = [...ci.matchAll(new RegExp(IMAGE.source, "gm"))].map(
+      (match) => match[1],
+    );
+    expect(images).toEqual([
+      compose.match(IMAGE)?.[1],
+      compose.match(IMAGE)?.[1],
+    ]);
+    const e2e = ci.slice(ci.indexOf("\n  e2e:\n"));
+    expect(e2e).toMatch(/^ {4}services:\n {6}postgres:\n/m);
+    expect(e2e).toContain("- 54329:5432");
+    expect(e2e).toContain("-f db/local/init.sql");
+    expect(e2e.indexOf("-f db/local/init.sql")).toBeLessThan(
+      e2e.indexOf("pnpm test:e2e"),
+    );
+  });
+
   it("ne publie le port que sur la boucle locale", () => {
     const ports = [...compose.matchAll(/^\s*-\s*"([^"]*:5432)"\s*$/gm)].map(
       (match) => match[1],

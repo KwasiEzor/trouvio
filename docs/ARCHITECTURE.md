@@ -38,9 +38,10 @@ src/
   app/
     (public)/            accueil, fonctionnalites, tarifs, contact, legal/*
     (auth)/              connexion, inscription
-    (app)/               fil, offres/[id], suivi, statistiques, configuration
+    (app)/               fil (provisoire en P1-02), offres/[id], suivi, statistiques, configuration
     admin/               tableau de bord admin (rôle requis)
     api/
+      auth/[...all]/     handler Better Auth, porte unique de l'authentification (ADR 0013)
       cron/run/route.ts  point d'entrée HTTP du job, après déploiement (protégé, P10-05)
       webhooks/          stripe, telegram
   features/
@@ -50,9 +51,10 @@ src/
     digest/              sélection, mise en forme, envoi
     tracking/            suivi des candidatures
     profile/             critères de recherche
+    auth/                politique, schémas des formulaires, messages, textes des emails, formulaires
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, observability (options Sentry), auth, rate-limit, http, design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, client, mailer), rate-limit, http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé
@@ -84,7 +86,9 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 | `applications` | id, user_id, offer_id, status (`to_review`/`applied`/`follow_up`/`closed`), applied_at, notes, updated_at | unique (user_id, offer_id) ; offer_id en `restrict` |
 | `deliveries` | id, user_id, channel, digest_date, offer_ids[], status, error, sent_at | unique (user_id, channel, digest_date) ; 10 offres au plus |
 | `job_runs` | id, kind, started_at, finished_at, status, stats jsonb | finished_at ≥ started_at ; index partiel des runs réussis (kind, started_at) |
-| Better Auth | sessions, accounts, verifications | gérées par la bibliothèque, ajoutées en P1-02 (`users` est déjà sa table utilisateur) |
+| `sessions` | id, expires_at, token, ip_address, user_agent (toujours nuls, ADR 0013), user_id, created_at, updated_at | token unique ; user_id en cascade |
+| `accounts` | id, account_id, provider_id (`credential` porte le mot de passe haché), user_id, access_token, refresh_token, id_token, *_expires_at, scope, password, created_at, updated_at | unique (provider_id, account_id) ; user_id en cascade |
+| `verifications` | id, identifier, value, expires_at, created_at, updated_at | index identifier ; jetons à usage unique (lien magique haché) |
 
 **Conventions (P1-01, `db/schema.ts`)** :
 - noms SQL en snake_case ; identifiants `uuid` par `gen_random_uuid()` ; horodatages `timestamptz` ;
@@ -92,7 +96,8 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 - `min_salary` est un salaire brut annuel en euros ; `send_hour`, une heure de Bruxelles ; `zone`, un texte libre en attendant P2-00 ;
 - `remote_mode` devient le tableau `remote_modes` : un profil accepte plusieurs modes ;
 - **toute table à `user_id` le référence en cascade et commence une clé ou un index par lui** : la suppression de compte est effective, et les requêtes scopées (P1-03) sont indexées. Invariants vérifiés par `src/lib/db/schema.test.ts` ;
-- `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures.
+- `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures ;
+- `users`, `sessions`, `accounts` et `verifications` appartiennent à Better Auth (`usePlural`, sans CLI, ADR 0013) : propriétés Drizzle aux noms de ses champs, accord gardé par le test de parité de `schema.test.ts` et par le contrôle de schéma de Better Auth à l'exécution.
 
 **Dédoublonnage** : `dedup_hash = sha256(norm(company) + norm(title) + norm(city))`, utilisé **uniquement entre sources différentes**. Dans une même source, `external_id` fait foi : deux offres distinctes au même intitulé ne sont jamais fusionnées. Quand une offre d'une autre source a le même hash, elle pointe vers l'offre canonique (`canonical_offer_id`) ; seules les offres canoniques sont scorées et envoyées.
 
@@ -108,19 +113,21 @@ Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécuri
 
 ## 8. Configuration (variables d'environnement)
 - **Seul point d'accès** : `src/lib/env.ts` (interdit ailleurs par ESLint et par le hook `guard-code`).
-- **Domaines** : `core`, `database`, `databaseMigration`, `testDatabase`, `auth`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
-- **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : aujourd'hui `core` et `sentry` pour `web` et `job` (le DSN reste optionnel, mais un DSN invalide empêche le démarrage au lieu de désactiver Sentry sans rien dire). **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
+- **Domaines** : `core`, `database`, `databaseMigration`, `testDatabase`, `auth`, `authEmail`, `anthropic`, `franceTravail`, `adzuna`, `telegram`, `email`, `sentry`, `cron`. Toutes les variables prévues sont déclarées et documentées dans `.env.example`.
+- **Exigés au démarrage** selon le runtime (`STARTUP_DOMAINS`) : `core` et `sentry` pour `web` et `job` (le DSN reste optionnel, mais un DSN invalide empêche le démarrage au lieu de désactiver Sentry sans rien dire), plus `database` et `auth` pour `web` depuis P1-02 (sessions et comptes en base). **Chaque tâche qui met un domaine en service l'y ajoute** (un test vérifie la table exacte) ; les autres domaines sont validés au premier accès (`getEnv("anthropic")`).
 - **Où** : `next.config.ts`, uniquement pour les phases serveur (`next start`, `next dev`) ; futur CLI du job (`scripts/job-run.ts`) : première instruction. Le **build n'exige aucun secret**. (`instrumentation.ts` ne convient pas : chargé après « Ready », une erreur y laisse le processus vivant.)
 - **Limite `standalone` (production, ADR 0006)** : le `server.js` généré embarque la config figée au build et **n'évalue pas** `next.config.ts` au démarrage. Le point d'entrée du conteneur doit donc appeler `assertStartupEnv("web")` avant de charger `server.js` (P10-02).
 - **Erreurs** : noms des variables manquantes ou invalides, jamais leurs valeurs.
 - **Bases (P1-01, ADR 0012)** : `DATABASE_URL` (rôle applicatif, DML) et `DATABASE_MIGRATION_URL` (rôle propriétaire, lu par `db:migrate` seulement) exigent `sslmode=verify-full` hors boucle locale (boucle locale lue comme `pg` la lit : un paramètre `host` rend l'URL distante). `TEST_DATABASE_URL` vaut par défaut la base Docker `127.0.0.1:54329` et refuse tout hôte hors boucle locale. Les commandes `db:*:local` lisent `db/local/dev.vars` (non secret) ; `db:*:neon` lisent `.env.local` et ne se lancent que dans le terminal de l'utilisateur.
 - **Valeurs publiées au navigateur** : seulement `SENTRY_DSN` et `NODE_ENV`, figés au build par `compiler.define` (`publicBuildEnv()`, lus par `src/lib/observability/public-config.ts`). Aucune variable `NEXT_PUBLIC_`. En production (P10-02), le DSN doit donc être présent **au build**. Le DSN n'est accepté qu'en région UE (`https://<clé>@o<id>.ingest.de.sentry.io/<projet>`, `SENTRY_EU_INGEST_HOST`), sans clé secrète, port, query ni fragment (P0-07).
 - **`LOG_LEVEL`** (domaine `core`) : `debug | info | warn | error | silent`, `info` par défaut ; `silent` pendant les tests (Vitest).
-- **Variables interdites** : `SENTRY_TRACES_SAMPLE_RATE`, que le SDK Sentry lirait hors `env.ts` pour activer les traces, fait refuser le démarrage (`assertStartupEnv`). `SENTRY_NAME` et `SENTRY_SPOTLIGHT` sont neutralisées par les options du SDK.
+- **Variables interdites** : `SENTRY_TRACES_SAMPLE_RATE`, que le SDK Sentry lirait hors `env.ts` pour activer les traces, fait refuser le démarrage (`assertStartupEnv`). `SENTRY_NAME` et `SENTRY_SPOTLIGHT` sont neutralisées par les options du SDK. Idem pour ce que Better Auth lirait lui-même (P1-02) : `BETTER_AUTH_SECRETS` (prioritaire sur le secret validé), `BETTER_AUTH_TRUSTED_ORIGINS` (toujours ajoutée aux origines de confiance, même quand l'option est un tableau), `BETTER_AUTH_TELEMETRY`, `BETTER_AUTH_TELEMETRY_ENDPOINT`.
+- **Boîte d'envoi des emails d'authentification** (P1-02, domaine `authEmail`) : `AUTH_EMAIL_OUTBOX_DIR` fait déposer chaque email en fichier (`src/lib/auth/mailer.ts`), liens en clair. Elle est refusée dès que `APP_URL` sort de la boucle locale, au démarrage (`interdite`) comme à la lecture du domaine (`invalide`, garde valable aussi en `standalone`). Sans elle, aucun transport avant P4-03 : l'envoi échoue fermé.
+- **Développement sans fichier de secrets** : `pnpm dev:local` (`scripts/dev-local.mjs`) lance `next dev` sur la base Docker locale (`db/local/dev.vars`), avec un secret d'authentification tiré à chaque lancement et la boîte d'envoi sous `.tmp/outbox`. C'est la commande que Claude lance dans son bac à sable.
 
 ## 9. Journaux et erreurs (P0-06, ADR 0010)
 - **Journaliser** : `import { logger } from "@/lib/logger"` (serveur), `logger.child({ source })` pour lier un contexte. Aucun `console.*` dans `src/` (ESLint). Une ligne JSON par événement : `time`, `level`, `msg`, `service`, `runtime` (`web` | `job`), `ctx` (contexte masqué), `err` (erreur sérialisée, chaîne `cause` comprise). `debug` et `info` sur stdout, `warn` et `error` sur stderr.
 - **Erreur** : `logger.error("…", { source, err })` écrit la ligne ET signale à Sentry (via `@sentry/core`). Seule la clé **`err`** porte l'erreur : sous `error`, elle ne serait qu'un objet `{ name, message }` sans pile. `warn` ne signale jamais. Règle : **journaliser OU relancer**, pas les deux. Le logger ne lève jamais, même sur un contexte illisible (`ctx: { illisible: true }`).
-- **Masquage** : clés sensibles (mots de passe, jetons, cookies, emails, noms, IP, salaire, CV…) et motifs dans les valeurs (emails même encodés, Bearer, Basic, JWT, `sk-ant-`, `re_`, jeton Telegram, paramètres `app_key`/`token`/`email`/`sig`… d'une URL ou d'un corps, champs JSON de jetons, IBAN, téléphones FR/BE, identifiants d'URL de connexion). Taille bornée : 50 éléments ou clés par niveau, 1 000 valeurs et 20 erreurs par appel, binaires résumés. Ne jamais journaliser un objet utilisateur ou un profil entier : passer l'`userId` (UUID interne).
+- **Masquage** : clés sensibles (mots de passe, jetons, cookies, emails, noms, IP, salaire, CV…) et motifs dans les valeurs (emails même encodés, Bearer, Basic, JWT, `sk-ant-`, `re_`, jeton Telegram, paramètres `app_key`/`token`/`email`/`sig`… d'une URL ou d'un corps, champs JSON de jetons, IBAN, téléphones FR/BE, identifiants d'URL de connexion, cible d'une erreur réseau de Node : « getaddrinfo ENOTFOUND <hôte> », « connect ECONNREFUSED <adresse> », clés `host` et `hostname`). Taille bornée : 50 éléments ou clés par niveau, 1 000 valeurs et 20 erreurs par appel, binaires résumés. Ne jamais journaliser un objet utilisateur ou un profil entier : passer l'`userId` (UUID interne).
 - **Sentry** : initialisé seulement avec un DSN. Serveur : `src/instrumentation.ts` (runtime Node uniquement ; une route edge ne serait pas surveillée) et `onRequestError`. Navigateur : `src/instrumentation-client.ts`. Rendu racine en échec : `src/app/global-error.tsx` (erreurs nées dans le navigateur ; celles du serveur, avec `digest`, sont déjà signalées). Même politique partout (`src/lib/observability/sentry-options.ts`) : collecte minimale, ni replay, ni traces, ni sessions, ni journaux ou métriques Sentry. `@sentry/*` ne s'importe que dans ces points d'intégration (ESLint) ; `Sentry.setUser` ne reçoit jamais que `{ id }`.
 - **Job (P5)** : `createDefaultLogger({ runtime: "job" })`, `@sentry/node` à la version exacte de `@sentry/core`, `init` avec `buildSentryOptions`, `await Sentry.flush(2000)` avant la sortie. Journaux Actions publics : agrégats seulement.

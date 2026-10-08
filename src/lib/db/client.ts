@@ -1,6 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
+import { getEnv } from "@/lib/env";
 import { logger as defaultLogger, type Logger } from "@/lib/logger";
 
 import * as schema from "../../../db/schema";
@@ -10,7 +11,12 @@ import * as schema from "../../../db/schema";
  * requête. L'URL vient de src/lib/env.ts, jamais d'ici.
  */
 
-export type Database = NodePgDatabase<typeof schema>;
+// Sur globalThis : next dev recharge les modules, et chaque rechargement ouvrirait un pool de plus.
+const DB_KEY = Symbol.for("trouvio.db");
+const holder = globalThis as { [DB_KEY]?: Database };
+
+// $client : le pool sous-jacent, tel que drizzle() le rend (fermeture, état des connexions).
+export type Database = NodePgDatabase<typeof schema> & { $client: Pool };
 export type ApplicationName =
   "trouvio-web" | "trouvio-job" | "trouvio-cli" | "trouvio-test";
 
@@ -39,4 +45,14 @@ export function createPool(
 
 export function createDatabase(pool: Pool): Database {
   return drizzle({ client: pool, schema });
+}
+
+/** Base du serveur web : rien n'est lu à l'import (le build n'a pas de base), un pool par processus. */
+export function getDb(): Database {
+  holder[DB_KEY] ??= createDatabase(
+    createPool(getEnv("database").DATABASE_URL, {
+      applicationName: "trouvio-web",
+    }),
+  );
+  return holder[DB_KEY];
 }

@@ -248,6 +248,23 @@ describe("scrubEvent", () => {
     );
   });
 
+  it("ne transmet pas l'hôte de la base cité par une erreur de connexion", () => {
+    const propreConnexion = scrubEvent({
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: "getaddrinfo ENOTFOUND ep-sentinelle.example.neon.tech",
+          },
+        ],
+      },
+    });
+    expect(propreConnexion.exception?.values?.[0]?.value).toBe(
+      `getaddrinfo ENOTFOUND ${REDACTED}`,
+    );
+  });
+
   it("masque le message d'exception et retire les variables locales des frames", () => {
     const exception = propre.exception?.values?.[0];
     expect(exception?.value).toBe(`utilisateur ${REDACTED} introuvable`);

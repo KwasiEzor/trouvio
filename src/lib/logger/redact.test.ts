@@ -49,6 +49,8 @@ describe("isSensitiveKey", () => {
     "birthDate",
     "pushTokens",
     "tokens",
+    "host",
+    "hostname",
   ])("considère %s comme sensible (casse et séparateurs ignorés)", (cle) => {
     expect(isSensitiveKey(cle)).toBe(true);
   });
@@ -224,8 +226,41 @@ describe("redactString — motifs dans les valeurs", () => {
     expect(redactString(texte)).toBe(attendu);
   });
 
+  // Erreurs réseau de Node (pg, fetch) : le message cite l'hôte ou l'adresse visés (ADR 0012).
+  it.each([
+    [
+      "hôte introuvable",
+      "getaddrinfo ENOTFOUND ep-essai-123.eu-central-1.aws.neon.tech",
+      `getaddrinfo ENOTFOUND ${REDACTED}`,
+    ],
+    [
+      "résolution en échec temporaire",
+      "getaddrinfo EAI_AGAIN base.example",
+      `getaddrinfo EAI_AGAIN ${REDACTED}`,
+    ],
+    [
+      "connexion refusée (IPv4)",
+      "connect ECONNREFUSED 203.0.113.7:5432",
+      `connect ECONNREFUSED ${REDACTED}`,
+    ],
+    [
+      "connexion refusée (IPv6)",
+      "connect ECONNREFUSED 2001:db8::7:5432",
+      `connect ECONNREFUSED ${REDACTED}`,
+    ],
+    [
+      "délai dépassé, au milieu d'une pile",
+      "Error: connect ETIMEDOUT 203.0.113.7:5432\n    at TCPConnectWrap.afterConnect",
+      `Error: connect ETIMEDOUT ${REDACTED}\n    at TCPConnectWrap.afterConnect`,
+    ],
+  ])("masque la cible d'une erreur réseau : %s", (_cas, texte, attendu) => {
+    expect(redactString(texte)).toBe(attendu);
+  });
+
   it.each([
     "offre 1:550e8400-e29b-41d4-a716-446655440000 retenue",
+    "read ECONNRESET",
+    "impossible de se connect à la base",
     "offre Adzuna 4567891234 vue 3 fois",
     "3 offres collectées depuis France Travail en 1200 ms",
   ])("laisse intact un texte sans donnée sensible : %s", (texte) => {

@@ -28,6 +28,7 @@ const DEFAULT_TEST_DATABASE_URL =
 // verify-full seulement : require ne vérifie le certificat qu'en pg 8 (avec un avertissement), plus
 // du tout avec uselibpqcompat ni à partir de pg 9 ; verify-ca ne vérifie pas le nom d'hôte.
 const TLS_SSLMODES = new Set(["verify-full"]);
+const OUTBOX_DIR = "AUTH_EMAIL_OUTBOX_DIR";
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
 const required = () => z.string().min(1);
@@ -47,6 +48,15 @@ const testDatabaseUrl = () =>
 export const SENTRY_EU_INGEST_HOST = /^o\d+\.ingest\.de\.sentry\.io$/;
 // DSN Sentry : https, clé publique seule (une clé secrète partirait dans le bundle navigateur),
 // hôte d'ingestion UE, chemin = identifiant numérique du projet, ni port, ni query, ni fragment.
+/** Vrai si l'application est servie en boucle locale (APP_URL absente : défaut local hors production). */
+function isLocalAppUrl(appUrl: string | undefined): boolean {
+  if (appUrl === undefined) return true;
+  try {
+    return LOCAL_HOSTS.has(new URL(appUrl).hostname);
+  } catch {
+    return false;
+  }
+}
 const sentryDsn = () =>
   z.url({ protocol: /^https$/ }).refine((value) => {
     // Zod 4 exécute le refine même si la vérification d'URL a échoué : ne jamais lever ici.
@@ -80,6 +90,8 @@ const shapes = {
   databaseMigration: { DATABASE_MIGRATION_URL: databaseUrl() },
   testDatabase: { TEST_DATABASE_URL: testDatabaseUrl() },
   auth: { BETTER_AUTH_SECRET: secret() },
+  // Boîte d'envoi sur disque des emails d'authentification (dev, E2E) : voir authEmail plus bas.
+  authEmail: { AUTH_EMAIL_OUTBOX_DIR: required().optional() },
   anthropic: {
     ANTHROPIC_API_KEY: required(),
     ANTHROPIC_MODEL_SCORING: z
@@ -132,12 +144,23 @@ const core = z
     LOG_LEVEL,
   }));
 
+// Les liens d'authentification sont écrits en clair dans la boîte d'envoi : jamais hors boucle locale.
+const authEmail = z
+  .object({ ...shapes.authEmail, APP_URL: z.string().optional() })
+  .refine(
+    (value) =>
+      value.AUTH_EMAIL_OUTBOX_DIR === undefined || isLocalAppUrl(value.APP_URL),
+    { path: [OUTBOX_DIR] },
+  )
+  .transform(({ AUTH_EMAIL_OUTBOX_DIR }) => ({ AUTH_EMAIL_OUTBOX_DIR }));
+
 export const envSchemas = {
   core,
   database: z.object(shapes.database),
   databaseMigration: z.object(shapes.databaseMigration),
   testDatabase: z.object(shapes.testDatabase),
   auth: z.object(shapes.auth),
+  authEmail,
   anthropic: z.object(shapes.anthropic),
   franceTravail: z.object(shapes.franceTravail),
   adzuna: z.object(shapes.adzuna),
@@ -156,6 +179,7 @@ export const envVariables: Record<EnvDomain, readonly string[]> = {
   databaseMigration: Object.keys(shapes.databaseMigration),
   testDatabase: Object.keys(shapes.testDatabase),
   auth: Object.keys(shapes.auth),
+  authEmail: Object.keys(shapes.authEmail),
   anthropic: Object.keys(shapes.anthropic),
   franceTravail: Object.keys(shapes.franceTravail),
   adzuna: Object.keys(shapes.adzuna),
@@ -167,7 +191,7 @@ export const envVariables: Record<EnvDomain, readonly string[]> = {
 
 /** Domaines exigés au démarrage. Chaque tâche qui met un domaine en service l'ajoute ici. */
 export const STARTUP_DOMAINS = {
-  web: ["core", "sentry"],
+  web: ["core", "sentry", "database", "auth"],
   job: ["core", "sentry"],
 } as const satisfies Record<Runtime, readonly EnvDomain[]>;
 
@@ -265,9 +289,25 @@ function domainIssues(
 /**
  * Lues directement par un SDK, hors de ce fichier : interdites tant qu'un ADR ne les ouvre pas.
  * SENTRY_TRACES_SAMPLE_RATE activerait les traces (ADR 0010) ; les autres variables SENTRY_* lues
- * par le SDK sont neutralisées par ses options (sentry-options.ts).
+ * par le SDK sont neutralisées par ses options (sentry-options.ts). BETTER_AUTH_SECRETS prendrait le
+ * pas sur le secret validé ici ; les deux autres piloteraient la télémétrie de Better Auth.
  */
-const FORBIDDEN_AT_STARTUP = ["SENTRY_TRACES_SAMPLE_RATE"] as const;
+const FORBIDDEN_AT_STARTUP = [
+  "SENTRY_TRACES_SAMPLE_RATE",
+  "BETTER_AUTH_SECRETS",
+  "BETTER_AUTH_TRUSTED_ORIGINS",
+  "BETTER_AUTH_TELEMETRY",
+  "BETTER_AUTH_TELEMETRY_ENDPOINT",
+] as const;
+
+function forbiddenAtStartup(cleaned: Record<string, string>): EnvIssue[] {
+  const names: string[] = FORBIDDEN_AT_STARTUP.filter(
+    (name) => name in cleaned,
+  );
+  if (OUTBOX_DIR in cleaned && !isLocalAppUrl(cleaned["APP_URL"]))
+    names.push(OUTBOX_DIR);
+  return names.map((name) => ({ name, reason: "interdite" }));
+}
 
 /** Refuse le démarrage si un domaine requis pour ce runtime est invalide ou une variable interdite posée. */
 export function assertStartupEnv(
@@ -276,9 +316,7 @@ export function assertStartupEnv(
 ): void {
   const cleaned = clean(source);
   const issues = [
-    ...FORBIDDEN_AT_STARTUP.filter((name) => name in cleaned).map(
-      (name): EnvIssue => ({ name, reason: "interdite" }),
-    ),
+    ...forbiddenAtStartup(cleaned),
     ...domainIssues(STARTUP_DOMAINS[runtime], cleaned),
   ];
   if (issues.length > 0)

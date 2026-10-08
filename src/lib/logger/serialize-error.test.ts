@@ -156,6 +156,43 @@ describe("serializeError", () => {
     });
   });
 
+  it("ne cite ni l'hôte ni l'adresse de la base dans une erreur de connexion", () => {
+    const introuvable = Object.assign(
+      new Error("getaddrinfo ENOTFOUND ep-sentinelle.example.neon.tech"),
+      {
+        code: "ENOTFOUND",
+        syscall: "getaddrinfo",
+        hostname: "ep-sentinelle.example.neon.tech",
+      },
+    );
+    const refusee = Object.assign(
+      new Error("connect ECONNREFUSED 203.0.113.7:5432"),
+      {
+        code: "ECONNREFUSED",
+        syscall: "connect",
+        address: "203.0.113.7",
+        port: 5432,
+      },
+    );
+    const resultat = serializeError(
+      new AggregateError([introuvable, refusee], "connexion impossible"),
+    );
+    expect(JSON.stringify(resultat)).not.toMatch(/sentinelle|203\.0\.113/);
+    expect(resultat.errors).toMatchObject([
+      {
+        message: `getaddrinfo ENOTFOUND ${REDACTED}`,
+        code: "ENOTFOUND",
+        syscall: "getaddrinfo",
+        hostname: REDACTED,
+      },
+      {
+        message: `connect ECONNREFUSED ${REDACTED}`,
+        code: "ECONNREFUSED",
+        address: REDACTED,
+      },
+    ]);
+  });
+
   it("sérialise EnvValidationError avec les noms de variables, sans valeur", () => {
     const erreur = new EnvValidationError("web", [
       { name: "SENTRY_DSN", reason: "invalide" },

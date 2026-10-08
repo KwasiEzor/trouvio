@@ -15,7 +15,7 @@
 - Base de données de test isolée : Postgres Docker local (`pnpm db:local:up`) et service Postgres en CI, même image (ADR 0012). Chaque fichier de test a sa propre base, clonée d'un modèle migré, puis supprimée.
 - Couverture minimale : **80 %** sur `features/*/core` et `lib/`, suivie en CI.
 - Chaque bug corrigé ajoute un test de non-régression.
-- Les tests E2E utilisent des comptes créés par seed, jamais de vraies données.
+- Les tests E2E utilisent des comptes créés par seed ou par le parcours d'inscription testé, sur domaine réservé (`example.com`), jamais de vraies données.
 
 ## Évaluation du scoring (IA)
 - Jeu de référence `evals/scoring-golden.jsonl` : chaque ligne = une offre + une référence de profil (`evals/profiles/<nom>.json`, critères de recherche uniquement) + la **bande attendue** (`high` ≥ 70, `medium` 50–69, `low` < 50, alignées sur le barème du prompt), étiquetée par un humain.
@@ -28,7 +28,8 @@
 |---|---|
 | `pnpm test` | Vitest, trois projets : `node` (`*.test.ts`), `dom` (`*.test.tsx`, jsdom + Testing Library) et `db` (`*.db.test.ts`, vrai Postgres) |
 | `pnpm test:coverage` | idem + couverture v8 et seuils (inclus dans `pnpm verify`) |
-| `pnpm test:e2e` | Playwright (chromium) sur un **build de production** (`next build` + `next start` sur le port 3100, `APP_URL` fourni par la config, aucun fichier `.env`) ; contrôle d'accessibilité axe (WCAG A/AA) |
+| `pnpm test:e2e` | Playwright (chromium) sur un **build de production** (`next build` + `next start` sur le port 3100, variables fournies par la config, aucun fichier `.env`) ; contrôle d'accessibilité axe (WCAG A/AA). Exige la base Docker locale (`pnpm db:local:up`) depuis P1-02 |
+| `pnpm e2e:prepare` | lancé par `playwright.config.ts` avant le build : recrée et migre la base `trouvio_e2e`, vide la boîte d'envoi |
 | `pnpm exec vitest run --project dom` | un seul projet |
 | `pnpm db:check` | dérive entre `db/schema.ts` et `db/migrations` (inclus dans `pnpm verify`) |
 
@@ -47,16 +48,17 @@
 - **Navigateur** : `pnpm exec playwright install --only-shell chromium` (une fois par poste, hors dépôt ; en CI en P0-04).
 - **Journaux** : le logger est injectable (`createLogger({ level, write, report, now })`) ; un test qui vérifie des journaux passe sa propre sortie et un `report` simulé. `LOG_LEVEL=silent` pour tous les tests (vitest.config.ts). Le SDK Sentry se simule par `vi.mock("@sentry/core")` ou `vi.mock("@sentry/nextjs")`.
 - **Preuves par mutation** (garde-fous de sécurité, thème) : **commiter avant** de muter, casser volontairement le garde-fou, montrer le test ou le lint qui échoue, restaurer avec `git restore` et revérifier. Consigner chaque mutation dans la section « Réalisé » du plan.
+- **E2E avec base et authentification** (P1-02) : le serveur testé reçoit de `playwright.config.ts` la base `trouvio_e2e` du Postgres de test (boucle locale, recréée à chaque exécution : `src/test/e2e/prepare-database.ts`, qui refuse tout autre nom de base), un secret d'authentification tiré à chaque exécution et `AUTH_EMAIL_OUTBOX_DIR` = `.tmp/e2e-outbox` (ignoré par git). Un test lit un email d'authentification avec `prendreEmail(adresse, type)` (`tests/e2e/outbox.ts`), comme la personne le lirait dans sa messagerie. Aucun secret, ni commité ni GitHub.
 - **E2E sans Sentry** : `playwright.config.ts` force `SENTRY_DSN` vide ; `observabilite.spec.ts` vérifie qu'aucune requête ne part vers Sentry et qu'aucune source map n'est servie.
 - **Interdits appliqués par ESLint** (et par le hook de Claude) : `.only`, `.skip`, `.fixme`, `expect` conditionnel, `process.env` dans les tests.
 - **Faux secrets et données d'essai** (P0-07) : aucun littéral au format réel d'un fournisseur (jeton Telegram, JWT, clés Anthropic, Resend, GitHub, AWS, Stripe, DSN Sentry réel, clé privée) ; les fabriquer à l'exécution avec `src/test/secrets-factices.ts`. gitleaks et le secret scanning lisent tout l'historique, qu'on ne réécrit pas. Emails des tests, fixtures et exemples de données sur domaines réservés (`example.com`, `.org`, `.net`, `*.example`, `*.test`, `*.invalid`, `*.localhost` ; `sentry.io` seulement pour l'hôte d'un DSN d'essai). `src/test/litteraux-secrets.test.ts` le vérifie sur les fichiers suivis par git (jamais par parcours du disque) et ne cite jamais la valeur trouvée.
 - **Dans le bac à sable de Claude** (ADR 0011) :
   - `pnpm test`, `verify` et `build` lancés par Claude tournent sans `.env.local`, comme la CI. Les journaux `Failed to load env … EPERM` et les avertissements pnpm sur `~/Library/Preferences/pnpm/rc` sont attendus.
   - `pnpm test:e2e` ne tourne pas dans le bac à sable (Chromium y est refusé) : l'utilisateur le lance dans son terminal, après avoir relu `git diff` et supprimé `.next`, et la CI le rejoue sur chaque PR.
-  - `pnpm dev` y tourne sans rechargement à chaud.
+  - `pnpm dev:local` y tourne sans rechargement à chaud (`pnpm dev` seul exige depuis P1-02 une base et un secret, que Claude n'a pas).
   - Sur un poste neuf, un premier `pnpm test` dans le terminal crée le jeton de Vitest.
   - Sondes de confinement : `bash scripts/test-sandbox.sh` (SECURITY §7).
 - **Vérification de fin de tour** : `bash scripts/verifie-modifs.sh` (Prettier sur les fichiers modifiés, typecheck, tests liés) note l'empreinte qu'exige le hook Stop ; les hooks n'exécutent eux-mêmes aucun code du dépôt.
 - **Hooks de Claude** : `bash scripts/test-hooks.sh` (refus attendus et contre-épreuves calquées sur les commandes des skills), lancé aussi en CI (job `quality`). Les preuves par mutation se font sur une **copie** des hooks (scratchpad), jamais sur les fichiers du dépôt.
-- **En CI** (P0-04) : job `quality` = `pnpm verify` (couverture comprise) ; job `e2e` = installation du navigateur à chaque exécution (pas de cache, recommandation Playwright) puis `pnpm test:e2e` ; rapports en artefact (7 jours) en cas d'échec. Les deux sont des checks requis pour fusionner.
+- **En CI** (P0-04) : job `quality` = `pnpm verify` (couverture comprise) ; job `e2e` = service Postgres (même image et même `init.sql` que `quality`, vérifié par `local-parity.test.ts`), installation du navigateur à chaque exécution (pas de cache, recommandation Playwright) puis `pnpm test:e2e` ; rapports en artefact (7 jours) en cas d'échec. Les deux sont des checks requis pour fusionner.
 - **Charte** (P0-05) : `src/lib/design-tokens.test.ts` échoue si `globals.css` s'écarte de `docs/design/tokens.json` ou si une paire de couleurs d'usage passe sous le seuil WCAG AA ; l'E2E `tests/e2e/styleguide.spec.ts` vérifie le guide de style (focus visible, polices auto-hébergées, aucune requête vers Google, axe).

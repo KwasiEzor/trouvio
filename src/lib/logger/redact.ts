@@ -60,6 +60,8 @@ const SENSITIVE_KEYS = new Set([
   "ip",
   "ipaddress",
   "address",
+  "host",
+  "hostname",
   "name",
   "nom",
 ]);
@@ -76,6 +78,9 @@ const SENSITIVE_JSON_FIELDS =
 // IBAN avant les téléphones (dont les chiffres ressemblent à un numéro).
 const VALUE_PATTERNS: readonly (readonly [RegExp, string])[] = [
   [/(\/\/)[^/\s:@]+:[^/\s@]+@/g, `$1${REDACTED}@`],
+  // Erreur réseau de Node (« getaddrinfo ENOTFOUND <hôte> », « connect ECONNREFUSED <ip>:<port> ») :
+  // la cible est l'hôte de la base ou d'un fournisseur (ADR 0012).
+  [/\b(getaddrinfo|connect) (E[A-Z_]+) \S+/g, `$1 $2 ${REDACTED}`],
   [/\bBearer\s+[\w\-.~+/]+=*/gi, `Bearer ${REDACTED}`],
   [/\bBasic\s+[A-Za-z0-9+/]{8,}=*/g, `Basic ${REDACTED}`],
   [/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED],
