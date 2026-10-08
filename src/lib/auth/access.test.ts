@@ -44,6 +44,7 @@ describe("decideAccess", () => {
     expect(decideAccess(session(), "admin")).toEqual({
       ok: false,
       reason: "forbidden",
+      userId: ALEX_ID,
     });
   });
 
@@ -79,6 +80,7 @@ describe("decideAccess", () => {
     expect(decideAccess(forged, "admin")).toEqual({
       ok: false,
       reason: "forbidden",
+      userId: ALEX_ID,
     });
   });
 });

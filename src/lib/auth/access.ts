@@ -28,7 +28,9 @@ export type AccessNeed = "user" | "admin";
 
 export type AccessDecision =
   | { ok: true; user: CurrentUser }
-  | { ok: false; reason: "unauthenticated" | "forbidden" };
+  | { ok: false; reason: "unauthenticated" }
+  // userId : journaliser le refus sans relire la session.
+  | { ok: false; reason: "forbidden"; userId: UserId };
 
 // Champs en trop ignorés ; emailVerified exigé en défense en profondeur (Better Auth n'ouvre de
 // session qu'après vérification aujourd'hui, P1-06 pourrait changer le parcours).
@@ -51,7 +53,7 @@ export function decideAccess(
   if (!parsed.success) return { ok: false, reason: "unauthenticated" };
   const { id, role, email, name } = parsed.data.user;
   if (need === "admin" && role !== "admin") {
-    return { ok: false, reason: "forbidden" };
+    return { ok: false, reason: "forbidden", userId: id };
   }
   return { ok: true, user: { id, role, email, name } };
 }
