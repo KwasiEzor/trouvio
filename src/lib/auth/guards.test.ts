@@ -132,4 +132,18 @@ describe("authorizeRoute", () => {
     getSessionMock.mockResolvedValue(session());
     expect(await authorizeRoute("user")).toEqual({ ok: true, user: ALEX });
   });
+
+  it("accorde une route admin à un admin", async () => {
+    getSessionMock.mockResolvedValue(session({ role: "admin" }));
+    expect(await authorizeRoute("admin")).toEqual({
+      ok: true,
+      user: { ...ALEX, role: "admin" },
+    });
+  });
+
+  it("relance une panne de lecture de session au lieu de répondre 401", async () => {
+    const outage = new Error("base injoignable");
+    getSessionMock.mockRejectedValue(outage);
+    await expect(authorizeRoute("user")).rejects.toBe(outage);
+  });
 });

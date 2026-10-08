@@ -1,7 +1,6 @@
 import { and, eq, sql, type SQL } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { resourceIdSchema } from "@/lib/auth/access";
 import {
   openTestDatabase,
   resetData,
@@ -120,11 +119,9 @@ describe.each(names)("%s", (name) => {
 });
 
 describe("identifiant de ressource mal formé", () => {
-  it("est refusé avant la base", () => {
-    expect(resourceIdSchema.safeParse("' or 1=1 --").success).toBe(false);
-  });
-
-  it("ne rend aucune ligne s'il atteint tout de même la base (22P02)", async () => {
+  // Refusé avant la base par resourceIdSchema (access.test.ts) ; s'il passait tout de même, Postgres
+  // rejette la requête au lieu de comparer le texte.
+  it("est rejeté par Postgres s'il atteint la base (22P02)", async () => {
     const query = t.db
       .select()
       .from(applications)

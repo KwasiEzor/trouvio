@@ -483,6 +483,36 @@ describe("refus", () => {
   });
 });
 
+// Liste blanche (P1-03) : une montée de better-auth qui ajoute une route la fait échouer, au lieu de
+// l'ouvrir en silence. Toute route hors de cette liste entre dans DISABLED_PATHS.
+const SERVED_PATHS = [
+  // Rappel OAuth : aucun fournisseur social configuré, la route répond en erreur.
+  "/callback/:id",
+  "/error",
+  "/get-session",
+  "/magic-link/verify",
+  "/ok",
+  // Sert le jeton émis par /request-password-reset, désactivée : aucun jeton n'existe.
+  "/reset-password/:token",
+  "/send-verification-email",
+  "/sign-in/email",
+  "/sign-in/magic-link",
+  "/sign-out",
+  "/sign-up/email",
+  "/verify-email",
+];
+
+describe("routes servies", () => {
+  it("se limitent à la liste blanche", () => {
+    const disabled: readonly string[] = DISABLED_PATHS;
+    const served = Object.values(auth.api)
+      .map((endpoint) => endpoint.path)
+      .filter((path) => path !== undefined && !disabled.includes(path))
+      .sort();
+    expect(served).toEqual(SERVED_PATHS);
+  });
+});
+
 // ---------------------------------------------------------------------------------------------
 // Champs libres et comptes non prouvés
 // ---------------------------------------------------------------------------------------------

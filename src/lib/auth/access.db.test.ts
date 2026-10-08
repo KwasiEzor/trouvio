@@ -59,6 +59,24 @@ async function idOf(email: string) {
   return row.id;
 }
 
+/**
+ * Cookie « nom=jeton.signature » (signature HMAC en base64, 44 caractères finissant par « = »,
+ * encodée pour l'URL) : un caractère change au milieu de la signature, longueur et « = » final
+ * gardés, pour que le refus vienne de la vérification HMAC et non du contrôle de format.
+ */
+function withAlteredSignature(cookie: string): string {
+  const separator = cookie.indexOf("=");
+  const value = decodeURIComponent(cookie.slice(separator + 1));
+  const index = value.lastIndexOf(".") + 20;
+  const altered = value[index] === "A" ? "B" : "A";
+  const signed = `${value.slice(0, index)}${altered}${value.slice(index + 1)}`;
+  const signature = signed.slice(signed.lastIndexOf(".") + 1);
+  if (signature.length !== 44 || !signature.endsWith("=")) {
+    throw new Error("format de signature inattendu");
+  }
+  return `${cookie.slice(0, separator)}=${encodeURIComponent(signed)}`;
+}
+
 const A = "locataire-a@example.com";
 const B = "locataire-b@example.com";
 
@@ -87,10 +105,9 @@ describe("sessions refusées", () => {
     });
   });
 
-  it("refuse le jeton d'un autre dont la signature est altérée", async () => {
+  it("refuse le jeton de A dont la signature est altérée", async () => {
     const cookieA = await signUpVerified(auth, outbox, A);
-    const last = cookieA.at(-1) === "A" ? "B" : "A";
-    expect(await decisionFor(`${cookieA.slice(0, -1)}${last}`)).toEqual({
+    expect(await decisionFor(withAlteredSignature(cookieA))).toEqual({
       ok: false,
       reason: "unauthenticated",
     });

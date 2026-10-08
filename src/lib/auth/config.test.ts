@@ -103,6 +103,8 @@ describe("options de Better Auth", () => {
       "/account-info",
       "/get-access-token",
       "/refresh-token",
+      "/change-password",
+      "/verify-password",
     ]);
   });
 
