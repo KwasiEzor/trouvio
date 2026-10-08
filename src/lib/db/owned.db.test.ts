@@ -78,8 +78,10 @@ describe.each(names)("%s", (name) => {
   it("ne rend à A aucune ligne de B, même avec la clé de la ressource de B", async () => {
     const key = tenants.b.keys[name];
     const found = await selectWhere(table, ownedBy(table, tenants.a.id, key));
-    expect(found.filter((row) => row.user_id === tenants.b.id)).toEqual([]);
-    if (key !== undefined) expect(found).toEqual([]);
+    // Sans clé (search_profiles : user_id seul), la portée de A ne rend que la ligne de A.
+    expect(found.map((row) => row.user_id)).toEqual(
+      key === undefined ? [tenants.a.id] : [],
+    );
   });
 
   it("ne modifie aucune ligne de B sous la portée de A", async () => {

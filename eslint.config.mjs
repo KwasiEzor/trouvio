@@ -78,6 +78,25 @@ const SERVER_ONLY_PATTERN = {
     "Code client ou isomorphe : ni src/lib/env.ts, ni le logger serveur (@/lib/logger), ni la base (lib/db, pg, drizzle-orm) ; configuration navigateur via @/lib/observability/public-config.",
 };
 
+// Accès aux données confiné aux dépôts (P1-03, ADR 0014) : les routes, pages, Server Actions,
+// composants et la logique pure (core/) n'importent ni le schéma, ni la base, ni pg, ni drizzle-orm.
+// Les requêtes sur une table possédée vivent dans un dépôt de domaine et passent par ownedBy.
+const DATA_ACCESS_PATTERN = {
+  regex: "(^|/)db/schema$|(^|/)lib/db/(client|owned)$|^(pg|drizzle-orm)(/|$)",
+  message:
+    "Accès aux données réservé aux dépôts (src/features/<domaine>/repo.ts) : requêtes scopées par ownedBy et un UserId tiré de la session (ADR 0014).",
+};
+// Un UserId ne se fabrique qu'à partir de la session (src/lib/auth/access.ts) ; le kit de test
+// src/test/** et les tests en sont exemptés.
+const USER_ID_CAST_SYNTAX = [
+  "TSAsExpression > TSTypeReference[typeName.name='UserId']",
+  "TSTypeAssertion > TSTypeReference[typeName.name='UserId']",
+].map((selector) => ({
+  selector,
+  message:
+    "Pas de cast vers UserId : l'identifiant vient de la session (requireUser, authorizeRoute).",
+}));
+
 // Les interdits de CLAUDE.md §5 sont appliqués ici à tout le monde (humains, CI),
 // en plus des hooks .claude/hooks/ qui ne protègent que les éditions de Claude.
 const eslintConfig = defineConfig([
@@ -147,10 +166,43 @@ const eslintConfig = defineConfig([
         "error",
         { object: "process", property: "env", message: ENV_MESSAGE },
       ],
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...SENTRY_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...ENV_SYNTAX,
+        ...SENTRY_SYNTAX,
+        ...USER_ID_CAST_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
         { paths: ENV_IMPORT_PATHS, patterns: [CN_PATTERN, SENTRY_PATTERN] },
+      ],
+    },
+  },
+  // Kit de test (src/test/**) : peut fabriquer des UserId (comptes de test créés en base).
+  {
+    files: ["src/test/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...SENTRY_SYNTAX],
+    },
+  },
+  // Avant les blocs plus précis (observabilité, composants d'auth), qui couvrent déjà la base par
+  // SERVER_ONLY_PATTERN et restent prioritaires.
+  {
+    files: [
+      "src/app/**/*.{ts,tsx}",
+      "src/**/actions.ts",
+      "src/**/*.action.ts",
+      "src/features/*/components/**",
+      "src/features/*/core/**",
+    ],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [CN_PATTERN, SENTRY_PATTERN, DATA_ACCESS_PATTERN],
+        },
       ],
     },
   },
@@ -158,7 +210,11 @@ const eslintConfig = defineConfig([
   {
     files: ["src/lib/env.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...SENTRY_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...SENTRY_SYNTAX,
+        ...USER_ID_CAST_SYNTAX,
+      ],
       "no-restricted-imports": [
         "error",
         { patterns: [CN_PATTERN, SENTRY_PATTERN] },
@@ -203,7 +259,7 @@ const eslintConfig = defineConfig([
     ],
     ignores: ["**/*.test.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...USER_ID_CAST_SYNTAX],
       "no-restricted-imports": [
         "error",
         {
@@ -234,7 +290,7 @@ const eslintConfig = defineConfig([
     files,
     ignores: ["**/*.test.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX, ...USER_ID_CAST_SYNTAX],
       "no-restricted-imports": [
         "error",
         {
