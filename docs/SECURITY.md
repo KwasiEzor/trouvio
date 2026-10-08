@@ -32,8 +32,8 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
   - `requireUser` / `requireAdmin` (pages, Server Actions) et `authorizeRoute` (Route Handlers, 401/403 en `no-store`) en première ligne, hors de tout `try/catch` ; un non-admin reçoit un 404 ; refus admin journalisé avec le seul `userId` ;
   - session validée en échec fermé (id uuid, rôle connu, email vérifié) et réduite à un DTO ; une panne de lecture de session remonte au lieu de déconnecter ;
   - identifiant utilisateur des requêtes : type `UserId` fabriqué depuis la session seulement (cast refusé par ESLint) ; toute requête sur une table à `user_id` passe par `ownedBy`, jointures comprises ; registre des tables possédées gardé par un test de parité ;
-  - accès aux données interdit aux routes, pages, actions, composants et `core/` (ESLint) : il passe par les dépôts de domaine ;
-  - routes Better Auth de sessions et de comptes désactivées (`/list-sessions` rendrait les jetons au navigateur), à rouvrir avec leurs tests IDOR.
+  - accès aux données interdit dans `src/` hors de `lib/db`, de l'instance Better Auth et des dépôts de domaine (ESLint, liste de fichiers autorisés, `import()` compris) ; pas de `UserId` dans une Server Action, pas de `userId` dans un `set`, pas d'`any` transmis tel quel ;
+  - routes Better Auth de sessions et de comptes, `/change-password` et `/verify-password` désactivées (`/list-sessions` rendrait les jetons au navigateur), à rouvrir avec leurs tests IDOR ; routes servies figées par une liste blanche testée. Résiduel : `/get-session` rend `session.token` en JSON (P1-05).
 - Mots de passe : hachage scrypt par Better Auth, 12 à 128 caractères (P1-02 : seul facteur, sans contrôle des mots de passe compromis, reporté à P10-01 ; ADR 0013).
 - Authentification (P1-02, ADR 0013) :
   - vérification d'email obligatoire avant la connexion par mot de passe ; réponses identiques pour une adresse inscrite ou non (inscription 200, connexion 401, lien magique 200) ;
