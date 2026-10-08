@@ -41,8 +41,9 @@ import {
 /**
  * Schéma unique de Trouvio (ARCHITECTURE §5, .claude/rules/db.md). Noms SQL explicites en
  * snake_case. Toute table à user_id référence users en cascade (suppression de compte) et
- * commence une clé ou un index par user_id (src/lib/db/schema.test.ts). Tables de session de
- * Better Auth : ajoutées en P1-02.
+ * commence une clé ou un index par user_id (src/lib/db/schema.test.ts). users, sessions,
+ * accounts et verifications appartiennent à Better Auth (src/lib/auth/config.ts) : propriétés aux
+ * noms de ses champs, gardées par le test de parité de schema.test.ts.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -90,7 +91,7 @@ export const jobRunStatus = pgEnum("job_run_status", JOB_RUN_STATUSES);
 // Utilisateurs et profils
 // ---------------------------------------------------------------------------------------------
 
-/** Table utilisateur de Better Auth (modelName « users » en P1-02). */
+/** Utilisateurs de Better Auth (usePlural). Le rôle n'est jamais écrit par le client. */
 export const users = pgTable(
   "users",
   {
@@ -108,6 +109,74 @@ export const users = pgTable(
     unique("users_email_unique").on(t.email),
     check("users_email_lowercase_check", sql`${t.email} = lower(${t.email})`),
   ],
+);
+
+/** Sessions en base (ADR 0003). IP et agent utilisateur ne sont pas stockés (ADR 0013). */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: id(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    unique("sessions_token_unique").on(t.token),
+    index("sessions_user_id_idx").on(t.userId),
+  ],
+);
+
+/** Comptes de connexion : « credential » porte le mot de passe haché (scrypt). */
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: id(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("accounts_provider_id_account_id_unique").on(
+      t.providerId,
+      t.accountId,
+    ),
+    index("accounts_user_id_idx").on(t.userId),
+  ],
+);
+
+/** Jetons à usage unique (lien magique, haché). Sans user_id : rien à cascader. */
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: id(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
 );
 
 const { threshold, sendHour, yearsExp } = PROFILE_BOUNDS;
@@ -383,6 +452,9 @@ export const jobRuns = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type SessionRow = typeof sessions.$inferSelect;
+export type Account = typeof accounts.$inferSelect;
+export type Verification = typeof verifications.$inferSelect;
 export type SearchProfileRow = typeof searchProfiles.$inferSelect;
 export type NewSearchProfileRow = typeof searchProfiles.$inferInsert;
 export type JobOffer = typeof jobOffers.$inferSelect;

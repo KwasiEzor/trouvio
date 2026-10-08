@@ -78,8 +78,8 @@ describe("options de Better Auth", () => {
   });
 
   it("garde le contrôle de schéma et le suivi des IP du limiteur", () => {
-    expect(options.advanced?.database).not.toHaveProperty("validateSchema");
-    expect(options.advanced?.ipAddress).toBeUndefined();
+    expect(options.advanced.database).not.toHaveProperty("validateSchema");
+    expect(options.advanced).not.toHaveProperty("ipAddress");
   });
 
   it("désactive les routes hors périmètre", () => {
@@ -115,9 +115,7 @@ describe("options de Better Auth", () => {
         updatedAt: new Date(),
         ipAddress: "203.0.113.7",
         userAgent: "Navigateur",
-      },
-      null,
-    );
+      });
     expect(result).toMatchObject({
       data: { ipAddress: null, userAgent: null, token: "t" },
     });

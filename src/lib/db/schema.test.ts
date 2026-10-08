@@ -2,7 +2,13 @@ import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
+import { getAuthTables } from "better-auth/db";
+
+import { buildAuthOptions } from "@/lib/auth/config";
+import { fakeLogger } from "@/test/db/fake-logger";
+
 import * as schema from "../../../db/schema";
+import { createDatabase, createPool } from "./client";
 
 /**
  * Invariants du schéma, vérifiés sans base : suppression de compte effective (RGPD, P7-04),
@@ -60,8 +66,9 @@ const withUserId = tables.filter((config) =>
 );
 
 describe("schéma", () => {
-  it("déclare exactement les tables métier et users", () => {
+  it("déclare exactement les tables métier et celles de Better Auth", () => {
     expect(tables.map((config) => config.name).sort()).toEqual([
+      "accounts",
       "applications",
       "deliveries",
       "job_offers",
@@ -69,7 +76,9 @@ describe("schéma", () => {
       "offer_feedback",
       "offer_scores",
       "search_profiles",
+      "sessions",
       "users",
+      "verifications",
     ]);
   });
 
@@ -133,6 +142,8 @@ describe("schéma", () => {
     ["deliveries", ["user_id", "channel", "digest_date"]],
     ["search_profiles", ["user_id"]],
     ["users", ["email"]],
+    ["sessions", ["token"]],
+    ["accounts", ["provider_id", "account_id"]],
   ])("%s : unicité sur (%s) pour l'idempotence", (name, columns) => {
     const config = table(name);
     const uniques = [
@@ -144,4 +155,57 @@ describe("schéma", () => {
     ];
     expect(uniques).toContainEqual(columns);
   });
+});
+
+/**
+ * Parité avec Better Auth : l'adaptateur Drizzle adresse les tables par leur clé d'export et les
+ * colonnes par leur nom de propriété. Un champ manquant ferait lever SchemaMismatchError à la
+ * première requête (validateSchema).
+ */
+describe("parité avec Better Auth", () => {
+  const options = buildAuthOptions({
+    // Pool jamais interrogé.
+    db: createDatabase(
+      createPool("postgres://essai@127.0.0.1:1/essai", {
+        applicationName: "trouvio-test",
+      }),
+    ),
+    baseURL: "http://localhost:3000",
+    secret: "s".repeat(32),
+    mailer: { send: () => Promise.resolve() },
+    log: fakeLogger(),
+  });
+  const authTables = Object.entries(getAuthTables(options));
+
+  it("attend exactement user, session, account et verification", () => {
+    expect(authTables.map(([key]) => key).sort()).toEqual([
+      "account",
+      "session",
+      "user",
+      "verification",
+    ]);
+  });
+
+  it.each(authTables)(
+    "%s : chaque champ existe dans la table au pluriel, non nul s'il est requis",
+    (key, definition) => {
+      const drizzleTable: unknown = Reflect.get(schema, `${key}s`);
+      if (!is(drizzleTable, PgTable)) throw new Error(`table ${key}s absente`);
+      const columns = new Map(
+        Object.entries(drizzleTable).filter(([, value]) =>
+          getTableConfig(drizzleTable).columns.includes(value),
+        ),
+      );
+      const problems = Object.entries(definition.fields).flatMap(
+        ([field, attribute]) => {
+          const column = columns.get(field);
+          if (!column) return [`${field} absent`];
+          if (attribute.required !== false && !column.notNull)
+            return [`${field} accepte null`];
+          return [];
+        },
+      );
+      expect(problems).toEqual([]);
+    },
+  );
 });
