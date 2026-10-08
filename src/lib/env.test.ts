@@ -459,10 +459,12 @@ describe("assertStartupEnv", () => {
   });
 
   // SENTRY_TRACES_SAMPLE_RATE activerait les traces ; BETTER_AUTH_SECRETS prendrait le pas sur le
-  // secret validé ici ; les deux autres piloteraient la télémétrie de Better Auth.
+  // secret validé ici ; BETTER_AUTH_TRUSTED_ORIGINS s'ajouterait aux origines de confiance (CSRF,
+  // callbackURL) ; les deux dernières piloteraient la télémétrie de Better Auth.
   describe.each([
     "SENTRY_TRACES_SAMPLE_RATE",
     "BETTER_AUTH_SECRETS",
+    "BETTER_AUTH_TRUSTED_ORIGINS",
     "BETTER_AUTH_TELEMETRY",
     "BETTER_AUTH_TELEMETRY_ENDPOINT",
   ])("%s (lue par un SDK hors de env.ts)", (name) => {
