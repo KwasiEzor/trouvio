@@ -4,6 +4,7 @@ import { createLogger } from "@/lib/logger/logger";
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
 
 import { bridge } from "./log-bridge";
+import { AuthEmailNotConfiguredError } from "./mailer";
 
 describe("bridge (journaux de Better Auth vers lib/logger)", () => {
   it("signale une erreur réelle (avec une Error) au niveau error, donc à Sentry", () => {
@@ -77,5 +78,27 @@ describe("bridge (journaux de Better Auth vers lib/logger)", () => {
     expect(lignes).toHaveLength(1);
     expect(lignes[0]).toContain("Sign-up attempt for existing email");
     expect(lignes[0]).not.toContain("sentinelle@example.com");
+  });
+
+  // Sans transport, chaque inscription déclenche cette erreur : n'importe qui pourrait remplir Sentry.
+  it("ramène à warn l'absence de transport d'email", () => {
+    const log = fakeLogger();
+    const err = new AuthEmailNotConfiguredError();
+    bridge(log)("error", "Failed to run background task", err);
+    expect(log.warn).toHaveBeenCalledWith("Failed to run background task", {
+      err,
+    });
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  // Better Auth journalise le seul message d'une erreur SQL (« column », « relation ») : drizzle y
+  // recopie les valeurs liées.
+  it("retire les valeurs liées d'un message d'erreur SQL", () => {
+    const log = fakeLogger();
+    bridge(log)(
+      "error",
+      'Failed query: insert into "users" ("name") values ($1)\nparams: Sentinelle Nom',
+    );
+    expect(everythingLogged(log)).not.toContain("Sentinelle");
   });
 });

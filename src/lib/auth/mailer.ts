@@ -54,8 +54,9 @@ export function createOutboxMailer(dir: string, log: Logger): AuthMailer {
   };
 }
 
-// Échec fermé : sans transport, l'inscription et le lien magique échouent plutôt que de laisser
-// croire qu'un email est parti.
+// Sans transport, rien ne part : le lien magique échoue (erreur générique). L'inscription, elle,
+// répond 200 (Better Auth envoie en tâche de fond et journalise l'échec, en warn) : le compte
+// reste non vérifié, donc inutilisable. Jusqu'à P4-03.
 const unconfiguredMailer: AuthMailer = {
   send: () => Promise.reject(new AuthEmailNotConfiguredError()),
 };
