@@ -38,9 +38,10 @@ src/
   app/
     (public)/            accueil, fonctionnalites, tarifs, contact, legal/*
     (auth)/              connexion, inscription
-    (app)/               fil, offres/[id], suivi, statistiques, configuration
+    (app)/               fil (provisoire en P1-02), offres/[id], suivi, statistiques, configuration
     admin/               tableau de bord admin (rôle requis)
     api/
+      auth/[...all]/     handler Better Auth, porte unique de l'authentification (ADR 0013)
       cron/run/route.ts  point d'entrée HTTP du job, après déploiement (protégé, P10-05)
       webhooks/          stripe, telegram
   features/
@@ -50,9 +51,10 @@ src/
     digest/              sélection, mise en forme, envoi
     tracking/            suivi des candidatures
     profile/             critères de recherche
+    auth/                politique, schémas des formulaires, messages, textes des emails, formulaires
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, observability (options Sentry), auth, rate-limit, http, design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, client, mailer), rate-limit, http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé
@@ -84,7 +86,9 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 | `applications` | id, user_id, offer_id, status (`to_review`/`applied`/`follow_up`/`closed`), applied_at, notes, updated_at | unique (user_id, offer_id) ; offer_id en `restrict` |
 | `deliveries` | id, user_id, channel, digest_date, offer_ids[], status, error, sent_at | unique (user_id, channel, digest_date) ; 10 offres au plus |
 | `job_runs` | id, kind, started_at, finished_at, status, stats jsonb | finished_at ≥ started_at ; index partiel des runs réussis (kind, started_at) |
-| Better Auth | sessions, accounts, verifications | gérées par la bibliothèque, ajoutées en P1-02 (`users` est déjà sa table utilisateur) |
+| `sessions` | id, expires_at, token, ip_address, user_agent (toujours nuls, ADR 0013), user_id, created_at, updated_at | token unique ; user_id en cascade |
+| `accounts` | id, account_id, provider_id (`credential` porte le mot de passe haché), user_id, access_token, refresh_token, id_token, *_expires_at, scope, password, created_at, updated_at | unique (provider_id, account_id) ; user_id en cascade |
+| `verifications` | id, identifier, value, expires_at, created_at, updated_at | index identifier ; jetons à usage unique (lien magique haché) |
 
 **Conventions (P1-01, `db/schema.ts`)** :
 - noms SQL en snake_case ; identifiants `uuid` par `gen_random_uuid()` ; horodatages `timestamptz` ;
@@ -92,7 +96,8 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 - `min_salary` est un salaire brut annuel en euros ; `send_hour`, une heure de Bruxelles ; `zone`, un texte libre en attendant P2-00 ;
 - `remote_mode` devient le tableau `remote_modes` : un profil accepte plusieurs modes ;
 - **toute table à `user_id` le référence en cascade et commence une clé ou un index par lui** : la suppression de compte est effective, et les requêtes scopées (P1-03) sont indexées. Invariants vérifiés par `src/lib/db/schema.test.ts` ;
-- `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures.
+- `applications.offer_id` est en `restrict` : une purge des offres n'efface pas l'historique des candidatures ;
+- `users`, `sessions`, `accounts` et `verifications` appartiennent à Better Auth (`usePlural`, sans CLI, ADR 0013) : propriétés Drizzle aux noms de ses champs, accord gardé par le test de parité de `schema.test.ts` et par le contrôle de schéma de Better Auth à l'exécution.
 
 **Dédoublonnage** : `dedup_hash = sha256(norm(company) + norm(title) + norm(city))`, utilisé **uniquement entre sources différentes**. Dans une même source, `external_id` fait foi : deux offres distinctes au même intitulé ne sont jamais fusionnées. Quand une offre d'une autre source a le même hash, elle pointe vers l'offre canonique (`canonical_offer_id`) ; seules les offres canoniques sont scorées et envoyées.
 

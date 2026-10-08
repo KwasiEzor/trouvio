@@ -28,7 +28,15 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - En-têtes : `Content-Security-Policy` (sans `unsafe-inline` pour les scripts), `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
 - Validation Zod de **toutes** les entrées (params, body, query, env, sorties LLM, réponses des API sources).
 - Server Actions et routes API : vérification d'auth + d'appartenance en première ligne.
-- Mots de passe : hachage géré par Better Auth (algorithme moderne), longueur minimale 8, vérification contre les mots de passe compromis si possible.
+- Mots de passe : hachage scrypt par Better Auth, 12 à 128 caractères (P1-02 : seul facteur, sans contrôle des mots de passe compromis, reporté à P10-01 ; ADR 0013).
+- Authentification (P1-02, ADR 0013) :
+  - vérification d'email obligatoire avant la connexion par mot de passe ; réponses identiques pour une adresse inscrite ou non (inscription 200, connexion 401, lien magique 200) ;
+  - sessions en base, 7 jours glissants, prolongées au plus une fois par jour ; cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixe `__Secure-` en HTTPS ; pas de cache de session dans le cookie : déconnexion = ligne supprimée, effet immédiat ;
+  - lien magique de 10 minutes, usage unique, jeton haché en base ; lien de vérification d'une heure ;
+  - rôle jamais écrit par le client (`input: false`, `/update-user` désactivé) ; un admin naît du seed seulement ;
+  - `trustedOrigins` = `APP_URL`, contrôle d'origine explicitement actif (`disableOriginCheck: false`), `callbackURL` en constantes du code ;
+  - porte unique `/api/auth/*` (pas de Server Action appelant `auth.api.*`) ; limiteur intégré actif en production seulement, preuve 429 et stockage partagé en P1-04 ;
+  - `BETTER_AUTH_SECRETS`, `BETTER_AUTH_TELEMETRY`, `BETTER_AUTH_TELEMETRY_ENDPOINT` refusées au démarrage ; télémétrie coupée.
 - Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`. Limite connue : Next écrit lui-même sur stderr le message et la pile brute d'une erreur serveur, hors logger ; les journaux du conteneur ont donc une rétention courte (P10-02).
 - Principe du moindre privilège : rôle DB applicatif sans droits DDL en production ; le job GitHub Actions utilise ce même rôle, jamais le propriétaire de la base.
   - `DATABASE_URL` = rôle applicatif `trouvio_app` (DML) ; `DATABASE_MIGRATION_URL` = propriétaire du schéma, lu par `pnpm db:migrate` seulement. TLS vérifié exigé hors boucle locale : `sslmode=verify-full` seulement (`require` ne vérifie le certificat qu'en pg 8, plus avec `uselibpqcompat` ni en pg 9). Remplacer le `sslmode=require` des chaînes Neon.
@@ -40,7 +48,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 
 ## 4. RGPD (Belgique — autorité : APD)
 - Base légale : exécution du contrat (service) ; consentement pour tout traceur non essentiel.
-- Minimisation : le LLM reçoit uniquement les critères de recherche, pas l'identité.
+- Minimisation : le LLM reçoit uniquement les critères de recherche, pas l'identité. Les sessions ne stockent ni IP ni agent utilisateur (colonnes présentes, valeurs nulles, ADR 0013).
 - Sous-traitants à lister dans la politique de confidentialité (hébergement, base de données, IA, email, paiement, monitoring). Monitoring : Sentry, organisation en **région UE** (Frankfurt), collecte minimale, IP non stockées, rétention 30 jours (ADR 0010). Réglages de l'organisation : Data Scrubber et scrubbers par défaut exigés, IP non stockées, champs sensibles globaux, Enhanced Privacy, pas d'issues partagées, Spike Protection (le plan gratuit n'offre pas de limite par clé).
 - Droits : export (JSON/CSV) et suppression effective du compte ; durée de conservation définie (ex. offres brutes 90 jours).
 
