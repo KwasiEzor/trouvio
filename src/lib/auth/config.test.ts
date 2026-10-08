@@ -70,7 +70,8 @@ describe("options de Better Auth", () => {
   it("n'accepte que l'origine de l'application", () => {
     expect(options.trustedOrigins).toEqual([BASE_URL]);
     expect(options.advanced).not.toHaveProperty("disableCSRFCheck");
-    expect(options.advanced).not.toHaveProperty("disableOriginCheck");
+    // Explicite : sinon coupé sous NODE_ENV=test, et les tests ne prouveraient rien.
+    expect(options.advanced.disableOriginCheck).toBe(false);
   });
 
   it("coupe la télémétrie", () => {

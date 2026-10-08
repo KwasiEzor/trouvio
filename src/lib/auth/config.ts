@@ -72,7 +72,12 @@ export function buildAuthOptions({
       usePlural: true,
       schema: { users, sessions, accounts, verifications },
     }),
-    advanced: { database: { generateId: "uuid" } },
+    advanced: {
+      database: { generateId: "uuid" },
+      // Explicite : Better Auth coupe ce contrôle quand NODE_ENV vaut « test ». Les tests
+      // d'intégration vérifient ainsi le comportement de production (origine, callbackURL).
+      disableOriginCheck: false,
+    },
     user: {
       additionalFields: {
         // input: false : une valeur envoyée à l'inscription est remplacée par le défaut.
