@@ -21,12 +21,7 @@ import type { Database } from "@/lib/db/client";
 import { USER_ROLES } from "@/lib/db/enums";
 import type { Logger } from "@/lib/logger";
 
-import {
-  accounts,
-  sessions,
-  users,
-  verifications,
-} from "../../../db/schema";
+import { accounts, sessions, users, verifications } from "../../../db/schema";
 import { bridge } from "./log-bridge";
 import type { AuthMailer } from "./mailer";
 

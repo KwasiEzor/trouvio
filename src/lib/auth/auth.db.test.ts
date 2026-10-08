@@ -25,12 +25,7 @@ import {
   type TestDatabase,
 } from "@/test/db/test-database";
 
-import {
-  accounts,
-  sessions,
-  users,
-  verifications,
-} from "../../../db/schema";
+import { accounts, sessions, users, verifications } from "../../../db/schema";
 import { createAuth, type Auth } from "./index";
 import type { AuthEmail, AuthEmailKind } from "./mailer";
 
@@ -229,7 +224,11 @@ describe("inscription", () => {
 
   it("refuse un mot de passe trop court", async () => {
     const response = await call("/sign-up/email", {
-      body: { name: "Alex", email: "alex@example.com", password: "x".repeat(11) },
+      body: {
+        name: "Alex",
+        email: "alex@example.com",
+        password: "x".repeat(11),
+      },
     });
     expect(response.status).toBe(400);
     expect(await t.db.select().from(users)).toEqual([]);
@@ -378,7 +377,11 @@ describe("sessions", () => {
 
 async function requestMagicLink(email: string) {
   return call("/sign-in/magic-link", {
-    body: { email, callbackURL: "/fil", errorCallbackURL: "/connexion?erreur=lien" },
+    body: {
+      email,
+      callbackURL: "/fil",
+      errorCallbackURL: "/connexion?erreur=lien",
+    },
   });
 }
 
@@ -410,7 +413,10 @@ describe("lien magique", () => {
   });
 
   it("refuse un lien expiré", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-08T10:00:00Z") });
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-08T10:00:00Z"),
+    });
     await requestMagicLink("alex@example.com");
     vi.setSystemTime(new Date("2026-10-08T10:11:00Z"));
     const response = await call(pathOf(lastEmail("magic-link").url), {
@@ -503,7 +509,10 @@ describe("journaux", () => {
     await signUp("sentinelle@example.com");
     await requestMagicLink("sentinelle@example.com");
     await call("/sign-in/magic-link", {
-      body: { email: "sentinelle@example.com", callbackURL: "https://evil.example" },
+      body: {
+        email: "sentinelle@example.com",
+        callbackURL: "https://evil.example",
+      },
     });
     const logged = everythingLogged(log);
     // La sonde (callbackURL refusée) a bien été journalisée, en warn : le test n'est pas vide.

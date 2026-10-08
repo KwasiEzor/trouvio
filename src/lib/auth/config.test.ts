@@ -106,17 +106,16 @@ describe("options de Better Auth", () => {
 
   it("ne garde ni l'IP ni l'agent utilisateur d'une session", async () => {
     const before = options.databaseHooks?.session?.create?.before;
-    const result = await before?.(
-      {
-        id: "s",
-        userId: "u",
-        token: "t",
-        expiresAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ipAddress: "203.0.113.7",
-        userAgent: "Navigateur",
-      });
+    const result = await before?.({
+      id: "s",
+      userId: "u",
+      token: "t",
+      expiresAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ipAddress: "203.0.113.7",
+      userAgent: "Navigateur",
+    });
     expect(result).toMatchObject({
       data: { ipAddress: null, userAgent: null, token: "t" },
     });

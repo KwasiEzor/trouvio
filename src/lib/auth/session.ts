@@ -8,7 +8,6 @@ import { getAuth, type Session } from "./index";
  * plusieurs composants peuvent la lire sans requête de plus. Les contrôles d'accès (requireUser,
  * requireAdmin) arrivent en P1-03.
  */
-export const getSession = cache(
-  async (): Promise<Session | null> =>
-    getAuth().api.getSession({ headers: await headers() }),
+export const getSession = cache(async (): Promise<Session | null> =>
+  getAuth().api.getSession({ headers: await headers() }),
 );
