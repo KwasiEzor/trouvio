@@ -1,4 +1,4 @@
-import { and, eq, type SQL } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 
 import type { UserId } from "@/lib/auth/access";
 
@@ -41,8 +41,10 @@ export function ownedBy(
   userId: UserId,
   ...extra: (SQL | undefined)[]
 ): SQL {
-  const predicate = and(eq(table.userId, userId), ...extra);
-  // and() ne rend undefined que sans aucune condition : impossible ici, eq() est toujours là.
-  if (predicate === undefined) throw new Error("ownedBy : prédicat vide");
-  return predicate;
+  const conditions = [
+    eq(table.userId, userId),
+    ...extra.filter((condition) => condition !== undefined),
+  ];
+  // Comme and(), sans son cas « aucune condition » (undefined) : eq() est toujours là.
+  return sql`(${sql.join(conditions, sql` and `)})`;
 }
