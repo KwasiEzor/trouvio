@@ -31,8 +31,10 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - Mots de passe : hachage scrypt par Better Auth, 12 à 128 caractères (P1-02 : seul facteur, sans contrôle des mots de passe compromis, reporté à P10-01 ; ADR 0013).
 - Authentification (P1-02, ADR 0013) :
   - vérification d'email obligatoire avant la connexion par mot de passe ; réponses identiques pour une adresse inscrite ou non (inscription 200, connexion 401, lien magique 200) ;
-  - sessions en base, 7 jours glissants, prolongées au plus une fois par jour ; cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixe `__Secure-` en HTTPS ; pas de cache de session dans le cookie : déconnexion = ligne supprimée, effet immédiat ;
+  - sessions en base, 7 jours depuis la connexion (prolongation glissante configurée mais pas encore effective : seul un Server Component lit la session, P1-05) ; cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixe `__Secure-` en HTTPS ; pas de cache de session dans le cookie : déconnexion = ligne supprimée, effet immédiat ;
   - lien magique de 10 minutes, usage unique, jeton haché en base ; lien de vérification d'une heure ;
+  - compte non vérifié repris par lien magique : mots de passe et sessions d'un tiers supprimés (testé). **Résiduel connu, bloquant pour P10 (P1-06)** : repris par le lien de *vérification*, le compte garde le mot de passe posé par le tiers ; un lien se consomme par un simple GET (connexion forcée, scanners d'emails) ;
+  - nom coupé à 100 caractères et image ignorée côté serveur (hook `user.create.before`) ; réinitialisation du mot de passe fermée jusqu'à P7-02 ;
   - rôle jamais écrit par le client (`input: false`, `/update-user` désactivé) ; un admin naît du seed seulement ;
   - `trustedOrigins` = `APP_URL`, contrôle d'origine explicitement actif (`disableOriginCheck: false`), `callbackURL` en constantes du code ;
   - porte unique `/api/auth/*` (pas de Server Action appelant `auth.api.*`) ; limiteur intégré actif en production seulement, preuve 429 et stockage partagé en P1-04 ;
