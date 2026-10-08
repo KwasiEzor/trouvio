@@ -213,6 +213,30 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Authentification côté navigateur (P1-02) : ni le serveur, ni lib/auth hors du client.
+  {
+    files: ["src/lib/auth/client.ts", "src/features/auth/components/**"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ENV_IMPORT_PATHS,
+          patterns: [
+            CN_PATTERN,
+            SENTRY_PATTERN,
+            SERVER_ONLY_PATTERN,
+            {
+              regex: "(^|/)lib/auth(/(?!client$).*)?$|^\\./(?!client$)",
+              message:
+                "Code client : seul @/lib/auth/client est importable (config, session et instance lisent la base et les secrets).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   {
     files: [
       "src/lib/logger/redact.ts",

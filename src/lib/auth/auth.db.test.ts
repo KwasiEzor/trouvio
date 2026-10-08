@@ -506,11 +506,15 @@ describe("journaux", () => {
       body: { email: "sentinelle@example.com", callbackURL: "https://evil.example" },
     });
     const logged = everythingLogged(log);
+    // La sonde (callbackURL refusée) a bien été journalisée, en warn : le test n'est pas vide.
+    expect(log.warn).toHaveBeenCalled();
+    expect(log.error).not.toHaveBeenCalled();
+    const secrets = outbox.flatMap((email) => [
+      email.url,
+      new URL(email.url).searchParams.get("token") ?? email.url,
+    ]);
+    expect(secrets.length).toBeGreaterThan(0);
     expect(logged).not.toContain("sentinelle");
-    for (const email of outbox) {
-      expect(logged).not.toContain(email.url);
-      const token = new URL(email.url).searchParams.get("token");
-      if (token) expect(logged).not.toContain(token);
-    }
+    expect(secrets.filter((secret) => logged.includes(secret))).toEqual([]);
   });
 });
