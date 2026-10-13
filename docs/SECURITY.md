@@ -18,7 +18,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Déclenchement abusif du job | Appel public de `/api/cron/run` (après déploiement) | Secret Bearer, comparaison à temps constant, verrou `pg_advisory_lock` |
 | Fuite des secrets du job | Workflow GitHub Actions qui exécute le job (ADR 0008) | Environnement GitHub `production` limité au workflow du job, aucun secret exposé aux PR ni aux forks, pas d'`echo` de variables, journaux relus |
 | Explosion des coûts IA | Boucle, abus | Filtre dur avant IA, plafonds par utilisateur/jour, alerte admin |
-| Brute force / spam | Formulaires auth/contact | Rate limiting, lien magique à usage unique et expirant |
+| Brute force / spam | Formulaires auth/contact | Limitation par IP, par compte et par destinataire d'email (ADR 0015), lien magique à usage unique et expirant |
 | Fuite de secrets | Commit, logs, lecture par l'agent | Push protection GitHub (blocage au push, motifs des fournisseurs seulement), gitleaks en CI (motifs génériques compris, après le push), test de garde des littéraux de secrets (`src/test/litteraux-secrets.test.ts`, faux secrets fabriqués à l'exécution), logger sans PII ni secrets. `.env*` : la **frontière** est le bac à sable Bash de Claude Code (Seatbelt, ADR 0011), qui confine chaque commande et ses descendants et refuse aussi la lecture du dossier personnel ; les hooks n'exécutent aucun code du dépôt ; ils restent le **filet** (lecture directe, jokers sur fichiers cachés, recherche récursive, noms reconstruits, extraction du trousseau). Voir §7 |
 | Dépendance compromise | Supply chain | Lockfile, `minimumReleaseAge` 24 h, `strictDepBuilds`, Dependabot (délai 7 j), `pnpm audit`, dependency-review, CodeQL |
 | Webhooks falsifiés | Stripe/Telegram | Vérification de signature/secret, idempotence |
@@ -43,9 +43,10 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
   - nom coupé à 100 caractères et image ignorée côté serveur (hook `user.create.before`) ; réinitialisation du mot de passe fermée jusqu'à P7-02 ;
   - rôle jamais écrit par le client (`input: false`, `/update-user` désactivé) ; un admin naît du seed seulement ;
   - `trustedOrigins` = `APP_URL`, contrôle d'origine explicitement actif (`disableOriginCheck: false`), `callbackURL` en constantes du code ;
-  - porte unique `/api/auth/*` (pas de Server Action appelant `auth.api.*`) ; limiteur intégré actif en production seulement, preuve 429 et stockage partagé en P1-04 ;
+  - porte unique `/api/auth/*` (pas de Server Action appelant `auth.api.*`) ;
+  - limitation de débit (P1-04, ADR 0015), active partout, compteurs dans Postgres : par IP et par chemin (10 connexions / 5 min, 5 inscriptions ou liens magiques / 10 min…), par compte pour la connexion par mot de passe (10 / 15 min, 30 / 24 h, réponse identique que le compte existe ou non, lien magique en secours), par destinataire d'email (3 / 15 min, 10 / 24 h, envoi sauté en silence). IP lue dans le seul `x-forwarded-for` écrasé par le reverse proxy ; jamais `disableIpTracking` ni `trustedProxies`. Magasin en panne : la requête échoue ;
   - `BETTER_AUTH_SECRETS`, `BETTER_AUTH_TELEMETRY`, `BETTER_AUTH_TELEMETRY_ENDPOINT` refusées au démarrage ; télémétrie coupée.
-- Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`. Limite connue : Next écrit lui-même sur stderr le message et la pile brute d'une erreur serveur, hors logger ; les journaux du conteneur ont donc une rétention courte (P10-02).
+- Journaux : jamais d'email, de token, de contenu de profil complet ; identifiants pseudonymes (`userId` interne). Refus admin et limites atteintes journalisés une fois par fenêtre (`src/lib/logger/throttle.ts`) : un compte ne gonfle pas les journaux. Uniquement via `@/lib/logger`, qui masque clés et valeurs sensibles (ARCHITECTURE §9) ; aucun `console.*` dans `src/`. Limite connue : Next écrit lui-même sur stderr le message et la pile brute d'une erreur serveur, hors logger ; les journaux du conteneur ont donc une rétention courte (P10-02).
 - Principe du moindre privilège : rôle DB applicatif sans droits DDL en production ; le job GitHub Actions utilise ce même rôle, jamais le propriétaire de la base.
   - `DATABASE_URL` = rôle applicatif `trouvio_app` (DML) ; `DATABASE_MIGRATION_URL` = propriétaire du schéma, lu par `pnpm db:migrate` seulement. TLS vérifié exigé hors boucle locale : `sslmode=verify-full` seulement (`require` ne vérifie le certificat qu'en pg 8, plus avec `uselibpqcompat` ni en pg 9). Remplacer le `sslmode=require` des chaînes Neon.
   - Mise en place sur Neon, par l'utilisateur, **avant** la première migration : `CREATE ROLE trouvio_app LOGIN` en SQL, **sans mot de passe** (un rôle créé dans la console recevrait `neon_superuser`), puis le mot de passe par `\password trouvio_app` dans psql (seul un hachage SCRAM part : rien en clair dans l'historique de l'éditeur SQL ni dans les journaux), `GRANT USAGE ON SCHEMA public TO trouvio_app`, `ALTER DEFAULT PRIVILEGES FOR ROLE <propriétaire> IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO trouvio_app`, branche Neon de sauvegarde, puis `pnpm db:migrate:neon`. Contrôle : en `trouvio_app`, `CREATE TABLE` échoue, `SELECT` réussit, et le rôle n'a aucun droit sur le schéma `drizzle` (journal des migrations).
@@ -56,7 +57,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 
 ## 4. RGPD (Belgique — autorité : APD)
 - Base légale : exécution du contrat (service) ; consentement pour tout traceur non essentiel.
-- Minimisation : le LLM reçoit uniquement les critères de recherche, pas l'identité. Les sessions ne stockent ni IP ni agent utilisateur (colonnes présentes, valeurs nulles, ADR 0013).
+- Minimisation : le LLM reçoit uniquement les critères de recherche, pas l'identité. Les sessions ne stockent ni IP ni agent utilisateur (colonnes présentes, valeurs nulles, ADR 0013). Les compteurs de limitation ne stockent qu'une empreinte HMAC de l'IP ou de l'email, garantie par un check en base, et expirent avec leur fenêtre (24 h au plus, ADR 0015).
 - Sous-traitants à lister dans la politique de confidentialité (hébergement, base de données, IA, email, paiement, monitoring). Monitoring : Sentry, organisation en **région UE** (Frankfurt), collecte minimale, IP non stockées, rétention 30 jours (ADR 0010). Réglages de l'organisation : Data Scrubber et scrubbers par défaut exigés, IP non stockées, champs sensibles globaux, Enhanced Privacy, pas d'issues partagées, Spike Protection (le plan gratuit n'offre pas de limite par clé).
 - Droits : export (JSON/CSV) et suppression effective du compte ; durée de conservation définie (ex. offres brutes 90 jours).
 
@@ -67,7 +68,7 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 - [ ] Aucun secret, token ou PII dans le code, les logs ou les messages d'erreur
 - [ ] Contenu externe (offres, webhooks) traité comme non fiable
 - [ ] Requêtes via Drizzle (pas de SQL concaténé)
-- [ ] Rate limiting présent si la route est publique
+- [ ] Rate limiting présent si la route est publique (`getIP` de `better-auth/api` avec les options de `src/lib/auth/config.ts`, `RateLimiter` de `src/lib/rate-limit/`), avec un test de dépassement (429)
 - [ ] Tests négatifs ajoutés (accès refusé, entrée invalide, dépassement)
 - [ ] Impact coût IA évalué si la PR modifie le scoring
 

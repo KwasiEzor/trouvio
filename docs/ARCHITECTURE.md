@@ -54,7 +54,7 @@ src/
     auth/                politique, schémas des formulaires, messages, textes des emails, formulaires
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, access et guards : requireUser, requireAdmin, authorizeRoute ; client, mailer), db (client, owned : registre des tables possédées et ownedBy), rate-limit, http, design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, access et guards : requireUser, requireAdmin, authorizeRoute ; client, mailer), db (client, owned : registre des tables possédées et ownedBy), rate-limit (limiteur à clés HMAC, règles, branchement Better Auth ; ADR 0015), http, design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   test/                  harnais de tests : setup Vitest, serveur MSW partagé, bases de test et kit IDOR (db/), harnais Better Auth (auth/)
@@ -89,6 +89,7 @@ Chaque adapter : client HTTP avec timeout, 3 tentatives avec backoff exponentiel
 | `sessions` | id, expires_at, token, ip_address, user_agent (toujours nuls, ADR 0013), user_id, created_at, updated_at | token unique ; user_id en cascade |
 | `accounts` | id, account_id, provider_id (`credential` porte le mot de passe haché), user_id, access_token, refresh_token, id_token, *_expires_at, scope, password, created_at, updated_at | unique (provider_id, account_id) ; user_id en cascade |
 | `verifications` | id, identifier, value, expires_at, created_at, updated_at | index identifier ; jetons à usage unique (lien magique haché) |
+| `rate_limits` | key, count, expires_at | clé primaire = empreinte HMAC hexadécimale de 64 caractères (check : ni IP ni email en clair) ; count ≥ 1 ; index expires_at (purge). Compteurs de limitation, ADR 0015 |
 
 **Conventions (P1-01, `db/schema.ts`)** :
 - noms SQL en snake_case ; identifiants `uuid` par `gen_random_uuid()` ; horodatages `timestamptz` ;
@@ -124,6 +125,7 @@ Sessions HTTP-only, contrôle d'appartenance systématique, en-têtes de sécuri
 - **`LOG_LEVEL`** (domaine `core`) : `debug | info | warn | error | silent`, `info` par défaut ; `silent` pendant les tests (Vitest).
 - **Variables interdites** : `SENTRY_TRACES_SAMPLE_RATE`, que le SDK Sentry lirait hors `env.ts` pour activer les traces, fait refuser le démarrage (`assertStartupEnv`). `SENTRY_NAME` et `SENTRY_SPOTLIGHT` sont neutralisées par les options du SDK. Idem pour ce que Better Auth lirait lui-même (P1-02) : `BETTER_AUTH_SECRETS` (prioritaire sur le secret validé), `BETTER_AUTH_TRUSTED_ORIGINS` (toujours ajoutée aux origines de confiance, même quand l'option est un tableau), `BETTER_AUTH_TELEMETRY`, `BETTER_AUTH_TELEMETRY_ENDPOINT`.
 - **Boîte d'envoi des emails d'authentification** (P1-02, domaine `authEmail`) : `AUTH_EMAIL_OUTBOX_DIR` fait déposer chaque email en fichier (`src/lib/auth/mailer.ts`), liens en clair. Elle est refusée dès que `APP_URL` sort de la boucle locale, au démarrage (`interdite`) comme à la lecture du domaine (`invalide`, garde valable aussi en `standalone`). Sans elle, aucun transport avant P4-03 : l'envoi échoue fermé.
+- **Adresse IP du client** (P1-04, ADR 0015) : lue dans le seul `x-forwarded-for`, une valeur exactement. Contrat avec le reverse proxy (P10-02) : Caddy écrase l'en-tête avec l'IP du client et le port de l'application n'est pas publié (réseau Docker partagé avec Caddy seulement). Sinon un client choisit son IP, ou tout le monde partage un compteur. Le limiteur s'appuie sur la table `rate_limits` : une base non migrée fait répondre 500 à toute requête `/api/auth/*`.
 - **Développement sans fichier de secrets** : `pnpm dev:local` (`scripts/dev-local.mjs`) lance `next dev` sur la base Docker locale (`db/local/dev.vars`), avec un secret d'authentification tiré à chaque lancement et la boîte d'envoi sous `.tmp/outbox`. C'est la commande que Claude lance dans son bac à sable.
 
 ## 9. Journaux et erreurs (P0-06, ADR 0010)
