@@ -25,6 +25,7 @@ SECURITY §3 exige une CSP sans `unsafe-inline` pour les scripts, HSTS, `nosniff
 - − Toutes les pages sont dynamiques : pas de cache HTML, TTFB plus long (mesure Lighthouse en P7-01 ; volume faible, pas de CDN, ADR 0006).
 - − Une lecture de session en base de plus par chargement de page connecté (par clé primaire).
 - − Un onglet resté ouvert plus de 7 jours sans rechargement complet est déconnecté (aucune prolongation en navigation RSC).
+- − Zod 4 tourne en mode `jitless` dans le navigateur (`src/instrumentation-client.ts`) : sa sonde `new Function` produirait sinon une violation `script-src eval` sur chaque formulaire. Validation un peu plus lente, sans effet à ces volumes.
 - − Un composant qui injecte un élément `<style>` (Radix Dialog, `react-remove-scroll`) ou un script tiers (Stripe) devra recevoir le nonce (`x-nonce`, `setNonce`) ou une origine dans la CSP : notes P6, P7-01, P9.
 - − Le DSN Sentry doit être identique au build et à l'exécution (note P10-02) ; les violations CSP ne sont pas encore remontées (`report-to`, P10-02).
 - − La recopie des cookies dépend de l'adaptateur Next et de `nextCookies` : une montée de version se vérifie par l'E2E `tests/e2e/session.spec.ts`.

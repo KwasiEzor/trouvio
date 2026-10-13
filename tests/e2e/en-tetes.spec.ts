@@ -118,16 +118,24 @@ test("une page 404 : scripts sous nonce, chargement sans violation", async ({
   });
 });
 
-test("un script en ligne injecté sans nonce ne s'exécute pas", async ({
+test("un script en ligne injecté dans le HTML, sans nonce, ne s'exécute pas", async ({
   page,
 }) => {
+  // XSS réaliste : la réponse du serveur (en-têtes et CSP intacts) porte un <script> en ligne, lu
+  // par le parseur. Un script créé par l'outillage de Playwright (addScriptTag) n'en serait pas
+  // un : 'strict-dynamic' fait confiance aux scripts insérés par un script de confiance.
+  await page.route("**/connexion", async (route) => {
+    const reponse = await route.fetch();
+    const html = (await reponse.text()).replace(
+      "</body>",
+      "<script>window.__brecheCsp = true</script></body>",
+    );
+    expect(html).toContain("__brecheCsp");
+    await route.fulfill({ response: reponse, body: html });
+  });
   await ecouterViolations(page);
   await page.goto("/connexion");
   await attendreHydratation(page);
-  // Le rejet éventuel de addScriptTag importe peu : seul compte que le script n'ait pas tourné.
-  await page
-    .addScriptTag({ content: "window.__brecheCsp = true" })
-    .catch(() => undefined);
   expect(await page.evaluate(() => "__brecheCsp" in window)).toBe(false);
   await expect
     .poll(async () => (await violations(page)).join("\n"))
