@@ -12,8 +12,10 @@ import type { SeedFile } from "./seed-file";
  *
  * Garde (P1-06, ADR 0017) : jamais de promotion admin d'une ligne qui porte un mot de passe
  * (compte credential) que le seed n'a pas créé ; un tiers aurait pu inscrire l'adresse de l'admin
- * avant le seed. Une ligne déjà admin est acceptée : son titulaire seul a pu lui donner un mot de
- * passe, et un seed relancé reste idempotent.
+ * avant le seed. Une ligne déjà admin et vérifiée est acceptée (seed relancé, idempotent) : la
+ * vérification exige ce mot de passe ou le lien magique, qui l'aurait supprimé (ADR 0017). Une ligne
+ * admin non vérifiée qui porte un mot de passe est refusée : l'inscription écrit users puis
+ * accounts sans transaction, le seed a pu la promouvoir entre les deux.
  */
 
 /** Refus de la garde : l'index de l'entrée seulement, jamais l'adresse (journaux). */
@@ -31,7 +33,11 @@ type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 /** Ligne existante à cet email, verrouillée jusqu'à la fin de la transaction. */
 async function lockedUser(tx: Transaction, email: string) {
   const [row] = await tx
-    .select({ id: users.id, role: users.role })
+    .select({
+      id: users.id,
+      role: users.role,
+      emailVerified: users.emailVerified,
+    })
     .from(users)
     .where(eq(users.email, email))
     .for("update");
@@ -62,7 +68,7 @@ export async function applySeed(
         role === "admin" ? await lockedUser(tx, email) : undefined;
       if (
         existing !== undefined &&
-        existing.role !== "admin" &&
+        !(existing.role === "admin" && existing.emailVerified) &&
         (await hasCredential(tx, existing.id))
       ) {
         throw new SeedAdminPromotionError(index);

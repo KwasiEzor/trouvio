@@ -54,6 +54,7 @@ export function MagicLinkConfirm({
 
   return (
     <form
+      method="post"
       aria-label="Confirmation de la connexion"
       onSubmit={onSubmit}
       className="flex flex-col gap-4"

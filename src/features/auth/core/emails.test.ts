@@ -75,6 +75,9 @@ describe("activation par mot de passe (P1-06)", () => {
     expect(verificationEmail({ url: URL_LIEN }).text).toContain(
       "saisis le mot de passe choisi à l'inscription",
     );
+    expect(verificationEmail({ url: URL_LIEN }).text).toContain(
+      "Tu n'as pas créé ce compte ? Sur la même page, demande un lien de connexion",
+    );
   });
 
   // Compte commencé par un tiers (pré-détournement) : le lien magique retire son mot de passe.

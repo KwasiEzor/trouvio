@@ -32,6 +32,7 @@ export function verificationEmail({ url }: { url: string }): AuthEmailContent {
     text: body(
       `Pour activer ton compte Trouvio, ouvre ce lien, puis saisis le mot de passe choisi à l'inscription :\n${url}`,
       `Il est valable ${formatDuration(EMAIL_VERIFICATION_TTL_SECONDS)}.`,
+      "Tu n'as pas créé ce compte ? Sur la même page, demande un lien de connexion : il retire tout mot de passe que tu n'aurais pas choisi.",
       `${IGNORE} : aucun compte ne sera activé.`,
     ),
   };

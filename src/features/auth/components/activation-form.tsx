@@ -11,6 +11,7 @@ import {
   readText,
 } from "@/features/auth/components/field";
 import {
+  ACCOUNT_LOCKED_CODE,
   AUTH_NOTICES,
   FIELD_MESSAGES,
   messageForAuthError,
@@ -64,7 +65,10 @@ export function ActivationForm({
             ? error.code
             : undefined;
         setServerError(messageForLinkError({ code, status: error.status }));
-        if (code === INVALID_PASSWORD_CODE) setRescue(true);
+        // Verrou par compte compris : un tiers peut l'épuiser, le lien de connexion reste ouvert.
+        if (code === INVALID_PASSWORD_CODE || code === ACCOUNT_LOCKED_CODE) {
+          setRescue(true);
+        }
         setPending(false);
         return;
       }
@@ -96,6 +100,8 @@ export function ActivationForm({
   return (
     <div className="flex flex-col gap-4">
       <form
+        // Envoi avant l'hydratation : le mot de passe part dans le corps, jamais dans l'URL.
+        method="post"
         aria-label="Activation de ton compte"
         noValidate
         onSubmit={onSubmit}

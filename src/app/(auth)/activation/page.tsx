@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActivationForm } from "@/features/auth/components/activation-form";
-import { linkTokenSchema } from "@/features/auth/core/links";
+import { verificationTokenSchema } from "@/features/auth/core/links";
 import { AUTH_PATHS } from "@/features/auth/core/policy";
 import { getAuth } from "@/lib/auth";
 import { previewVerificationLink } from "@/lib/auth/links";
@@ -24,7 +24,7 @@ export default async function ActivationPage({
 }: {
   searchParams: Promise<{ token?: string | string[] }>;
 }) {
-  const parsed = linkTokenSchema.safeParse((await searchParams).token);
+  const parsed = verificationTokenSchema.safeParse((await searchParams).token);
   const preview = parsed.success
     ? await previewVerificationLink(getAuth(), parsed.data)
     : ({ status: "invalid" } as const);

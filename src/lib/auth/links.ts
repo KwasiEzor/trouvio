@@ -1,9 +1,10 @@
 import { verifyJWT } from "better-auth/crypto";
 
 import {
-  linkTokenSchema,
+  magicLinkTokenSchema,
   parseMagicLinkRecord,
   verificationPayloadSchema,
+  verificationTokenSchema,
 } from "@/features/auth/core/links";
 
 import type { Auth } from "./index";
@@ -12,8 +13,8 @@ import { magicLinkIdentifier } from "./link-tokens";
 /**
  * Aperçus des pages /activation et /connexion/lien (ADR 0017) : lus côté serveur, sans route HTTP,
  * ils ne consomment aucun jeton et n'ouvrent aucune session. L'adresse affichée annonce le compte
- * visé (connexion forcée). findVerificationValue purge au passage les lignes expirées : ce n'est
- * pas une consommation.
+ * visé (connexion forcée). Le lien magique se lit par l'adaptateur, sur l'index : pas de
+ * findVerificationValue, qui purgerait toute la table à chaque GET anonyme.
  */
 
 export type VerificationPreview =
@@ -30,7 +31,7 @@ export async function previewVerificationLink(
   auth: Auth,
   token: string,
 ): Promise<VerificationPreview> {
-  if (!linkTokenSchema.safeParse(token).success) return INVALID;
+  if (!verificationTokenSchema.safeParse(token).success) return INVALID;
   const context = await auth.$context;
   const payload = verificationPayloadSchema.safeParse(
     await verifyJWT(token, context.secret),
@@ -50,12 +51,15 @@ export async function previewMagicLink(
   auth: Auth,
   token: string,
 ): Promise<MagicLinkPreview> {
-  if (!linkTokenSchema.safeParse(token).success) return INVALID;
+  if (!magicLinkTokenSchema.safeParse(token).success) return INVALID;
   const context = await auth.$context;
-  const stored = await context.internalAdapter.findVerificationValue(
-    magicLinkIdentifier(token),
-  );
-  // findVerificationValue ne contrôle pas l'expiration.
+  const stored = await context.adapter.findOne<{
+    value: string;
+    expiresAt: Date;
+  }>({
+    model: "verification",
+    where: [{ field: "identifier", value: magicLinkIdentifier(token) }],
+  });
   if (stored === null || stored.expiresAt <= new Date()) return INVALID;
   const record = parseMagicLinkRecord(stored.value);
   if (record === null) return INVALID;

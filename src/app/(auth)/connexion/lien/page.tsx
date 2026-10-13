@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { MagicLinkConfirm } from "@/features/auth/components/magic-link-confirm";
-import { linkTokenSchema } from "@/features/auth/core/links";
+import { magicLinkTokenSchema } from "@/features/auth/core/links";
 import { AUTH_PATHS } from "@/features/auth/core/policy";
 import { getAuth } from "@/lib/auth";
 import { previewMagicLink } from "@/lib/auth/links";
@@ -21,7 +21,7 @@ export default async function LienConnexionPage({
 }: {
   searchParams: Promise<{ token?: string | string[] }>;
 }) {
-  const parsed = linkTokenSchema.safeParse((await searchParams).token);
+  const parsed = magicLinkTokenSchema.safeParse((await searchParams).token);
   const preview = parsed.success
     ? await previewMagicLink(getAuth(), parsed.data)
     : ({ status: "invalid" } as const);
