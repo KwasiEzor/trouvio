@@ -17,7 +17,6 @@ import {
   messageForAuthError,
 } from "@/features/auth/core/messages";
 import {
-  AUTH_PATHS,
   EMAIL_MAX_LENGTH,
   MAGIC_LINK_TTL_SECONDS,
 } from "@/features/auth/core/policy";
@@ -46,11 +45,8 @@ export function MagicLinkForm() {
     setErrors({});
     setPending(true);
     try {
-      const { error } = await authClient.signIn.magicLink({
-        ...parsed.data,
-        callbackURL: AUTH_PATHS.afterSignIn,
-        errorCallbackURL: AUTH_PATHS.invalidLink,
-      });
+      // Pas de callbackURL : le lien d'email mène à /connexion/lien (ADR 0017).
+      const { error } = await authClient.signIn.magicLink(parsed.data);
       if (error) setServerError(messageForAuthError(error));
       else setSent(true);
     } catch {

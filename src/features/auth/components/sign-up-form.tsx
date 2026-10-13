@@ -17,7 +17,6 @@ import {
   messageForAuthError,
 } from "@/features/auth/core/messages";
 import {
-  AUTH_PATHS,
   EMAIL_MAX_LENGTH,
   NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -53,10 +52,8 @@ export function SignUpForm() {
     setErrors({});
     setPending(true);
     try {
-      const { error } = await authClient.signUp.email({
-        ...parsed.data,
-        callbackURL: AUTH_PATHS.afterSignIn,
-      });
+      // Pas de callbackURL : le lien d'email mène à /activation (ADR 0017).
+      const { error } = await authClient.signUp.email(parsed.data);
       if (error) setServerError(messageForAuthError(error));
       else setSent(true);
     } catch {

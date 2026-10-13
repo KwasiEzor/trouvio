@@ -32,8 +32,8 @@ export type AccessDecision =
   // userId : journaliser le refus sans relire la session.
   | { ok: false; reason: "forbidden"; userId: UserId };
 
-// Champs en trop ignorés ; emailVerified exigé en défense en profondeur (Better Auth n'ouvre de
-// session qu'après vérification aujourd'hui, P1-06 pourrait changer le parcours).
+// Champs en trop ignorés ; emailVerified exigé en défense en profondeur (aucune session n'est
+// ouverte avant la vérification : activation par mot de passe ou lien magique, ADR 0017).
 const sessionSchema = z.object({
   user: z.object({
     id: userIdSchema,
