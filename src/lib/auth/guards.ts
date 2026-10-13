@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { AUTH_PATHS } from "@/features/auth/core/policy";
 import { logger } from "@/lib/logger";
+import { createLogThrottle } from "@/lib/logger/throttle";
 
 import {
   decideAccess,
@@ -30,12 +31,26 @@ import { getSession } from "./session";
 
 type SignInPath = typeof AUTH_PATHS.signIn | typeof AUTH_PATHS.invalidLink;
 
+// Un refus journalisé par utilisateur et par 10 minutes, les suivants comptés (P1-04) : un compte
+// ne peut pas gonfler les journaux. En mémoire : échantillonnage, sans besoin de durabilité.
+const forbiddenLogThrottle = createLogThrottle({
+  windowMs: 10 * 60 * 1000,
+  maxKeys: 10_000,
+  now: () => Date.now(),
+});
+
 async function decide(need: AccessNeed): Promise<AccessDecision> {
   const decision = decideAccess(await getSession(), need);
   // Identifiant interne seulement, jamais l'email. Les refus « non connecté » ne sont pas
   // journalisés : trop de bruit.
   if (!decision.ok && decision.reason === "forbidden") {
-    logger.warn("accès admin refusé", { userId: decision.userId });
+    const { log, suppressed } = forbiddenLogThrottle(decision.userId);
+    if (log) {
+      logger.warn("accès admin refusé", {
+        userId: decision.userId,
+        ...(suppressed > 0 ? { suppressed } : {}),
+      });
+    }
   }
   return decision;
 }

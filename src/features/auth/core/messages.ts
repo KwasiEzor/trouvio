@@ -23,6 +23,8 @@ export const AUTH_NOTICES = {
 
 const GENERIC = "Une erreur est survenue. Réessaie dans un instant.";
 const RATE_LIMITED = "Trop de tentatives. Réessaie dans un instant.";
+const ACCOUNT_LOCKED =
+  "Trop de tentatives sur ce compte. Réessaie plus tard, ou reçois un lien de connexion par email.";
 const BAD_CREDENTIALS = "Email ou mot de passe incorrect.";
 const EXPIRED_LINK = "Ce lien n'est plus valable. Demande-en un nouveau.";
 
@@ -48,6 +50,8 @@ export type AuthErrorLike = {
 };
 
 export function messageForAuthError({ code, status }: AuthErrorLike): string {
+  // Verrouillage par compte (src/lib/auth/account-lock.ts) : le lien magique reste ouvert.
+  if (code === "TOO_MANY_ATTEMPTS") return ACCOUNT_LOCKED;
   if (status === 429) return RATE_LIMITED;
   return (code === undefined ? undefined : MESSAGES.get(code)) ?? GENERIC;
 }

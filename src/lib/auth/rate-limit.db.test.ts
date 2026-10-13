@@ -157,17 +157,13 @@ describe("par IP (handler HTTP)", () => {
       purgeExpired: () => Promise.resolve(0),
     };
     auth = build(broken);
-    const outcome = await call("/sign-in/magic-link", {
-      body: { email: "alex@example.com" },
-      ip: ipOf(7),
-    }).then(
-      (response) => response.status,
-      () => "exception",
-    );
-    expect(
-      outcome === "exception" ||
-        (typeof outcome === "number" && outcome >= 500),
-    ).toBe(true);
+    // L'erreur sort du handler : le Route Handler de Next répond alors 500.
+    await expect(
+      call("/sign-in/magic-link", {
+        body: { email: "alex@example.com" },
+        ip: ipOf(7),
+      }),
+    ).rejects.toThrow("base injoignable");
     expect(outbox).toEqual([]);
   });
 });
@@ -223,8 +219,10 @@ describe("par compte (connexion par mot de passe)", () => {
     expect(outbox.length).toBe(before + 1);
   });
 
-  it("ne compte pas les requêtes refusées par le contrôle d'origine", async () => {
-    for (let i = 0; i < 11; i++) {
+  it("compte aussi une tentative à l'origine refusée (hooks.before passe avant ce contrôle)", async () => {
+    // Sans effet pour un attaquant : un client direct pose une origine valide. Ne pas reproduire
+    // le contrôle d'origine ici : une lecture divergente ouvrirait un contournement du verrou.
+    for (let i = 0; i < 10; i++) {
       const response = await signIn(
         "alex@example.com",
         ipOf(100 + i),
@@ -232,7 +230,7 @@ describe("par compte (connexion par mot de passe)", () => {
       );
       expect(response.status).toBe(403);
     }
-    expect((await signIn("alex@example.com", ipOf(200))).status).toBe(401);
+    expect((await signIn("alex@example.com", ipOf(200))).status).toBe(429);
   });
 
   it("bloque aussi les appels serveur auth.api.signInEmail", async () => {
