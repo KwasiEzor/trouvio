@@ -17,7 +17,8 @@ export const AUTH_IP_RULES = {
   "/sign-up/email": { windowSeconds: 600, max: 5 },
   "/sign-in/magic-link": { windowSeconds: 600, max: 5 },
   "/send-verification-email": { windowSeconds: 600, max: 3 },
-  "/magic-link/verify": { windowSeconds: 60, max: 5 },
+  "/magic-link/confirm": { windowSeconds: 60, max: 5 },
+  "/verify-email/confirm": { windowSeconds: 300, max: 10 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /**
@@ -30,7 +31,6 @@ export const RATE_LIMITED_PATHS: readonly string[] = [
   "/error",
   "/ok",
   "/sign-out",
-  "/verify-email",
 ];
 
 export const OTHER_PATH_BUCKET = "autre";
