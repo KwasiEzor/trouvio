@@ -1,8 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
 
 const ALEX_ID = "4f1c2b8e-9a3d-4e6f-8b7a-1c2d3e4f5a6b";
+const SAM_ID = "9b2e4c6d-1a3f-4b5c-8d7e-0f1a2b3c4d5e";
+const LOG_WINDOW_MS = 10 * 60 * 1000;
+
+// Horloge simulée : les refus admin sont journalisés une fois par utilisateur et par fenêtre.
+vi.useFakeTimers({ toFake: ["Date"] });
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const getSessionMock = vi.fn();
 const log = fakeLogger();
@@ -52,6 +60,8 @@ const ALEX = {
 beforeEach(() => {
   getSessionMock.mockReset();
   log.warn.mockClear();
+  // Chaque test commence dans une fenêtre neuve.
+  vi.advanceTimersByTime(LOG_WINDOW_MS);
 });
 
 describe("requireUser", () => {
@@ -145,5 +155,44 @@ describe("authorizeRoute", () => {
     const outage = new Error("base injoignable");
     getSessionMock.mockRejectedValue(outage);
     await expect(authorizeRoute("user")).rejects.toBe(outage);
+  });
+});
+
+describe("journaux des refus admin", () => {
+  it("ne journalise qu'un refus par utilisateur et par fenêtre", async () => {
+    getSessionMock.mockResolvedValue(session());
+    for (let i = 0; i < 5; i++) await authorizeRoute("admin");
+    expect(log.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("journalise chaque utilisateur à part", async () => {
+    getSessionMock.mockResolvedValue(session());
+    await authorizeRoute("admin");
+    getSessionMock.mockResolvedValue(session({ id: SAM_ID }));
+    await authorizeRoute("admin");
+    expect(log.warn).toHaveBeenCalledWith("accès admin refusé", {
+      userId: SAM_ID,
+    });
+    expect(log.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("rapporte le nombre de refus tus à la fenêtre suivante, sans email", async () => {
+    getSessionMock.mockResolvedValue(session());
+    for (let i = 0; i < 5; i++) await authorizeRoute("admin");
+    vi.advanceTimersByTime(LOG_WINDOW_MS);
+    await expect(requireAdmin()).rejects.toBeInstanceOf(NotFound);
+    expect(log.warn).toHaveBeenLastCalledWith("accès admin refusé", {
+      userId: ALEX_ID,
+      suppressed: 4,
+    });
+    expect(everythingLogged(log)).not.toContain("alex@example.com");
+  });
+
+  it("garde la même réponse pour un refus tu", async () => {
+    getSessionMock.mockResolvedValue(session());
+    await authorizeRoute("admin");
+    const result = await authorizeRoute("admin");
+    if (result.ok) throw new Error("accès accordé à tort");
+    expect(result.response.status).toBe(403);
   });
 });

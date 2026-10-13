@@ -29,6 +29,14 @@ describe("messageForAuthError", () => {
     expect(messageForAuthError({ code })).toBe(attendu);
   });
 
+  it("propose le lien magique quand le compte est verrouillé", () => {
+    expect(
+      messageForAuthError({ code: "TOO_MANY_ATTEMPTS", status: 429 }),
+    ).toBe(
+      "Trop de tentatives sur ce compte. Réessaie plus tard, ou reçois un lien de connexion par email.",
+    );
+  });
+
   it("annonce une limite de débit quel que soit le code", () => {
     expect(messageForAuthError({ status: 429 })).toBe(
       "Trop de tentatives. Réessaie dans un instant.",

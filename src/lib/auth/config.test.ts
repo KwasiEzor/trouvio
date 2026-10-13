@@ -6,7 +6,9 @@ import {
   PASSWORD_MIN_LENGTH,
 } from "@/features/auth/core/policy";
 import { createDatabase, createPool } from "@/lib/db/client";
+import { AUTH_IP_RULES } from "@/lib/rate-limit/rules";
 import { fakeLogger } from "@/test/db/fake-logger";
+import { fixedLimiter, unlimitedLimiter } from "@/test/rate-limit/fakes";
 
 import { buildAuthOptions, type AuthDeps } from "./config";
 import type { AuthEmail, AuthMailer } from "./mailer";
@@ -34,6 +36,7 @@ function deps(overrides: Partial<AuthDeps> = {}): AuthDeps & {
     secret: "s".repeat(32),
     mailer,
     log: fakeLogger(),
+    rateLimit: { enabled: true, limiter: unlimitedLimiter() },
     sent,
     ...overrides,
   };
@@ -78,9 +81,17 @@ describe("options de Better Auth", () => {
     expect(options.telemetry).toEqual({ enabled: false });
   });
 
-  it("garde le contrôle de schéma et le suivi des IP du limiteur", () => {
+  it("garde le contrôle de schéma", () => {
     expect(options.advanced.database).not.toHaveProperty("validateSchema");
-    expect(options.advanced).not.toHaveProperty("ipAddress");
+  });
+
+  it("lit l'IP dans le seul x-forwarded-for posé par le reverse proxy (ADR 0015)", () => {
+    // disableIpTracking couperait le limiteur ; trustedProxies laisserait le client choisir une
+    // IP dans la chaîne : le reverse proxy écrase l'en-tête, l'application n'en lit qu'une valeur.
+    expect(options.advanced.ipAddress).toEqual({
+      ipAddressHeaders: ["x-forwarded-for"],
+      ipv6Subnet: 64,
+    });
   });
 
   it("désactive les routes hors périmètre", () => {
@@ -133,6 +144,59 @@ describe("options de Better Auth", () => {
     expect(result).toMatchObject({
       data: { ipAddress: null, userAgent: null, token: "t" },
     });
+  });
+});
+
+describe("limitation de débit", () => {
+  it("active le limiteur selon la dépendance, sur le magasin du projet", () => {
+    const options = buildAuthOptions(deps());
+    expect(options.rateLimit).toMatchObject({
+      enabled: true,
+      window: 10,
+      max: 100,
+    });
+    expect(options.rateLimit.customStorage).toHaveProperty("consume");
+    expect(
+      buildAuthOptions(
+        deps({ rateLimit: { enabled: false, limiter: unlimitedLimiter() } }),
+      ).rateLimit.enabled,
+    ).toBe(false);
+  });
+
+  it("remplace les règles intégrées par celles du projet, au chemin exact", () => {
+    const { customRules } = buildAuthOptions(deps()).rateLimit;
+    expect(customRules).toEqual(
+      Object.fromEntries(
+        Object.entries(AUTH_IP_RULES).map(([path, rule]) => [
+          path,
+          { window: rule.windowSeconds, max: rule.max },
+        ]),
+      ),
+    );
+  });
+
+  it("verrouille la connexion par compte avant toute route (hooks.before)", () => {
+    expect(buildAuthOptions(deps()).hooks.before).toBeTypeOf("function");
+  });
+
+  it("plafonne les emails par destinataire : au-delà, rien ne part", async () => {
+    const d = deps({
+      rateLimit: {
+        enabled: true,
+        limiter: fixedLimiter({ allowed: false, retryAfterSeconds: 60 }),
+      },
+    });
+    await buildAuthOptions(d).emailAndPassword.onExistingUserSignUp({
+      user: {
+        id: "u",
+        name: "Alex",
+        email: "alex@example.com",
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    expect(d.sent).toEqual([]);
   });
 });
 
