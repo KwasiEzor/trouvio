@@ -6,6 +6,7 @@ import {
 } from "next/constants";
 
 import { assertStartupEnv, publicBuildEnv } from "./src/lib/env";
+import { securityHeaderRules } from "./src/lib/http/security-headers";
 
 const nextConfig: NextConfig = {
   // Empêche `next dev` d'ajouter un bloc « nextjs-agent-rules » dans CLAUDE.md (mémoire projet versionnée).
@@ -16,6 +17,8 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   // Aucune source map servie au navigateur. L'envoi à Sentry (sans publication) viendra en P10-02.
   productionBrowserSourceMaps: false,
+  // En-têtes communs à toutes les routes et CSP de l'API (ADR 0016) ; CSP à nonce des pages : src/proxy.ts.
+  headers: async () => securityHeaderRules(),
 };
 
 function config(phase: string): NextConfig {
