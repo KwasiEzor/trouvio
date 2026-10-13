@@ -4,6 +4,7 @@ import {
   existingAccountEmail,
   formatDuration,
   magicLinkEmail,
+  unverifiedAccountEmail,
   verificationEmail,
 } from "./emails";
 
@@ -14,6 +15,7 @@ const GABARITS = [
   ["vérification", verificationEmail({ url: URL_LIEN })],
   ["lien magique", magicLinkEmail({ url: URL_LIEN })],
   ["compte existant", existingAccountEmail({ signInUrl: URL_LIEN })],
+  ["compte non activé", unverifiedAccountEmail({ signInUrl: URL_LIEN })],
 ] as const;
 
 describe("textes des emails d'authentification", () => {
@@ -56,6 +58,7 @@ describe("textes des emails d'authentification", () => {
       "Confirme ton adresse email",
       "Ton lien de connexion à Trouvio",
       "Tu as déjà un compte Trouvio",
+      "Ton compte Trouvio n'est pas activé",
     ]);
   });
 
@@ -64,6 +67,24 @@ describe("textes des emails d'authentification", () => {
   it("ne recopie aucune donnée saisie à l'inscription", () => {
     const { text } = verificationEmail({ url: URL_LIEN });
     expect(text.startsWith("Bonjour,\n")).toBe(true);
+  });
+});
+
+describe("activation par mot de passe (P1-06)", () => {
+  it("demande le mot de passe choisi à l'inscription", () => {
+    expect(verificationEmail({ url: URL_LIEN }).text).toContain(
+      "saisis le mot de passe choisi à l'inscription",
+    );
+  });
+
+  // Compte commencé par un tiers (pré-détournement) : le lien magique retire son mot de passe.
+  it("oriente le titulaire d'un compte non activé vers le lien de connexion", () => {
+    const { text } = unverifiedAccountEmail({ signInUrl: URL_LIEN });
+    expect(text).toContain(
+      "Un compte a été commencé avec cette adresse sans être activé.",
+    );
+    expect(text).toContain("demande un lien de connexion");
+    expect(text).toContain("il retire tout mot de passe que tu n'aurais pas choisi");
   });
 });
 
