@@ -786,7 +786,6 @@ describe("journaux", () => {
       email.url,
       new URL(email.url).searchParams.get("token") ?? email.url,
     ]);
-    expect(secrets.length).toBeGreaterThan(0);
     expect(secrets.length).toBeGreaterThanOrEqual(4);
     expect(logged).not.toContain("sentinelle");
     expect(secrets.filter((secret) => logged.includes(secret))).toEqual([]);

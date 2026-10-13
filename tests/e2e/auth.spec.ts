@@ -13,8 +13,8 @@ import { prendreEmail } from "./outbox";
  * /sign-in/email, 5 / 10 min sur /sign-up/email et le lien magique ; 3 emails / 15 min par
  * destinataire ; 10 connexions / 15 min par compte. Budget de ce fichier : 1 /sign-up/email,
  * 2 /sign-in/email, 1 /sign-in/magic-link, 1 /verify-email/confirm, 1 /magic-link/confirm,
- * 2 emails. Le scénario du tiers (pré-détournement) vit dans liens.spec.ts. Les négatifs nombreux vivent dans
- * src/lib/auth/auth.db.test.ts ; le 429 de production dans limiteur.spec.ts.
+ * 2 emails. Le scénario du tiers (pré-détournement) vit dans liens.spec.ts. Les négatifs nombreux
+ * vivent dans src/lib/auth/auth.db.test.ts ; le 429 de production dans limiteur.spec.ts.
  *
  * Les alertes se cherchent dans <main> : Next ajoute après l'hydratation un annonceur de route
  * (role="alert", shadow DOM ouvert) que page.getByRole verrait aussi.

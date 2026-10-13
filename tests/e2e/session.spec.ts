@@ -10,8 +10,8 @@ import { prendreEmail } from "./outbox";
 /**
  * Sessions glissantes dans le vrai runtime Next (P1-05, ADR 0016) : src/proxy.ts relit la session
  * sur un chargement de document et recopie le Set-Cookie prolongé. Budget : 1 /sign-up/email et
- * 1 /verify-email/confirm, sur
- * une IP propre à ce fichier (X-Forwarded-For, limiteur par IP, ADR 0015).
+ * 1 /verify-email/confirm, sur une IP propre à ce fichier (X-Forwarded-For, limiteur par IP,
+ * ADR 0015).
  */
 
 test.describe.configure({ mode: "serial" });

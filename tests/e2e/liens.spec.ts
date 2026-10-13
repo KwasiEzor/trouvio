@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { verifierScriptsSousNonce } from "./csp";
 import { attendreHydratation } from "./helpers";
 import { prendreEmail } from "./outbox";
 
@@ -122,6 +123,10 @@ test("un lien magique ouvert sans clic ne connecte pas (scanner d'emails)", asyn
   });
   expect(demande.status()).toBe(200);
   const magique = await prendreEmail(AUTRE, "magic-link");
+
+  // CSP à nonce sur la page avec un jeton valable (sans jeton, elle redirige). Un GET de plus :
+  // rien n'est consommé.
+  await verifierScriptsSousNonce(page.request, magique.url);
 
   // Deux ouvertures, comme un scanner puis la personne : rien n'est consommé.
   await page.goto(magique.url);
