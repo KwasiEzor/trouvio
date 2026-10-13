@@ -40,7 +40,9 @@ function memoryStore() {
   return store;
 }
 
-function setup(overrides: { purgeEvery?: number; store?: RateLimitStore } = {}) {
+function setup(
+  overrides: { purgeEvery?: number; store?: RateLimitStore } = {},
+) {
   const store = memoryStore();
   const log = fakeLogger();
   let now = NOW;

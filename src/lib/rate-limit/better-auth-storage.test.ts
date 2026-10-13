@@ -4,7 +4,9 @@ import { toBetterAuthStorage } from "./better-auth-storage";
 import { OTHER_PATH_BUCKET } from "./rules";
 import type { RateLimiter } from "./types";
 
-function limiter(result = { allowed: true, retryAfterSeconds: null as number | null }) {
+function limiter(
+  result = { allowed: true, retryAfterSeconds: null as number | null },
+) {
   return {
     consume: vi.fn<RateLimiter["consume"]>(() => Promise.resolve(result)),
   };
@@ -49,7 +51,10 @@ describe("toBetterAuthStorage", () => {
   it("traduit un refus dans la forme attendue par Better Auth", async () => {
     const l = limiter({ allowed: false, retryAfterSeconds: 42 });
     expect(
-      await toBetterAuthStorage(l).consume("no-trusted-ip|/sign-in/email", RULE),
+      await toBetterAuthStorage(l).consume(
+        "no-trusted-ip|/sign-in/email",
+        RULE,
+      ),
     ).toEqual({ allowed: false, retryAfter: 42 });
   });
 });

@@ -45,8 +45,6 @@ describe("règles de limitation", () => {
   });
 
   it("ne nomme aucun chemin paramétré", () => {
-    expect(RATE_LIMITED_PATHS.filter((path) => path.includes(":"))).toEqual(
-      [],
-    );
+    expect(RATE_LIMITED_PATHS.filter((path) => path.includes(":"))).toEqual([]);
   });
 });

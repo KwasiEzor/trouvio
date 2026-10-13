@@ -20,7 +20,11 @@ describe("createLogThrottle", () => {
 
   it("tait les suivants dans la fenêtre", () => {
     const c = clock();
-    const throttle = createLogThrottle({ windowMs: 1000, maxKeys: 10, now: c.now });
+    const throttle = createLogThrottle({
+      windowMs: 1000,
+      maxKeys: 10,
+      now: c.now,
+    });
     throttle("a");
     c.advance(999);
     expect(throttle("a").log).toBe(false);
@@ -28,7 +32,11 @@ describe("createLogThrottle", () => {
 
   it("compte les événements tus au premier de la fenêtre suivante", () => {
     const c = clock();
-    const throttle = createLogThrottle({ windowMs: 1000, maxKeys: 10, now: c.now });
+    const throttle = createLogThrottle({
+      windowMs: 1000,
+      maxKeys: 10,
+      now: c.now,
+    });
     for (let i = 0; i < 5; i++) throttle("a");
     c.advance(1000);
     expect(throttle("a")).toEqual({ log: true, suppressed: 4 });

@@ -19,7 +19,12 @@ describe("rateLimitKey", () => {
   });
 
   it("ne contient jamais le sujet en clair", () => {
-    const key = rateLimitKey(SECRET, "sign-in-account", RULE, "alex@example.com");
+    const key = rateLimitKey(
+      SECRET,
+      "sign-in-account",
+      RULE,
+      "alex@example.com",
+    );
     expect(key).not.toContain("alex");
     expect(key).not.toContain("example");
   });
@@ -28,13 +33,19 @@ describe("rateLimitKey", () => {
     ["la portée", () => rateLimitKey(SECRET, "sign-in-account", RULE, "x")],
     [
       "la fenêtre",
-      () => rateLimitKey(SECRET, "auth-ip", { ...RULE, windowSeconds: 60 }, "x"),
+      () =>
+        rateLimitKey(SECRET, "auth-ip", { ...RULE, windowSeconds: 60 }, "x"),
     ],
     ["le sujet", () => rateLimitKey(SECRET, "auth-ip", RULE, "y")],
     [
       "le secret",
       () =>
-        rateLimitKey(deriveRateLimitSecret("t".repeat(32)), "auth-ip", RULE, "x"),
+        rateLimitKey(
+          deriveRateLimitSecret("t".repeat(32)),
+          "auth-ip",
+          RULE,
+          "x",
+        ),
     ],
   ])("change avec %s", (_label, other) => {
     expect(other()).not.toBe(rateLimitKey(SECRET, "auth-ip", RULE, "x"));
