@@ -38,12 +38,12 @@ describe("URL des liens envoyés par email", () => {
 });
 
 describe("linkTokenSchema", () => {
-  it.each([["JWT", fauxJwt()], ["lien magique", "a".repeat(32)]])(
-    "accepte un jeton %s",
-    (_nom, jeton) => {
-      expect(linkTokenSchema.safeParse(jeton).success).toBe(true);
-    },
-  );
+  it.each([
+    ["JWT", fauxJwt()],
+    ["lien magique", "a".repeat(32)],
+  ])("accepte un jeton %s", (_nom, jeton) => {
+    expect(linkTokenSchema.safeParse(jeton).success).toBe(true);
+  });
 
   it.each([
     ["vide", ""],
@@ -130,8 +130,10 @@ describe("magicLinkRecordSchema", () => {
 
   it("refuse un autre type d'enregistrement", () => {
     expect(
-      magicLinkRecordSchema.safeParse({ type: "otp", email: "alex@example.com" })
-        .success,
+      magicLinkRecordSchema.safeParse({
+        type: "otp",
+        email: "alex@example.com",
+      }).success,
     ).toBe(false);
   });
 });

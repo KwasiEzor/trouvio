@@ -84,7 +84,9 @@ describe("activation par mot de passe (P1-06)", () => {
       "Un compte a été commencé avec cette adresse sans être activé.",
     );
     expect(text).toContain("demande un lien de connexion");
-    expect(text).toContain("il retire tout mot de passe que tu n'aurais pas choisi");
+    expect(text).toContain(
+      "il retire tout mot de passe que tu n'aurais pas choisi",
+    );
   });
 });
 
