@@ -190,10 +190,12 @@ describe("securityHeaderRules (next.config headers)", () => {
     "/_next/static/x.js",
     "/brand/trouvio-mark.svg",
   ])("pose chaque en-tête commun sur %s", async (path) => {
-    const response = await responseFor(path);
-    for (const [name, value] of Object.entries(COMMON_HEADERS)) {
-      expect(response.headers.get(name), name).toBe(value);
-    }
+    const { headers } = await responseFor(path);
+    expect(
+      Object.fromEntries(
+        Object.keys(COMMON_HEADERS).map((name) => [name, headers.get(name)]),
+      ),
+    ).toEqual(COMMON_HEADERS);
   });
 
   it("pose la CSP de l'API sous /api/ seulement", async () => {
@@ -202,11 +204,14 @@ describe("securityHeaderRules (next.config headers)", () => {
         "content-security-policy",
       ),
     ).toBe(API_CSP);
-    for (const path of ["/", "/connexion", "/apiculteur"]) {
+  });
+
+  it.each(["/", "/connexion", "/apiculteur"])(
+    "ne pose aucune CSP sur %s (posée par src/proxy.ts)",
+    async (path) => {
       expect(
         (await responseFor(path)).headers.get("content-security-policy"),
-        path,
       ).toBeNull();
-    }
-  });
+    },
+  );
 });
