@@ -25,7 +25,11 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
 | Fuite par l'outil de suivi d'erreurs | Événement Sentry (requête, cookies, variables locales, messages) | `dataCollection` minimal posé explicitement, `beforeSend`/`beforeBreadcrumb` qui masquent, ni replay ni traces, scrubbers du projet Sentry, région UE (ADR 0010) |
 
 ## 3. Contrôles techniques obligatoires
-- En-têtes : `Content-Security-Policy` (sans `unsafe-inline` pour les scripts), `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
+- En-têtes (P1-05, ADR 0016), testés en unitaire et en E2E sur une page et une route API :
+  - toutes routes (`next.config.ts`) : `Strict-Transport-Security: max-age=63072000; includeSubDomains` (`preload` en P10-02), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (capteurs, caméra, micro, géolocalisation, paiement, USB… coupés), `X-Frame-Options: DENY` ;
+  - pages (`src/proxy.ts`) : CSP à nonce par requête, `script-src 'self' 'nonce-…' 'strict-dynamic'`, **aucun script autorisé par `unsafe-inline`** (`unsafe-eval` en développement seulement), éléments `<style>` sous nonce, attributs `style` admis, `connect-src` limité à `'self'` et à l'origine Sentry exacte de l'organisation, `object-src 'none'`, `base-uri 'none'`, `form-action 'self'`, `frame-ancestors 'none'` ; toutes les pages rendues à la requête (une page prérendue n'aurait pas de nonce) ;
+  - API : `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` ;
+  - `x-request-id` généré par le proxy (valeur du client écrasée), porté par les journaux et autorisé dans Sentry. Le proxy ne décide jamais d'un accès.
 - Validation Zod de **toutes** les entrées (params, body, query, env, sorties LLM, réponses des API sources).
 - Server Actions et routes API : vérification d'auth + d'appartenance en première ligne.
 - Contrôle d'accès (P1-03, ADR 0014) :
@@ -33,11 +37,11 @@ Comptes et sessions · profils de recherche (prétentions salariales, critères)
   - session validée en échec fermé (id uuid, rôle connu, email vérifié) et réduite à un DTO ; une panne de lecture de session remonte au lieu de déconnecter ;
   - identifiant utilisateur des requêtes : type `UserId` fabriqué depuis la session seulement (cast refusé par ESLint) ; toute requête sur une table à `user_id` passe par `ownedBy`, jointures comprises ; registre des tables possédées gardé par un test de parité ;
   - accès aux données interdit dans `src/` hors de `lib/db`, de l'instance Better Auth et des dépôts de domaine (ESLint, liste de fichiers autorisés, `import()` compris) ; pas de `UserId` dans une Server Action, pas de `userId` dans un `set`, pas d'`any` transmis tel quel ;
-  - routes Better Auth de sessions et de comptes, `/change-password` et `/verify-password` désactivées (`/list-sessions` rendrait les jetons au navigateur), à rouvrir avec leurs tests IDOR ; routes servies figées par une liste blanche testée. Résiduel : `/get-session` rend `session.token` en JSON (P1-05).
+  - routes Better Auth de sessions et de comptes, `/change-password` et `/verify-password` désactivées (`/list-sessions` rendrait les jetons au navigateur), à rouvrir avec leurs tests IDOR ; routes servies figées par une liste blanche testée. `/get-session` fermée et jeton de session retiré du JSON de `/sign-in/email`, `/sign-up/email` et `/magic-link/verify` (P1-05, ADR 0016) ; `authClient.useSession` et `getSession` refusés par ESLint.
 - Mots de passe : hachage scrypt par Better Auth, 12 à 128 caractères (P1-02 : seul facteur, sans contrôle des mots de passe compromis, reporté à P10-01 ; ADR 0013).
 - Authentification (P1-02, ADR 0013) :
   - vérification d'email obligatoire avant la connexion par mot de passe ; réponses identiques pour une adresse inscrite ou non (inscription 200, connexion 401, lien magique 200) ;
-  - sessions en base, 7 jours depuis la connexion (prolongation glissante configurée mais pas encore effective : seul un Server Component lit la session, P1-05) ; cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixe `__Secure-` en HTTPS ; pas de cache de session dans le cookie : déconnexion = ligne supprimée, effet immédiat ;
+  - sessions en base, glissantes : 7 jours depuis le dernier chargement de page, prolongées au plus une fois par jour par `src/proxy.ts`, qui recopie le cookie (P1-05, ADR 0016 ; un onglet ouvert plus de 7 jours sans rechargement est déconnecté) ; une personne connectée qui ouvre `/connexion` ou `/inscription` va au fil (`decideAccess`) ; cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixe `__Secure-` en HTTPS ; pas de cache de session dans le cookie : déconnexion = ligne supprimée, effet immédiat ;
   - lien magique de 10 minutes, usage unique, jeton haché en base ; lien de vérification d'une heure ;
   - compte non vérifié repris par lien magique : mots de passe et sessions d'un tiers supprimés (testé). **Résiduel connu, bloquant pour P10 (P1-06)** : repris par le lien de *vérification*, le compte garde le mot de passe posé par le tiers ; un lien se consomme par un simple GET (connexion forcée, scanners d'emails) ;
   - nom coupé à 100 caractères et image ignorée côté serveur (hook `user.create.before`) ; réinitialisation du mot de passe fermée jusqu'à P7-02 ;

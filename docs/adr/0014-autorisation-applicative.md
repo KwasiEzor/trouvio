@@ -2,7 +2,7 @@
 **Statut** : accepté · **Date** : 2026-10 · Plan : `docs/plans/P1-03.md` · Complète l'ADR 0013.
 
 ## Contexte
-Cinq tables métier portent un `user_id` (`search_profiles`, `offer_scores`, `offer_feedback`, `applications`, `deliveries`), plus `sessions` et `accounts` gérées par Better Auth. Une seule requête oubliant le filtre `user_id` suffit à exposer les données d'un autre utilisateur (IDOR). Next 16 recommande une couche d'accès aux données qui contrôle l'accès au plus près des requêtes, `proxy.ts` ne servant qu'aux contrôles optimistes. `forbidden()` et `unauthorized()` y sont encore expérimentaux.
+Cinq tables métier portent un `user_id` (`search_profiles`, `offer_scores`, `offer_feedback`, `applications`, `deliveries`), plus `sessions` et `accounts` gérées par Better Auth. Une seule requête oubliant le filtre `user_id` suffit à exposer les données d'un autre utilisateur (IDOR). Next 16 recommande une couche d'accès aux données qui contrôle l'accès au plus près des requêtes, `proxy.ts` ne servant qu'aux contrôles optimistes (complété par l'ADR 0016 : le proxy lit la session pour la prolonger, sans jamais décider d'un accès). `forbidden()` et `unauthorized()` y sont encore expérimentaux.
 
 ## Décision
 1. **Contrôle d'accès par trois helpers serveur** (`src/lib/auth/guards.ts`), appelés en première ligne de chaque page, Server Action et Route Handler, hors de tout `try/catch` :
