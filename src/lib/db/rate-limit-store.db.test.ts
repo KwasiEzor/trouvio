@@ -66,7 +66,7 @@ describe("createPgRateLimitStore", () => {
     expect(results.filter(([result]) => result?.allowed)).toHaveLength(5);
   });
 
-  it("rend un résultat par entrée, dans l'ordre, en une seule requête", async () => {
+  it("rend un résultat par entrée, dans l'ordre", async () => {
     const store = createPgRateLimitStore(t.db);
     const tight = { windowSeconds: 3600, max: 0 };
     expect(
@@ -87,7 +87,9 @@ describe("createPgRateLimitStore", () => {
     const store = createPgRateLimitStore(t.db);
     await expect(
       store.consume([{ key: "203.0.113.7|/sign-in/email", rule: RULE }], NOW),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: { constraint: "rate_limits_key_check" },
+    });
   });
 
   it("ne purge que les compteurs expirés, par lot borné", async () => {

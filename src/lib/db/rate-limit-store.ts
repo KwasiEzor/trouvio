@@ -18,7 +18,10 @@ import type { Database } from "./client";
 export function createPgRateLimitStore(db: Database): RateLimitStore {
   return {
     async consume(entries, now) {
-      const sorted = [...entries].sort((a, b) => a.key.localeCompare(b.key));
+      // Ordre des octets, indépendant de la locale : le même dans toutes les instances.
+      const sorted = [...entries].sort((a, b) =>
+        Buffer.compare(Buffer.from(a.key), Buffer.from(b.key)),
+      );
       const expired = sql`${rateLimits.expiresAt} <= ${now.toISOString()}::timestamptz`;
       const rows = await db
         .insert(rateLimits)

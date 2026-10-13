@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { SERVED_PATHS } from "@/test/auth/served-paths";
+
 import {
   AUTH_IP_DEFAULT_RULE,
   AUTH_IP_RULES,
@@ -35,13 +37,16 @@ describe("règles de limitation", () => {
     ]);
   });
 
-  it("nomme chaque chemin limité, y compris ceux des règles", () => {
+  it("nomme exactement les routes servies non paramétrées", () => {
+    expect([...RATE_LIMITED_PATHS].sort()).toEqual(
+      SERVED_PATHS.filter((path) => !path.includes(":")),
+    );
+  });
+
+  it("nomme chaque chemin qui a sa propre règle", () => {
     for (const path of Object.keys(AUTH_IP_RULES)) {
       expect(RATE_LIMITED_PATHS).toContain(path);
     }
-    expect(RATE_LIMITED_PATHS).toEqual(
-      expect.arrayContaining(["/get-session", "/sign-out", "/verify-email"]),
-    );
   });
 
   it("ne nomme aucun chemin paramétré", () => {

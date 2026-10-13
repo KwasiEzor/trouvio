@@ -1,6 +1,7 @@
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { z } from "zod";
 
+import { ACCOUNT_LOCKED_CODE } from "@/features/auth/core/messages";
 import { normalizeEmail } from "@/lib/rate-limit/keys";
 import { SIGN_IN_ACCOUNT_RULES } from "@/lib/rate-limit/rules";
 import type { RateLimiter } from "@/lib/rate-limit/types";
@@ -9,10 +10,9 @@ import type { RateLimiter } from "@/lib/rate-limit/types";
  * Verrouillage par compte de la connexion par mot de passe (ADR 0015) : contre le bourrage
  * d'identifiants réparti sur plusieurs IP, que le limiteur par IP ne voit pas. Chaque tentative
  * compte, avant la vérification du mot de passe (atomique : pas de N essais parallèles). Même
- * réponse que l'adresse ait un compte ou non. Le lien magique reste ouvert comme accès de secours.
+ * réponse que l'adresse ait un compte ou non. Le lien magique reste ouvert comme accès de secours,
+ * tant que le plafond par destinataire n'est pas épuisé (limite connue, ADR 0015).
  */
-
-export const ACCOUNT_LOCKED_CODE = "TOO_MANY_ATTEMPTS";
 
 const SIGN_IN_PATH = "/sign-in/email";
 const bodySchema = z.object({ email: z.string() });
@@ -38,8 +38,9 @@ export async function checkSignInAccount(
 }
 
 /**
- * hooks.before : exécuté après le contrôle d'origine en HTTP (un site tiers ne verrouille pas un
- * compte), et aussi pour les appels serveur auth.api.signInEmail.
+ * hooks.before : exécuté avant le contrôle d'origine (ADR 0015) ; une tentative refusée ensuite en
+ * 403 compte donc aussi. Ne pas reproduire ce contrôle ici : une lecture divergente ouvrirait un
+ * contournement du verrou. S'applique aussi aux appels serveur auth.api.signInEmail.
  */
 export function accountLockHook(limiter: RateLimiter) {
   return createAuthMiddleware(async (ctx) => {

@@ -152,8 +152,35 @@ describe("createRateLimiter", () => {
     expect(log.warn).toHaveBeenCalledTimes(1);
     expect(log.warn).toHaveBeenCalledWith("limite de débit atteinte", {
       scope: "sign-in-account",
-      suppressed: 0,
     });
     expect(everythingLogged(log)).not.toContain("alex");
+  });
+
+  it("ne réécrit plus en base une clé refusée avant la fin de sa fenêtre", async () => {
+    const { limiter, store, advance } = setup();
+    for (let i = 0; i < 3; i++) await limiter.consume("auth-ip", "x", [SHORT]);
+    expect(store.consume).toHaveBeenCalledTimes(3);
+    advance(20);
+    for (let i = 0; i < 50; i++) {
+      expect(await limiter.consume("auth-ip", "x", [SHORT])).toEqual({
+        allowed: false,
+        retryAfterSeconds: 40,
+      });
+    }
+    expect(store.consume).toHaveBeenCalledTimes(3);
+  });
+
+  it("rend la main au magasin à la fin de la fenêtre refusée", async () => {
+    const { limiter, store, advance } = setup();
+    for (let i = 0; i < 3; i++) await limiter.consume("auth-ip", "x", [SHORT]);
+    advance(60);
+    expect((await limiter.consume("auth-ip", "x", [SHORT])).allowed).toBe(true);
+    expect(store.consume).toHaveBeenCalledTimes(4);
+  });
+
+  it("ne refuse pas d'avance un autre sujet", async () => {
+    const { limiter } = setup();
+    for (let i = 0; i < 3; i++) await limiter.consume("auth-ip", "x", [SHORT]);
+    expect((await limiter.consume("auth-ip", "y", [SHORT])).allowed).toBe(true);
   });
 });

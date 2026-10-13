@@ -50,7 +50,12 @@ describe("createLogThrottle", () => {
   });
 
   it("borne la mémoire en oubliant la clé la plus ancienne", () => {
-    const throttle = createLogThrottle({ windowMs: 1000, maxKeys: 2 });
+    const c = clock();
+    const throttle = createLogThrottle({
+      windowMs: 1000,
+      maxKeys: 2,
+      now: c.now,
+    });
     throttle("a");
     throttle("b");
     throttle("c");

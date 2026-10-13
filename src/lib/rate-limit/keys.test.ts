@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRateLimitSecret, normalizeEmail, rateLimitKey } from "./keys";
+import {
+  deriveRateLimitSecret,
+  mailboxOf,
+  normalizeEmail,
+  rateLimitKey,
+} from "./keys";
 
 const SECRET = deriveRateLimitSecret("s".repeat(32));
 const RULE = { windowSeconds: 300, max: 10 };
@@ -68,5 +73,31 @@ describe("deriveRateLimitSecret", () => {
 describe("normalizeEmail", () => {
   it("ramène la casse et les espaces à une seule forme", () => {
     expect(normalizeEmail("  Alex@Example.COM ")).toBe("alex@example.com");
+  });
+});
+
+describe("mailboxOf", () => {
+  it.each([
+    ["Alex+promo@Example.com", "alex@example.com"],
+    ["alex+a+b@example.com", "alex@example.com"],
+    [" alex@example.com ", "alex@example.com"],
+  ])("ramène %s à la boîte qui le reçoit (%s)", (email, mailbox) => {
+    expect(mailboxOf(email)).toBe(mailbox);
+  });
+
+  // Adresses assemblées : les tests n'écrivent d'email littéral que sur un domaine réservé.
+  it.each([
+    ["a.l.e.x", "gmail.com", ["alex", "gmail.com"].join("@")],
+    ["A.lex+x", "GoogleMail.com", ["alex", "googlemail.com"].join("@")],
+  ])("retire les points chez Gmail (%s sur %s)", (local, domain, mailbox) => {
+    expect(mailboxOf([local, domain].join("@"))).toBe(mailbox);
+  });
+
+  it("garde les points hors de Gmail (ils changent de boîte ailleurs)", () => {
+    expect(mailboxOf("a.lex@example.com")).toBe("a.lex@example.com");
+  });
+
+  it("rend tel quel un texte sans arobase", () => {
+    expect(mailboxOf("Pas-Un-Email")).toBe("pas-un-email");
   });
 });

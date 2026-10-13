@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { getEnv } from "@/lib/env";
 import { logger, type Logger } from "@/lib/logger";
-import { normalizeEmail } from "@/lib/rate-limit/keys";
+import { mailboxOf } from "@/lib/rate-limit/keys";
 import { EMAIL_RECIPIENT_RULES } from "@/lib/rate-limit/rules";
 import type { RateLimiter } from "@/lib/rate-limit/types";
 
@@ -73,7 +73,8 @@ export function resolveAuthMailer(
 }
 
 /**
- * Plafond par destinataire, tous types d'email confondus (harcèlement, coût d'envoi ; ADR 0015).
+ * Plafond par destinataire, tous types d'email confondus (harcèlement, coût d'envoi ; ADR 0015),
+ * compté par boîte (variantes « +tag » et points Gmail réunies).
  * Au-delà, l'envoi est sauté en silence : lever ici changerait la réponse du lien magique (500)
  * mais pas celle de l'inscription, et romprait l'uniformité des réponses (ADR 0013).
  */
@@ -86,7 +87,7 @@ export function capRecipients(
     async send(email) {
       const { allowed } = await limiter.consume(
         "auth-email-recipient",
-        normalizeEmail(email.to),
+        mailboxOf(email.to),
         EMAIL_RECIPIENT_RULES,
       );
       if (!allowed) {

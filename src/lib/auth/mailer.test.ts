@@ -125,6 +125,19 @@ describe("plafond par destinataire", () => {
     expect(everythingLogged(log)).not.toMatch(/sentinelle|trouvio\.example/i);
   });
 
+  it("compte les variantes d'une même boîte (+tag) dans un seul plafond", async () => {
+    const limiter = unlimitedLimiter();
+    await capRecipients(inner(), limiter, fakeLogger()).send({
+      ...EMAIL,
+      to: "sentinelle+1@example.com",
+    });
+    expect(limiter.consume).toHaveBeenCalledWith(
+      "auth-email-recipient",
+      "sentinelle@example.com",
+      EMAIL_RECIPIENT_RULES,
+    );
+  });
+
   it("laisse remonter l'échec du transport", async () => {
     const panne = new Error("transport en panne");
     const transport = { send: vi.fn(() => Promise.reject(panne)) };

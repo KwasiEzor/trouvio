@@ -21,6 +21,9 @@ export const AUTH_NOTICES = {
     "Si cette adresse peut être utilisée, un lien vient d'y être envoyé.",
 } as const;
 
+/** Code d'erreur du verrouillage par compte (src/lib/auth/account-lock.ts). */
+export const ACCOUNT_LOCKED_CODE = "TOO_MANY_ATTEMPTS";
+
 const GENERIC = "Une erreur est survenue. Réessaie dans un instant.";
 const RATE_LIMITED = "Trop de tentatives. Réessaie dans un instant.";
 const ACCOUNT_LOCKED =
@@ -51,7 +54,7 @@ export type AuthErrorLike = {
 
 export function messageForAuthError({ code, status }: AuthErrorLike): string {
   // Verrouillage par compte (src/lib/auth/account-lock.ts) : le lien magique reste ouvert.
-  if (code === "TOO_MANY_ATTEMPTS") return ACCOUNT_LOCKED;
+  if (code === ACCOUNT_LOCKED_CODE) return ACCOUNT_LOCKED;
   if (status === 429) return RATE_LIMITED;
   return (code === undefined ? undefined : MESSAGES.get(code)) ?? GENERIC;
 }

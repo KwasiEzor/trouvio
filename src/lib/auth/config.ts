@@ -121,7 +121,7 @@ export function buildAuthOptions({
           { window: rule.windowSeconds, max: rule.max },
         ]),
       ),
-      customStorage: toBetterAuthStorage(rateLimit.limiter),
+      customStorage: toBetterAuthStorage(rateLimit.limiter, log),
     },
     hooks: { before: accountLockHook(rateLimit.limiter) },
     user: {

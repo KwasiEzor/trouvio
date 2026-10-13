@@ -39,3 +39,19 @@ export function rateLimitKey(
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
+
+const DOTLESS_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
+
+/**
+ * Boîte qui reçoit un email : sans « +tag », et sans points chez Gmail. Pour le plafond par
+ * destinataire seulement (les variantes arrivent dans la même boîte) ; jamais pour l'identité.
+ */
+export function mailboxOf(email: string): string {
+  const normalized = normalizeEmail(email);
+  const at = normalized.lastIndexOf("@");
+  if (at === -1) return normalized;
+  const domain = normalized.slice(at + 1);
+  let local = normalized.slice(0, at).split("+")[0] ?? "";
+  if (DOTLESS_DOMAINS.has(domain)) local = local.replaceAll(".", "");
+  return `${local}@${domain}`;
+}

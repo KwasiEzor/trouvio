@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { ACCOUNT_LOCKED_CODE } from "@/features/auth/core/messages";
 import { SIGN_IN_ACCOUNT_RULES } from "@/lib/rate-limit/rules";
 import { fixedLimiter, unlimitedLimiter } from "@/test/rate-limit/fakes";
 
-import { ACCOUNT_LOCKED_CODE, checkSignInAccount } from "./account-lock";
+import { checkSignInAccount } from "./account-lock";
 
 describe("checkSignInAccount", () => {
   it("compte la tentative sur l'email normalisé, sous les règles par compte", async () => {

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { ACCOUNT_LOCKED_CODE } from "@/features/auth/core/messages";
 import { createPgRateLimitStore } from "@/lib/db/rate-limit-store";
 import { deriveRateLimitSecret } from "@/lib/rate-limit/keys";
 import { createRateLimiter } from "@/lib/rate-limit/limiter";
@@ -21,7 +22,6 @@ import {
 } from "@/test/db/test-database";
 
 import { rateLimits } from "../../../db/schema";
-import { ACCOUNT_LOCKED_CODE } from "./account-lock";
 import type { Auth } from "./index";
 import type { AuthEmail } from "./mailer";
 
@@ -96,7 +96,8 @@ describe("par IP (handler HTTP)", () => {
   });
 
   it("ne touche ni une autre IP ni un autre chemin", async () => {
-    for (let i = 0; i < 11; i++) await signIn(`essai${i}@example.com`, ipOf(7));
+    for (let i = 0; i < 10; i++) await signIn(`essai${i}@example.com`, ipOf(7));
+    expect((await signIn("essai10@example.com", ipOf(7))).status).toBe(429);
     expect((await signIn("autre@example.com", ipOf(8))).status).toBe(401);
     expect(
       (await call("/get-session", { method: "GET", ip: ipOf(7) })).status,
@@ -104,8 +105,11 @@ describe("par IP (handler HTTP)", () => {
   });
 
   it("accepte de nouveau à la fin de la fenêtre", async () => {
-    for (let i = 0; i < 11; i++) await signIn(`essai${i}@example.com`, ipOf(7));
-    advance(300);
+    for (let i = 0; i < 10; i++) await signIn(`essai${i}@example.com`, ipOf(7));
+    expect((await signIn("essai10@example.com", ipOf(7))).status).toBe(429);
+    advance(299);
+    expect((await signIn("essai11@example.com", ipOf(7))).status).toBe(429);
+    advance(1);
     expect((await signIn("essai@example.com", ipOf(7))).status).toBe(401);
   });
 
@@ -140,7 +144,7 @@ describe("par IP (handler HTTP)", () => {
     expect(await t.db.select().from(rateLimits)).toHaveLength(1);
   });
 
-  it("ne stocke ni IP ni email en clair", async () => {
+  it("ne stocke que des empreintes (clés conformes à la contrainte de la table)", async () => {
     await signIn("alex@example.com", ipOf(7));
     await call("/sign-in/magic-link", {
       body: { email: "alex@example.com" },
@@ -280,6 +284,7 @@ describe("par destinataire d'email", () => {
 
   it("ne touche pas un autre destinataire", async () => {
     for (let i = 0; i < 4; i++) await magicLink("alex@example.com", i);
+    expect(outbox).toHaveLength(3);
     await magicLink("sam@example.com", 9);
     expect(
       outbox.filter((email) => email.to === "sam@example.com"),
