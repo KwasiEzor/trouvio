@@ -76,6 +76,7 @@ describe("schéma", () => {
       "job_runs",
       "offer_feedback",
       "offer_scores",
+      "rate_limits",
       "search_profiles",
       "sessions",
       "users",
