@@ -3,3 +3,4 @@
 - [Garde Bash P0-07](project_p0-07-guard-bypasses.md) — contournements corrigés, faux positif Telegram, résiduel = bac à sable P0-08
 - [Faits revue DB P1-01](project_p1-01-db-review-facts.md) — ?host= pg, DrizzleQueryError params, superuser Docker, seed.local inscriptible
 - [Faits revue authz P1-03](project_p1-03-authz-review-facts.md) — contournements ESLint/UserId mesurés, routes Better Auth ouvertes, disabledPaths robuste
+- [Faits revue limiteur P1-04](project_p1-04-ratelimit-review-facts.md) — pipeline Better Auth (hooks avant CSRF sans cookie), getIP/XFF Next, verrouillage total par un tiers

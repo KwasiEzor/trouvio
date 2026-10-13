@@ -12,7 +12,6 @@ import type {
 
 const PURGE_BATCH_SIZE = 1000;
 const LIMIT_LOG_WINDOW_MS = 10 * 60 * 1000;
-const REFUSED_CACHE_MAX_KEYS = 10_000;
 
 /**
  * Limiteur générique : toutes les règles d'un appel en une seule opération du magasin. Une panne du
@@ -28,12 +27,14 @@ export function createRateLimiter({
   log,
   now = () => new Date(),
   purgeEvery = 100,
+  refusedCacheMaxKeys = 10_000,
 }: {
   store: RateLimitStore;
   secret: string;
   log: Logger;
   now?: () => Date;
   purgeEvery?: number;
+  refusedCacheMaxKeys?: number;
 }): RateLimiter {
   let calls = 0;
   // Clé → fin de la fenêtre refusée (ms), plus ancienne d'abord.
@@ -55,7 +56,7 @@ export function createRateLimiter({
 
   function remember(key: string, until: number): void {
     refusedUntil.delete(key);
-    if (refusedUntil.size >= REFUSED_CACHE_MAX_KEYS) {
+    if (refusedUntil.size >= refusedCacheMaxKeys) {
       const oldest = refusedUntil.keys().next();
       if (oldest.done !== true) refusedUntil.delete(oldest.value);
     }

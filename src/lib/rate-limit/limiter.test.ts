@@ -41,7 +41,11 @@ function memoryStore() {
 }
 
 function setup(
-  overrides: { purgeEvery?: number; store?: RateLimitStore } = {},
+  overrides: {
+    purgeEvery?: number;
+    store?: RateLimitStore;
+    refusedCacheMaxKeys?: number;
+  } = {},
 ) {
   const store = memoryStore();
   const log = fakeLogger();
@@ -52,6 +56,7 @@ function setup(
     log,
     now: () => now,
     purgeEvery: overrides.purgeEvery ?? 100,
+    refusedCacheMaxKeys: overrides.refusedCacheMaxKeys ?? 10_000,
   });
   return {
     store,
@@ -182,5 +187,43 @@ describe("createRateLimiter", () => {
     const { limiter } = setup();
     for (let i = 0; i < 3; i++) await limiter.consume("auth-ip", "x", [SHORT]);
     expect((await limiter.consume("auth-ip", "y", [SHORT])).allowed).toBe(true);
+  });
+
+  it("borne le cache des refus en oubliant la clé la plus ancienne", async () => {
+    const { limiter, store } = setup({ refusedCacheMaxKeys: 1 });
+    for (const subject of ["x", "y"]) {
+      for (let i = 0; i < 3; i++)
+        await limiter.consume("auth-ip", subject, [SHORT]);
+    }
+    store.consume.mockClear();
+    // y, le plus récent, reste en cache ; x, oublié, repasse par le magasin.
+    await limiter.consume("auth-ip", "y", [SHORT]);
+    expect(store.consume).not.toHaveBeenCalled();
+    await limiter.consume("auth-ip", "x", [SHORT]);
+    expect(store.consume).toHaveBeenCalledTimes(1);
+  });
+
+  it("rapporte les refus tus au premier journal de la fenêtre suivante", async () => {
+    const { limiter, log, advance } = setup();
+    for (let i = 0; i < 5; i++) await limiter.consume("auth-ip", "x", [SHORT]);
+    advance(600);
+    for (let i = 0; i < 3; i++) await limiter.consume("auth-ip", "x", [SHORT]);
+    expect(log.warn).toHaveBeenLastCalledWith("limite de débit atteinte", {
+      scope: "auth-ip",
+      suppressed: 2,
+    });
+  });
+
+  it("lit l'horloge réelle par défaut", async () => {
+    const store = memoryStore();
+    const limiter = createRateLimiter({
+      store,
+      secret: SECRET,
+      log: fakeLogger(),
+    });
+    const before = Date.now();
+    await limiter.consume("auth-ip", "x", [SHORT]);
+    const at = store.consume.mock.calls[0]?.[1];
+    expect(at?.getTime()).toBeGreaterThanOrEqual(before);
   });
 });
