@@ -6,6 +6,7 @@ import { getAuthTables } from "better-auth/db";
 
 import { buildAuthOptions } from "@/lib/auth/config";
 import { fakeLogger } from "@/test/db/fake-logger";
+import { unlimitedLimiter } from "@/test/rate-limit/fakes";
 
 import * as schema from "../../../db/schema";
 import { createDatabase, createPool } from "./client";
@@ -76,6 +77,7 @@ describe("schéma", () => {
       "job_runs",
       "offer_feedback",
       "offer_scores",
+      "rate_limits",
       "search_profiles",
       "sessions",
       "users",
@@ -195,6 +197,7 @@ describe("parité avec Better Auth", () => {
     secret: "s".repeat(32),
     mailer: { send: () => Promise.resolve() },
     log: fakeLogger(),
+    rateLimit: { enabled: true, limiter: unlimitedLimiter() },
   });
   const authTables = Object.entries(getAuthTables(options));
 

@@ -25,7 +25,7 @@ L'ADR 0003 retient Better Auth (adaptateur Drizzle, sessions en base, cookies `H
 - \+ Le client ne peut ni choisir son rôle ni écrire son plan ; prouvé par des tests d'intégration sur vraie base.
 - \+ Les tests vérifient le comportement de production du contrôle d'origine.
 - − Aucun email réel avant P4-03 : un déploiement ne peut pas inscrire de compte d'ici là (aucun n'est prévu avant P10).
-- − Le limiteur intégré est en mémoire et ne couvre que le handler HTTP ; `x-forwarded-for` est falsifiable derrière un proxy non configuré. Traité en P1-04.
+- − Le limiteur intégré est en mémoire et ne couvre que le handler HTTP ; `x-forwarded-for` est falsifiable derrière un proxy non configuré. Traité en P1-04 : remplacé par le limiteur de l'ADR 0015.
 - − Pas de réinitialisation du mot de passe avant P7-02 ; le lien magique sert d'accès de secours.
 - − **Résiduel bloquant pour P10 (P1-06)** : le lien de vérification d'email ne révoque pas un mot de passe posé par un tiers qui a inscrit l'adresse ; et les liens se consomment par GET (connexion forcée, scanners d'emails). Correction prévue : page d'activation qui exige le mot de passe, consommation des liens après un clic (POST).
 

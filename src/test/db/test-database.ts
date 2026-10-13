@@ -68,6 +68,6 @@ export async function openTestDatabase({
 /** Vide toutes les tables (les tables dépendantes suivent par cascade). */
 export async function resetData(db: Database): Promise<void> {
   await db.execute(
-    sql`truncate users, job_offers, job_runs, verifications cascade`,
+    sql`truncate users, job_offers, job_runs, verifications, rate_limits cascade`,
   );
 }

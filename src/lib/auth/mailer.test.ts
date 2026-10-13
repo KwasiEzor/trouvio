@@ -1,13 +1,16 @@
 import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Env, EnvDomain } from "@/lib/env";
+import { EMAIL_RECIPIENT_RULES } from "@/lib/rate-limit/rules";
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
+import { fixedLimiter, unlimitedLimiter } from "@/test/rate-limit/fakes";
 
 import {
   AuthEmailNotConfiguredError,
+  capRecipients,
   createOutboxMailer,
   resolveAuthMailer,
   type AuthEmail,
@@ -86,5 +89,60 @@ describe("boîte d'envoi sur disque", () => {
     );
     await expect(mailer.send(EMAIL)).rejects.not.toThrow(/sentinelle/i);
     await expect(readdir(dossier)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("plafond par destinataire", () => {
+  const inner = () => ({ send: vi.fn(() => Promise.resolve()) });
+
+  it("envoie sous le plafond, compté sur l'adresse normalisée", async () => {
+    const transport = inner();
+    const limiter = unlimitedLimiter();
+    await capRecipients(transport, limiter, fakeLogger()).send({
+      ...EMAIL,
+      to: "Sentinelle@Example.com",
+    });
+    expect(limiter.consume).toHaveBeenCalledWith(
+      "auth-email-recipient",
+      "sentinelle@example.com",
+      EMAIL_RECIPIENT_RULES,
+    );
+    expect(transport.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("au-delà, n'envoie rien et répond comme un envoi (réponses uniformes)", async () => {
+    const transport = inner();
+    const log = fakeLogger();
+    const limiter = fixedLimiter({ allowed: false, retryAfterSeconds: 60 });
+    await expect(
+      capRecipients(transport, limiter, log).send(EMAIL),
+    ).resolves.toBeUndefined();
+    expect(transport.send).not.toHaveBeenCalled();
+    expect(log.info).toHaveBeenCalledWith(
+      "email d'authentification non envoyé : plafond du destinataire atteint",
+      { kind: "magic-link" },
+    );
+    expect(everythingLogged(log)).not.toMatch(/sentinelle|trouvio\.example/i);
+  });
+
+  it("compte les variantes d'une même boîte (+tag) dans un seul plafond", async () => {
+    const limiter = unlimitedLimiter();
+    await capRecipients(inner(), limiter, fakeLogger()).send({
+      ...EMAIL,
+      to: "sentinelle+1@example.com",
+    });
+    expect(limiter.consume).toHaveBeenCalledWith(
+      "auth-email-recipient",
+      "sentinelle@example.com",
+      EMAIL_RECIPIENT_RULES,
+    );
+  });
+
+  it("laisse remonter l'échec du transport", async () => {
+    const panne = new Error("transport en panne");
+    const transport = { send: vi.fn(() => Promise.reject(panne)) };
+    await expect(
+      capRecipients(transport, unlimitedLimiter(), fakeLogger()).send(EMAIL),
+    ).rejects.toBe(panne);
   });
 });

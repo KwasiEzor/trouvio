@@ -21,10 +21,14 @@ import {
 import type { Database } from "@/lib/db/client";
 import { USER_ROLES } from "@/lib/db/enums";
 import type { Logger } from "@/lib/logger";
+import { toBetterAuthStorage } from "@/lib/rate-limit/better-auth-storage";
+import { AUTH_IP_DEFAULT_RULE, AUTH_IP_RULES } from "@/lib/rate-limit/rules";
+import type { RateLimiter } from "@/lib/rate-limit/types";
 
 import { accounts, sessions, users, verifications } from "../../../db/schema";
+import { accountLockHook } from "./account-lock";
 import { bridge } from "./log-bridge";
-import type { AuthMailer } from "./mailer";
+import { capRecipients, type AuthMailer } from "./mailer";
 
 /**
  * Configuration de Better Auth (ADR 0003, ADR 0013). Fonction pure de ses dépendances : rien n'est
@@ -38,6 +42,11 @@ export type AuthDeps = {
   readonly secret: string;
   readonly mailer: AuthMailer;
   readonly log: Logger;
+  /** Limiteur du projet (ADR 0015) : par IP (Better Auth), par compte, par destinataire. */
+  readonly rateLimit: {
+    readonly enabled: boolean;
+    readonly limiter: RateLimiter;
+  };
 };
 
 // Routes hors périmètre : profil et compte (P6-05, P7-04), fournisseurs externes (aucun),
@@ -75,9 +84,11 @@ export function buildAuthOptions({
   db,
   baseURL,
   secret,
-  mailer,
+  mailer: transport,
   log,
+  rateLimit,
 }: AuthDeps) {
+  const mailer = capRecipients(transport, rateLimit.limiter, log);
   return {
     baseURL,
     secret,
@@ -93,7 +104,26 @@ export function buildAuthOptions({
       // Explicite : Better Auth coupe ce contrôle quand NODE_ENV vaut « test ». Les tests
       // d'intégration vérifient ainsi le comportement de production (origine, callbackURL).
       disableOriginCheck: false,
+      // Contrat avec le reverse proxy (ADR 0015) : Caddy écrase x-forwarded-for avec la seule IP du
+      // client et le port de l'application n'est pas publié. Pas de trustedProxies (le client
+      // choisirait une IP dans la chaîne) ; jamais disableIpTracking (coupe le limiteur).
+      ipAddress: { ipAddressHeaders: ["x-forwarded-for"], ipv6Subnet: 64 },
     },
+    // Limiteur par IP et par chemin, avant la résolution de la route. Remplace les règles
+    // intégrées ; compteurs dans Postgres (src/lib/db/rate-limit-store.ts).
+    rateLimit: {
+      enabled: rateLimit.enabled,
+      window: AUTH_IP_DEFAULT_RULE.windowSeconds,
+      max: AUTH_IP_DEFAULT_RULE.max,
+      customRules: Object.fromEntries(
+        Object.entries(AUTH_IP_RULES).map(([path, rule]) => [
+          path,
+          { window: rule.windowSeconds, max: rule.max },
+        ]),
+      ),
+      customStorage: toBetterAuthStorage(rateLimit.limiter, log),
+    },
+    hooks: { before: accountLockHook(rateLimit.limiter) },
     user: {
       additionalFields: {
         // input: false : une valeur envoyée à l'inscription est remplacée par le défaut.

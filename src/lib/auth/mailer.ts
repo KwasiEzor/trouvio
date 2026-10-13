@@ -4,6 +4,9 @@ import path from "node:path";
 
 import { getEnv } from "@/lib/env";
 import { logger, type Logger } from "@/lib/logger";
+import { mailboxOf } from "@/lib/rate-limit/keys";
+import { EMAIL_RECIPIENT_RULES } from "@/lib/rate-limit/rules";
+import type { RateLimiter } from "@/lib/rate-limit/types";
 
 /**
  * Envoi des emails d'authentification (vérification, lien magique, compte existant), tous
@@ -67,4 +70,34 @@ export function resolveAuthMailer(
 ): AuthMailer {
   const dir = env("authEmail").AUTH_EMAIL_OUTBOX_DIR;
   return dir === undefined ? unconfiguredMailer : createOutboxMailer(dir, log);
+}
+
+/**
+ * Plafond par destinataire, tous types d'email confondus (harcèlement, coût d'envoi ; ADR 0015),
+ * compté par boîte (variantes « +tag » et points Gmail réunies).
+ * Au-delà, l'envoi est sauté en silence : lever ici changerait la réponse du lien magique (500)
+ * mais pas celle de l'inscription, et romprait l'uniformité des réponses (ADR 0013).
+ */
+export function capRecipients(
+  inner: AuthMailer,
+  limiter: RateLimiter,
+  log: Logger,
+): AuthMailer {
+  return {
+    async send(email) {
+      const { allowed } = await limiter.consume(
+        "auth-email-recipient",
+        mailboxOf(email.to),
+        EMAIL_RECIPIENT_RULES,
+      );
+      if (!allowed) {
+        log.info(
+          "email d'authentification non envoyé : plafond du destinataire atteint",
+          { kind: email.kind },
+        );
+        return;
+      }
+      await inner.send(email);
+    },
+  };
 }

@@ -446,6 +446,24 @@ export const jobRuns = pgTable(
   ],
 );
 
+// Compteurs de limitation de débit (P1-04, ADR 0015) : fenêtre fixe, clé = empreinte HMAC de la
+// portée, de la fenêtre et du sujet (src/lib/rate-limit/keys.ts). Le check garantit qu'aucune IP
+// ni aucun email n'y entre en clair (SECURITY §4).
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    // Purge des compteurs expirés, par lots.
+    index("rate_limits_expires_at_idx").on(t.expiresAt),
+    check("rate_limits_key_check", sql`${t.key} ~ '^[0-9a-f]{64}$'`),
+    check("rate_limits_count_check", sql`${t.count} >= 1`),
+  ],
+);
+
 // ---------------------------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------------------------
@@ -465,3 +483,4 @@ export type OfferFeedback = typeof offerFeedback.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type Delivery = typeof deliveries.$inferSelect;
 export type JobRun = typeof jobRuns.$inferSelect;
+export type RateLimitRow = typeof rateLimits.$inferSelect;

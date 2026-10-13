@@ -2,6 +2,9 @@ import { createAuth, type Auth } from "@/lib/auth";
 import type { AuthEmail, AuthEmailKind } from "@/lib/auth/mailer";
 import type { Database } from "@/lib/db/client";
 import type { Logger } from "@/lib/logger";
+import type { RateLimiter } from "@/lib/rate-limit/types";
+
+import { unlimitedLimiter } from "../rate-limit/fakes";
 
 /**
  * Harnais des tests d'intégration de Better Auth (projet Vitest « db ») : instance sur une vraie
@@ -17,11 +20,15 @@ export function buildTestAuth({
   outbox,
   log,
   baseURL = BASE,
+  // Limitation coupée par défaut : les tests de parcours enchaînent plus de requêtes que les
+  // seuils. Les tests de limitation (rate-limit.db.test.ts) passent le limiteur réel.
+  rateLimit = { enabled: false, limiter: unlimitedLimiter() },
 }: {
   db: Database;
   outbox: AuthEmail[];
   log: Logger;
   baseURL?: string;
+  rateLimit?: { enabled: boolean; limiter: RateLimiter };
 }): Auth {
   return createAuth({
     db,
@@ -34,6 +41,7 @@ export function buildTestAuth({
       },
     },
     log,
+    rateLimit,
   });
 }
 
@@ -42,17 +50,20 @@ export type Call = {
   body?: unknown;
   cookie?: string | undefined;
   origin?: string | null;
+  /** x-forwarded-for, tel que posé par le reverse proxy. */
+  ip?: string;
 };
 
 export async function callAuth(
   instance: Auth,
   path: string,
-  { method = "POST", body, cookie, origin = BASE }: Call = {},
+  { method = "POST", body, cookie, origin = BASE, ip }: Call = {},
 ): Promise<Response> {
   const headers = new Headers();
   if (body !== undefined) headers.set("content-type", "application/json");
   if (cookie !== undefined) headers.set("cookie", cookie);
   if (origin !== null) headers.set("origin", origin);
+  if (ip !== undefined) headers.set("x-forwarded-for", ip);
   const base = instance.options.baseURL ?? BASE;
   return instance.handler(
     new Request(`${base}/api/auth${path}`, {

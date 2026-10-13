@@ -34,4 +34,14 @@ describe("getAuth", () => {
     expect(getAuth()).toBe(auth);
     expect(auth.options.baseURL).toBe("http://localhost:3000");
   });
+
+  it("active le limiteur, y compris hors production, sur le magasin Postgres", async () => {
+    vi.stubEnv("APP_URL", "http://localhost:3000");
+    vi.stubEnv("DATABASE_URL", "postgres://essai@127.0.0.1:1/essai");
+    vi.stubEnv("BETTER_AUTH_SECRET", "s".repeat(32));
+    const { getAuth } = await freshModule();
+    const { rateLimit } = getAuth().options;
+    expect(rateLimit.enabled).toBe(true);
+    expect(rateLimit.customStorage).toHaveProperty("consume");
+  });
 });
