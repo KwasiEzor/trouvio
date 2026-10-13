@@ -41,5 +41,6 @@ export function stripSessionTokens(
 /** hooks.after : s'applique au handler HTTP comme aux appels serveur (auth.api.*). */
 export const sessionTokenHook = createAuthMiddleware(async (ctx) => {
   const body = stripSessionTokens(ctx.path, ctx.context.returned);
-  if (body !== undefined) return ctx.json(body);
+  // undefined : la réponse de l'endpoint reste telle quelle.
+  return body === undefined ? undefined : ctx.json(body);
 });
