@@ -77,9 +77,13 @@ export function createProxy({
 
     if (shouldRefresh(request)) {
       try {
-        for (const line of await refreshSession(request.headers)) {
-          response.headers.append("set-cookie", line);
-        }
+        const lines = await refreshSession(request.headers);
+        // Dans le runtime Next, l'adaptateur remplace ces lignes par les cookies posés par
+        // nextCookies (même contenu) ; la recopie reste indépendante de ce plugin.
+        for (const line of lines) response.headers.append("set-cookie", line);
+        // Jamais de cookie de session sur une réponse qu'un cache partagé pourrait resservir.
+        if (lines.length > 0)
+          response.headers.set("cache-control", "private, no-store");
       } catch (err) {
         const { log: shouldLog, suppressed } =
           failureThrottle(REFRESH_FAILURE_KEY);

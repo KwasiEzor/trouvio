@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   API_CSP,
   buildPageCsp,
+  STATIC_CSP,
   createNonce,
   NONCE_PATTERN,
   type PageCspInput,
@@ -158,6 +159,14 @@ describe("sentryIngestOrigin", () => {
   });
 });
 
+describe("STATIC_CSP", () => {
+  it("n'autorise ni script ni cadre ; images et styles des SVG seulement", () => {
+    expect(STATIC_CSP).toBe(
+      "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    );
+  });
+});
+
 describe("API_CSP", () => {
   it("n'autorise rien à s'exécuter", () => {
     expect(API_CSP).toBe(
@@ -205,6 +214,21 @@ describe("securityHeaderRules (next.config headers)", () => {
       ),
     ).toBe(API_CSP);
   });
+
+  it.each([
+    "/brand/trouvio-mark.svg",
+    "/brand/inexistant",
+    "/icon.svg",
+    "/_next/static/x.js",
+    "/_next/image",
+  ])(
+    "pose une CSP stricte sans nonce hors du proxy (%s : fichiers et 404)",
+    async (path) => {
+      expect(
+        (await responseFor(path)).headers.get("content-security-policy"),
+      ).toBe(STATIC_CSP);
+    },
+  );
 
   it.each(["/", "/connexion", "/apiculteur"])(
     "ne pose aucune CSP sur %s (posée par src/proxy.ts)",

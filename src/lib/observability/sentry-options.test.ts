@@ -189,6 +189,15 @@ describe("scrubEvent", () => {
     });
   });
 
+  it("retire un x-request-id qui n'est pas un UUID (valeur du client hors des pages)", () => {
+    const event = evenementSale();
+    event.request = {
+      ...event.request,
+      headers: { "X-Request-Id": "texte libre alex@example.com" },
+    };
+    expect(scrubEvent(event).request?.headers).toEqual({});
+  });
+
   it("réduit l'utilisateur à son identifiant interne", () => {
     expect(propre.user).toEqual({ id: "7f9c" });
     expect(

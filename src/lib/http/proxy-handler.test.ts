@@ -106,6 +106,13 @@ describe("prolongation de session", () => {
     expect(refreshSession).not.toHaveBeenCalled();
   });
 
+  it("ne touche pas au cache quand la session n'est pas prolongée", async () => {
+    const response = await proxy()(
+      request("/fil", { headers: { cookie: SESSION } }),
+    );
+    expect(response.headers.get("cache-control")).toBeNull();
+  });
+
   it.each([
     ["document", { "sec-fetch-dest": "document" }],
     ["sans sec-fetch-dest", {}],
@@ -122,6 +129,8 @@ describe("prolongation de session", () => {
         SET_COOKIE,
         "autre=; Max-Age=0",
       ]);
+      // Jamais de cookie de session sur une réponse qu'un cache partagé pourrait resservir.
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
     },
   );
 

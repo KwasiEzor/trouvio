@@ -85,6 +85,21 @@ export function buildPageCsp({
 export const API_CSP =
   "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
+/**
+ * Chemins hors du proxy (matcher de src/proxy.ts) autres que l'API : fichiers statiques, SVG de
+ * public/brand/, et leurs 404 (page HTML sans nonce). Rien ne s'y exécute ; un SVG ouvert
+ * directement garde ses styles et images internes.
+ */
+export const STATIC_CSP =
+  "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+const STATIC_SOURCES = [
+  "/_next/static/:path*",
+  "/_next/image",
+  "/icon.svg",
+  "/brand/:path*",
+];
+
 // HSTS sans preload (quasi irréversible) : à décider avec le domaine (P10-02). Ignoré en HTTP.
 const COMMON_HEADERS = [
   {
@@ -114,5 +129,9 @@ export function securityHeaderRules(): {
       source: "/api/:path*",
       headers: [{ key: "Content-Security-Policy", value: API_CSP }],
     },
+    ...STATIC_SOURCES.map((source) => ({
+      source,
+      headers: [{ key: "Content-Security-Policy", value: STATIC_CSP }],
+    })),
   ];
 }
