@@ -6,3 +6,4 @@
 - [Sentry et logs](project_sentry-logging-facts.md) — Sentry v11 dataCollection permissif, sourcemaps Turbopack, SENTRY_DSN implicite, carrier par version, logs Actions publics
 - [Bac a sable Claude Code](project_sandbox-facts.md) — autoAllow true par defaut ; CLI 2.1.42 vs app 2.1.284 ; Next/Vite sous EPERM ; hooks hors bac a sable ; pnpm PATH
 - [Autorisation](project_authz-facts.md) — Drizzle generique KO sans cast (ownedBy OK) ; Better Auth : session gagne sur userId, list-sessions expose jetons ; forbidden() experimental
+- [Proxy et CSP](project_proxy-csp-facts.md) — nonce lu dans la requete ; Flight retire dans proxy ; nextCookies RSC ; disabledPaths HTTP seul ; style-src-attr Magic UI
