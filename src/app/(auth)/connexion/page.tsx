@@ -5,6 +5,7 @@ import { MagicLinkForm } from "@/features/auth/components/magic-link-form";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 import { noticeForQuery } from "@/features/auth/core/messages";
 import { AUTH_PATHS } from "@/features/auth/core/policy";
+import { redirectIfSignedIn } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Connexion · Trouvio" };
 
@@ -13,6 +14,8 @@ export default async function ConnexionPage({
 }: {
   searchParams: Promise<{ erreur?: string | string[] }>;
 }) {
+  // Déjà connecté : direction le fil (decideAccess, ADR 0014). Hors de tout try/catch.
+  await redirectIfSignedIn();
   // Liste fermée : seul un texte du code s'affiche, jamais la valeur de l'URL.
   const notice = noticeForQuery((await searchParams).erreur);
 

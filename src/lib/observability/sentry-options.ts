@@ -17,7 +17,13 @@ import { maskQueryValues, redact, redactString } from "../logger/redact";
  * beforeBreadcrumb masquent ce qui passerait quand même ; (3) les scrubbers du projet Sentry.
  */
 
-const ALLOWED_HEADERS = ["user-agent", "content-type", "accept-language"];
+// x-request-id : posé par src/proxy.ts (UUID aléatoire), relie un événement aux journaux.
+const ALLOWED_HEADERS = [
+  "user-agent",
+  "content-type",
+  "accept-language",
+  "x-request-id",
+];
 
 export const DATA_COLLECTION = {
   userInfo: false,

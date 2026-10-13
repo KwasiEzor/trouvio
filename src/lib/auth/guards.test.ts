@@ -33,8 +33,14 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/lib/logger", () => ({ logger: log }));
+// requestId posé par src/proxy.ts, lu par requestLogger (src/lib/http/request-context.ts).
+const REQUEST_ID = "6f1c2b8e-9a3d-4e6f-8b7a-1c2d3e4f5a6b";
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers({ "x-request-id": REQUEST_ID })),
+}));
 
-const { authorizeRoute, requireAdmin, requireUser } = await import("./guards");
+const { authorizeRoute, redirectIfSignedIn, requireAdmin, requireUser } =
+  await import("./guards");
 
 function session(user: Record<string, unknown> = {}) {
   return {
@@ -60,6 +66,7 @@ const ALEX = {
 beforeEach(() => {
   getSessionMock.mockReset();
   log.warn.mockClear();
+  log.child.mockClear();
   // Chaque test commence dans une fenêtre neuve.
   vi.advanceTimersByTime(LOG_WINDOW_MS);
 });
@@ -109,10 +116,42 @@ describe("requireAdmin", () => {
     expect(everythingLogged(log)).not.toContain("alex@example.com");
   });
 
+  it("journalise le refus avec le requestId de la requête", async () => {
+    getSessionMock.mockResolvedValue(session());
+    await expect(requireAdmin()).rejects.toBeInstanceOf(NotFound);
+    expect(log.child).toHaveBeenCalledWith({ requestId: REQUEST_ID });
+    expect(log.warn).toHaveBeenCalledTimes(1);
+  });
+
   it("rend l'admin", async () => {
     getSessionMock.mockResolvedValue(session({ role: "admin" }));
     expect(await requireAdmin()).toEqual({ ...ALEX, role: "admin" });
     expect(log.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("redirectIfSignedIn", () => {
+  it("envoie une session valide vers le fil", async () => {
+    getSessionMock.mockResolvedValue(session());
+    await expect(redirectIfSignedIn()).rejects.toEqual(new Redirect("/fil"));
+  });
+
+  it.each([
+    ["absente", null],
+    ["non vérifiée", session({ emailVerified: false })],
+    ["au rôle inconnu", session({ role: "superadmin" })],
+  ])(
+    "laisse afficher la page pour une session %s (pas de boucle avec requireUser)",
+    async (_, value) => {
+      getSessionMock.mockResolvedValue(value);
+      await expect(redirectIfSignedIn()).resolves.toBeUndefined();
+    },
+  );
+
+  it("relance une panne de lecture de session", async () => {
+    const outage = new Error("base injoignable");
+    getSessionMock.mockRejectedValue(outage);
+    await expect(redirectIfSignedIn()).rejects.toBe(outage);
   });
 });
 

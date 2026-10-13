@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { AUTH_PATHS } from "@/features/auth/core/policy";
-import { logger } from "@/lib/logger";
+import { requestLogger } from "@/lib/http/request-context";
 import { createLogThrottle } from "@/lib/logger/throttle";
 
 import {
@@ -23,7 +23,7 @@ import { getSession } from "./session";
  * - appeler le helper en première ligne, hors de tout try/catch : redirect() et notFound() lèvent
  *   une exception que Next doit recevoir (sinon unstable_rethrow) ;
  * - dans un layout, jamais comme seul contrôle : chaque page et chaque action se protège ;
- * - proxy.ts (P1-05) ne fait que des contrôles optimistes.
+ * - src/proxy.ts (P1-05, ADR 0016) ne décide jamais d'un accès : CSP, requestId, prolongation.
  *
  * Une panne de lecture de session remonte telle quelle : la changer en « non connecté » masquerait
  * la panne et bouclerait sur la connexion.
@@ -46,7 +46,7 @@ async function decide(need: AccessNeed): Promise<AccessDecision> {
   if (!decision.ok && decision.reason === "forbidden") {
     const { log, suppressed } = forbiddenLogThrottle(decision.userId);
     if (log) {
-      logger.warn("accès admin refusé", {
+      (await requestLogger()).warn("accès admin refusé", {
         userId: decision.userId,
         ...(suppressed > 0 ? { suppressed } : {}),
       });
@@ -61,6 +61,17 @@ export async function requireUser(
   const decision = await decide("user");
   if (!decision.ok) redirect(options.signInPath ?? AUTH_PATHS.signIn);
   return decision.user;
+}
+
+/**
+ * Pages publiques d'authentification (/connexion, /inscription) : une personne déjà connectée va
+ * au fil. Décidé par decideAccess, comme requireUser : une session refusée (email non vérifié,
+ * rôle inconnu) reste sur la page, sans boucle de redirections. Jamais dans le proxy.
+ */
+export async function redirectIfSignedIn(): Promise<void> {
+  if (decideAccess(await getSession(), "user").ok) {
+    redirect(AUTH_PATHS.afterSignIn);
+  }
 }
 
 export async function requireAdmin(): Promise<CurrentUser> {
