@@ -6,7 +6,7 @@ import { logger as defaultLogger, type Logger } from "@/lib/logger";
 
 import { createDatabase, createPool } from "../client";
 import { describeTarget } from "../target";
-import { applySeed } from "./apply";
+import { applySeed, SeedAdminPromotionError } from "./apply";
 import { assertSeedAllowed, type SeedGuardInput } from "./guard";
 import { parseSeedText, type SeedFile } from "./seed-file";
 
@@ -95,6 +95,14 @@ export async function main(
     log.info(`${countLabel(counts)} (${where})`, counts);
     return 0;
   } catch (err) {
+    if (err instanceof SeedAdminPromotionError) {
+      // Index seulement : l'adresse visée ne sort pas dans les journaux.
+      log.error(
+        `seed refusé (${where}) : promotion admin d'une ligne qui porte un mot de passe, rien n'a été écrit`,
+        { index: err.index },
+      );
+      return 1;
+    }
     log.error(`seed échoué (${where})`, { err });
     return 1;
   } finally {
