@@ -23,7 +23,8 @@ export async function verifierScriptsSousNonce(
 ): Promise<string> {
   const reponse = await request.get(chemin);
   const nonce = nonceDe(reponse.headers()["content-security-policy"]);
-  const balises = (await reponse.text()).match(/<script\b[^>]*>/g) ?? [];
+  // Insensible à la casse : HTML accepte <SCRIPT>, qui échapperait sinon au contrôle.
+  const balises = (await reponse.text()).match(/<script\b[^>]*>/gi) ?? [];
   expect(balises.length, chemin).toBeGreaterThan(0);
   expect(
     balises.filter((balise) => !balise.includes(` nonce="${nonce}"`)),
