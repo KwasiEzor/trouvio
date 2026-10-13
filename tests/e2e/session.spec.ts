@@ -20,15 +20,16 @@ const MOT_DE_PASSE = "un mot de passe e2e assez long";
 const SEPT_JOURS_S = 7 * 24 * 60 * 60;
 const SESSION_COOKIE = /^better-auth\.session_token=/;
 
-/** Ligne Set-Cookie du cookie de session dans la réponse, ou undefined. */
-async function cookieDeSession(
-  reponse: Response | null,
-): Promise<string | undefined> {
+/**
+ * Lignes Set-Cookie du cookie de session. Toutes, pour voir un doublon : l'adaptateur de Next
+ * remplace la recopie du proxy par les cookies de nextCookies (risque R3 du plan).
+ */
+async function cookiesDeSession(reponse: Response | null): Promise<string[]> {
   const lignes = (await reponse?.headersArray()) ?? [];
   return lignes
     .filter(({ name }) => name.toLowerCase() === "set-cookie")
-    .map(({ value }) => value)
-    .find((ligne) => SESSION_COOKIE.test(ligne));
+    .flatMap(({ value }) => value.split("\n"))
+    .filter((ligne) => SESSION_COOKIE.test(ligne));
 }
 
 test("prolonge la session au chargement d'une page, cookie compris", async ({
@@ -52,8 +53,9 @@ test("prolonge la session au chargement d'une page, cookie compris", async ({
   // Session de plus d'un jour : le chargement de /fil la prolonge, en base et en cookie.
   await vieillirSession(EMAIL);
   const reponse = await page.goto("/fil");
-  const ligne = await cookieDeSession(reponse);
-  expect(ligne).toBeDefined();
+  const lignes = await cookiesDeSession(reponse);
+  expect(lignes).toHaveLength(1);
+  const ligne = lignes[0];
   expect(ligne).toMatch(new RegExp(`Max-Age=${SEPT_JOURS_S}(;|$)`, "i"));
   expect(ligne).toMatch(/HttpOnly/i);
   expect(ligne).toMatch(/SameSite=Lax/i);
@@ -64,7 +66,7 @@ test("prolonge la session au chargement d'une page, cookie compris", async ({
 
   // Second chargement : déjà prolongée aujourd'hui, aucun Set-Cookie.
   const suivante = await page.goto("/fil");
-  expect(await cookieDeSession(suivante)).toBeUndefined();
+  expect(await cookiesDeSession(suivante)).toEqual([]);
 });
 
 test("une personne connectée qui ouvre /connexion ou /inscription arrive sur le fil", async ({

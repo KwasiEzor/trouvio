@@ -54,21 +54,36 @@ export async function violations(page: Page): Promise<string[]> {
   return page.evaluate(() => window.__violationsCsp ?? []);
 }
 
-/** Charge la page, attend l'hydratation : aucune violation, aucune erreur console (hors `ignorer`). */
+const STATUT_404 = /status of 404/;
+
+/**
+ * Charge la page, attend l'hydratation et la fin du chargement : aucune violation,
+ * aucune erreur console. `documentEn404` : seul le 404 du document lui-même est toléré, jamais
+ * celui d'une ressource.
+ */
 export async function verifierChargementPropre(
   page: Page,
   chemin: string,
-  ignorer?: RegExp,
+  { documentEn404 = false }: { documentEn404?: boolean } = {},
 ): Promise<void> {
   const erreurs: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error" && !ignorer?.test(message.text()))
-      erreurs.push(message.text());
+    if (message.type() !== "error") return;
+    const urlDocument = new URL(chemin, page.url()).href;
+    if (
+      documentEn404 &&
+      STATUT_404.test(message.text()) &&
+      message.location().url === urlDocument
+    )
+      return;
+    erreurs.push(message.text());
   });
   page.on("pageerror", (erreur) => erreurs.push(erreur.message));
   await ecouterViolations(page);
   await page.goto(chemin);
   await attendreHydratation(page);
+  // networkidle est refusé par ESLint (instable) : « load » couvre les ressources du document.
+  await page.waitForLoadState("load");
   expect(await violations(page), chemin).toEqual([]);
   expect(erreurs, chemin).toEqual([]);
 }

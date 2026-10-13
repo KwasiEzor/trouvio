@@ -12,7 +12,8 @@ import { attendreHydratation } from "./helpers";
 /**
  * En-têtes de sécurité sur le build de production (P1-05, SECURITY §3, ADR 0016). Serveur en
  * http://localhost, sans DSN : ni upgrade-insecure-requests, ni origine Sentry dans connect-src.
- * Requêtes de page sans cookie : aucune lecture de session, aucun compteur du limiteur.
+ * Requêtes de page sans cookie : aucune lecture de session. /api/auth/ok compte dans le limiteur,
+ * sur une IP propre à ce fichier.
  */
 
 const COMMUNS = {
@@ -46,6 +47,8 @@ function communs(entetes: Record<string, string>) {
   );
 }
 
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.252" } });
+
 test("une page porte chaque en-tête et une CSP à nonce, sans unsafe-inline pour les scripts", async ({
   request,
 }) => {
@@ -64,6 +67,16 @@ test("une route API porte chaque en-tête et une CSP qui n'autorise rien", async
   expect(communs(entetes)).toEqual(COMMUNS);
   expect(entetes["content-security-policy"]).toBe(
     "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  );
+});
+
+test("une 404 hors du proxy (/brand/…) porte une CSP qui n'autorise aucun script", async ({
+  request,
+}) => {
+  const reponse = await request.get("/brand/inexistant");
+  expect(reponse.status()).toBe(404);
+  expect(reponse.headers()["content-security-policy"]).toBe(
+    "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   );
 });
 
@@ -100,11 +113,9 @@ test("une page 404 : scripts sous nonce, chargement sans violation", async ({
   expect((await request.get("/page-inexistante")).status()).toBe(404);
   await verifierScriptsSousNonce(request, "/page-inexistante");
   // Seule erreur attendue : le statut 404 du document lui-même.
-  await verifierChargementPropre(
-    page,
-    "/page-inexistante",
-    /Failed to load resource: the server responded with a status of 404/,
-  );
+  await verifierChargementPropre(page, "/page-inexistante", {
+    documentEn404: true,
+  });
 });
 
 test("un script en ligne injecté sans nonce ne s'exécute pas", async ({
