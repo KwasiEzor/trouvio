@@ -38,6 +38,20 @@ export const magicLinkRecordSchema = z.object({
   name: z.string().optional(),
 });
 
+export type MagicLinkRecord = z.infer<typeof magicLinkRecordSchema>;
+
+/** Valeur stockée en base (JSON), ou null si elle n'a pas la forme attendue. */
+export function parseMagicLinkRecord(value: string): MagicLinkRecord | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const record = magicLinkRecordSchema.safeParse(parsed);
+  return record.success ? record.data : null;
+}
+
 function pageUrl(appUrl: string, path: string, token: string): string {
   const url = new URL(path, appUrl);
   url.searchParams.set("token", token);

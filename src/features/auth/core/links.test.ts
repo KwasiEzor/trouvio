@@ -9,6 +9,7 @@ import {
   linkTokenSchema,
   magicLinkRecordSchema,
   magicLinkUrl,
+  parseMagicLinkRecord,
   verificationPayloadSchema,
 } from "./links";
 
@@ -136,4 +137,19 @@ describe("magicLinkRecordSchema", () => {
       }).success,
     ).toBe(false);
   });
+});
+
+describe("parseMagicLinkRecord", () => {
+  it("lit la valeur JSON stockée", () => {
+    expect(
+      parseMagicLinkRecord('{"type":"magic-link","email":"alex@example.com"}'),
+    ).toEqual({ type: "magic-link", email: "alex@example.com" });
+  });
+
+  it.each(["pas du json", "null", '{"type":"otp","email":"alex@example.com"}'])(
+    "rend null pour %j",
+    (value) => {
+      expect(parseMagicLinkRecord(value)).toBeNull();
+    },
+  );
 });

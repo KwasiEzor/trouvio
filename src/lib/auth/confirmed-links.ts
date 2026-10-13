@@ -11,7 +11,7 @@ import { revokeUnprovenAccountAccess } from "better-auth/db";
 import {
   confirmMagicLinkBodySchema,
   confirmVerificationBodySchema,
-  magicLinkRecordSchema,
+  parseMagicLinkRecord,
   verificationPayloadSchema,
 } from "@/features/auth/core/links";
 import type { RateLimiter } from "@/lib/rate-limit/types";
@@ -40,14 +40,6 @@ function invalidPassword(): APIError {
     message: "Invalid password.",
     code: "INVALID_PASSWORD",
   });
-}
-
-function parseJson(value: string): unknown {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
 }
 
 export function confirmedLinks({
@@ -135,11 +127,9 @@ export function confirmedLinks({
               magicLinkIdentifier(ctx.body.token),
             );
           if (consumed === null) throw invalidToken();
-          const record = magicLinkRecordSchema.safeParse(
-            parseJson(consumed.value),
-          );
-          if (!record.success) throw invalidToken();
-          const { email, name } = record.data;
+          const record = parseMagicLinkRecord(consumed.value);
+          if (record === null) throw invalidToken();
+          const { email, name } = record;
 
           let user = (await ctx.context.internalAdapter.findUserByEmail(email))
             ?.user;
