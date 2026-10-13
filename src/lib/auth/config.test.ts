@@ -12,6 +12,7 @@ import { fixedLimiter, unlimitedLimiter } from "@/test/rate-limit/fakes";
 
 import { buildAuthOptions, type AuthDeps } from "./config";
 import type { AuthEmail, AuthMailer } from "./mailer";
+import { sessionTokenHook } from "./session-token-hook";
 
 const BASE_URL = "http://localhost:3000";
 
@@ -116,7 +117,12 @@ describe("options de Better Auth", () => {
       "/refresh-token",
       "/change-password",
       "/verify-password",
+      "/get-session",
     ]);
+  });
+
+  it("retire le jeton de session des réponses JSON (hook after)", () => {
+    expect(options.hooks.after).toBe(sessionTokenHook);
   });
 
   it("stocke le jeton du lien magique haché, valable 10 minutes, nextCookies en dernier", () => {

@@ -28,7 +28,6 @@ export const AUTH_IP_RULES = {
 export const RATE_LIMITED_PATHS: readonly string[] = [
   ...Object.keys(AUTH_IP_RULES),
   "/error",
-  "/get-session",
   "/ok",
   "/sign-out",
   "/verify-email",

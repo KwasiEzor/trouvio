@@ -109,11 +109,11 @@ async function verifiedUser(email = "alex@example.com"): Promise<string> {
   return signUpVerified(auth, outbox, email);
 }
 
+// Côté serveur, comme les pages : /get-session n'est plus servie en HTTP (ADR 0016).
 async function sessionFor(cookie: string | undefined) {
-  const response = await call("/get-session", { method: "GET", cookie });
-  return (await response.json()) as {
-    user: { email: string; role: string };
-  } | null;
+  const headers = new Headers();
+  if (cookie !== undefined) headers.set("cookie", cookie);
+  return auth.api.getSession({ headers });
 }
 
 async function userRow(email: string) {
@@ -231,6 +231,19 @@ describe("connexion par mot de passe", () => {
       user: { email: "alex@example.com", role: "user" },
     });
   });
+
+  it("ne rend pas le jeton de session dans le corps, seulement en cookie", async () => {
+    await verifiedUser();
+    const response = await call("/sign-in/email", {
+      body: { email: "alex@example.com", password: PASSWORD },
+    });
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      token: null,
+      user: { email: "alex@example.com" },
+    });
+    expect(sessionCookie(response)).toBeDefined();
+  });
 });
 
 describe("vérification d'email", () => {
@@ -304,13 +317,15 @@ describe("sessions", () => {
       `${SESSION_COOKIE}=pas-un-uuid.signature`,
       `${SESSION_COOKIE}=`,
     ]) {
-      const response = await call("/get-session", {
-        method: "GET",
-        cookie: bad,
-      });
-      expect(response.status).toBe(200);
-      expect(await response.json()).toBeNull();
+      expect(await sessionFor(bad)).toBeNull();
     }
+  });
+
+  it("ne sert plus /get-session en HTTP (jeton de session en JSON)", async () => {
+    const cookie = await verifiedUser();
+    const response = await call("/get-session", { method: "GET", cookie });
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain(cookie.split("=")[1] ?? "");
   });
 
   it("supprime la session à la déconnexion : l'ancien cookie ne vaut plus rien", async () => {
@@ -368,6 +383,27 @@ describe("lien magique", () => {
     const second = await call(pathOf(url), { method: "GET" });
     expect(sessionCookie(second)).toBeUndefined();
     expect(second.headers.get("location")).toContain("/connexion?erreur=lien");
+  });
+
+  it("ne rend pas le jeton de session en JSON (lien sans callbackURL)", async () => {
+    await verifiedUser();
+    await requestMagicLink("alex@example.com");
+    // Le lien envoyé porte toujours callbackURL ; sans lui, la vérification répond en JSON.
+    const url = new URL(lastEmail("magic-link").url);
+    url.searchParams.delete("callbackURL");
+    const response = await call(pathOf(url.toString()), { method: "GET" });
+    const cookie = sessionCookie(response);
+    expect(cookie).toBeDefined();
+    const body = (await response.json()) as {
+      token?: unknown;
+      session?: Record<string, unknown>;
+    };
+    expect(body.token ?? null).toBeNull();
+    expect(body.session).toBeDefined();
+    expect(body.session).not.toHaveProperty("token");
+    expect(JSON.stringify(body)).not.toContain(
+      cookie?.split("=")[1]?.split(".")[0] ?? "jeton",
+    );
   });
 
   it("refuse un lien expiré", async () => {
