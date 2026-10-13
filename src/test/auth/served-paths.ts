@@ -7,7 +7,8 @@ export const SERVED_PATHS: readonly string[] = [
   // Rappel OAuth : aucun fournisseur social configuré, la route répond en erreur.
   "/callback/:id",
   "/error",
-  "/magic-link/verify",
+  // Liens d'email confirmés par un clic (P1-06, ADR 0017) ; les GET de Better Auth sont fermés.
+  "/magic-link/confirm",
   "/ok",
   // Sert le jeton émis par /request-password-reset, désactivée : aucun jeton n'existe.
   "/reset-password/:token",
@@ -16,5 +17,5 @@ export const SERVED_PATHS: readonly string[] = [
   "/sign-in/magic-link",
   "/sign-out",
   "/sign-up/email",
-  "/verify-email",
+  "/verify-email/confirm",
 ];

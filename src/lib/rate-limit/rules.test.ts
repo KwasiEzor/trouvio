@@ -19,7 +19,8 @@ describe("règles de limitation", () => {
       "/sign-up/email": { windowSeconds: 600, max: 5 },
       "/sign-in/magic-link": { windowSeconds: 600, max: 5 },
       "/send-verification-email": { windowSeconds: 600, max: 3 },
-      "/magic-link/verify": { windowSeconds: 60, max: 5 },
+      "/magic-link/confirm": { windowSeconds: 60, max: 5 },
+      "/verify-email/confirm": { windowSeconds: 300, max: 10 },
     });
   });
 
