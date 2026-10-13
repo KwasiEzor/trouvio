@@ -6,11 +6,12 @@ import {
   activationUrl,
   confirmMagicLinkBodySchema,
   confirmVerificationBodySchema,
-  linkTokenSchema,
   magicLinkRecordSchema,
+  magicLinkTokenSchema,
   magicLinkUrl,
   parseMagicLinkRecord,
   verificationPayloadSchema,
+  verificationTokenSchema,
 } from "./links";
 
 const APP = "https://trouvio.example";
@@ -38,22 +39,35 @@ describe("URL des liens envoyés par email", () => {
   });
 });
 
-describe("linkTokenSchema", () => {
-  it.each([
-    ["JWT", fauxJwt()],
-    ["lien magique", "a".repeat(32)],
-  ])("accepte un jeton %s", (_nom, jeton) => {
-    expect(linkTokenSchema.safeParse(jeton).success).toBe(true);
+describe("format des jetons", () => {
+  it("accepte un JWT d'activation (trois segments base64url)", () => {
+    expect(verificationTokenSchema.safeParse(fauxJwt()).success).toBe(true);
+  });
+
+  it("accepte un jeton de lien magique (32 lettres)", () => {
+    expect(magicLinkTokenSchema.safeParse("aB".repeat(16)).success).toBe(true);
   });
 
   it.each([
     ["vide", ""],
-    ["trop long", "a".repeat(2049)],
-    ["hors alphabet", "abc def"],
-    ["avec chevron", "<script>"],
+    ["un segment", "abc"],
+    ["quatre segments", "a.b.c.d"],
+    ["trop long", `${"a".repeat(2049)}.b.c`],
+    ["hors alphabet", "a b.c.d"],
     ["non textuel", 42],
-  ])("refuse un jeton %s", (_nom, jeton) => {
-    expect(linkTokenSchema.safeParse(jeton).success).toBe(false);
+  ])("refuse un JWT %s", (_nom, jeton) => {
+    expect(verificationTokenSchema.safeParse(jeton).success).toBe(false);
+  });
+
+  // Un format strict évite toute lecture en base pour un jeton inventé.
+  it.each([
+    ["trop court", "a".repeat(31)],
+    ["trop long", "a".repeat(33)],
+    ["avec chiffre", `${"a".repeat(31)}1`],
+    ["JWT", fauxJwt()],
+    ["non textuel", 42],
+  ])("refuse un jeton de lien magique %s", (_nom, jeton) => {
+    expect(magicLinkTokenSchema.safeParse(jeton).success).toBe(false);
   });
 });
 
@@ -61,26 +75,28 @@ describe("corps des confirmations", () => {
   it("activation : jeton et mot de passe borné", () => {
     expect(
       confirmVerificationBodySchema.safeParse({
-        token: "abc",
+        token: fauxJwt(),
         password: "x".repeat(128),
       }).success,
     ).toBe(true);
     expect(
       confirmVerificationBodySchema.safeParse({
-        token: "abc",
+        token: fauxJwt(),
         password: "x".repeat(129),
       }).success,
     ).toBe(false);
     expect(
-      confirmVerificationBodySchema.safeParse({ token: "abc", password: "" })
-        .success,
+      confirmVerificationBodySchema.safeParse({
+        token: fauxJwt(),
+        password: "",
+      }).success,
     ).toBe(false);
   });
 
   it("lien magique : jeton seul", () => {
-    expect(confirmMagicLinkBodySchema.safeParse({ token: "abc" }).success).toBe(
-      true,
-    );
+    expect(
+      confirmMagicLinkBodySchema.safeParse({ token: "a".repeat(32) }).success,
+    ).toBe(true);
     expect(confirmMagicLinkBodySchema.safeParse({}).success).toBe(false);
   });
 });
@@ -127,6 +143,16 @@ describe("magicLinkRecordSchema", () => {
         name: "Alex",
       }),
     ).toEqual({ type: "magic-link", email: "alex@example.com", name: "Alex" });
+  });
+
+  it("refuse un champ inconnu (même schéma strict que Better Auth)", () => {
+    expect(
+      magicLinkRecordSchema.safeParse({
+        type: "magic-link",
+        email: "alex@example.com",
+        role: "admin",
+      }).success,
+    ).toBe(false);
   });
 
   it("refuse un autre type d'enregistrement", () => {

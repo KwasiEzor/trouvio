@@ -139,11 +139,16 @@ describe("garde de promotion admin", () => {
     {
       role = "user",
       credential = true,
-    }: { role?: "user" | "admin"; credential?: boolean } = {},
+      emailVerified = false,
+    }: {
+      role?: "user" | "admin";
+      credential?: boolean;
+      emailVerified?: boolean;
+    } = {},
   ) {
     const [user] = await t.db
       .insert(users)
-      .values({ email, name: "Tiers", role })
+      .values({ email, name: "Tiers", role, emailVerified })
       .returning({ id: users.id });
     if (!user) throw new Error("insertion sans ligne");
     if (credential) {
@@ -171,9 +176,18 @@ describe("garde de promotion admin", () => {
     expect(await t.db.select().from(searchProfiles)).toEqual([]);
   });
 
-  it("accepte une ligne déjà admin qui porte un mot de passe (seed relancé)", async () => {
-    await inscrit(ADMIN.email, { role: "admin" });
+  it("accepte une ligne admin vérifiée qui porte un mot de passe (seed relancé)", async () => {
+    await inscrit(ADMIN.email, { role: "admin", emailVerified: true });
     expect(await applySeed(t.db, EXEMPLE)).toEqual({ created: 0, updated: 1 });
+  });
+
+  // Course : le seed promeut la ligne entre l'insertion de users et celle d'accounts (inscription
+  // en deux écritures). Non vérifiée, elle ne prouve pas que le mot de passe vient du titulaire.
+  it("refuse une ligne admin non vérifiée qui porte un mot de passe", async () => {
+    await inscrit(ADMIN.email, { role: "admin" });
+    await expect(applySeed(t.db, EXEMPLE)).rejects.toBeInstanceOf(
+      SeedAdminPromotionError,
+    );
   });
 
   it("promeut une ligne vérifiée par lien magique, sans mot de passe", async () => {

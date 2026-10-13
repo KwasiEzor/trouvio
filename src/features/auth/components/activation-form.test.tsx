@@ -155,6 +155,21 @@ describe("ActivationForm (activation par mot de passe)", () => {
     );
   });
 
+  // Verrou posé par un tiers sur le seau partagé : le titulaire doit garder le lien de secours.
+  it("propose le lien de connexion quand le compte est verrouillé", async () => {
+    fetchMock.mockResolvedValue({
+      data: null,
+      error: { code: "TOO_MANY_ATTEMPTS", status: 429 },
+    });
+    render(<ActivationForm token={TOKEN} email={EMAIL} />);
+    envoyer();
+    expect(
+      await screen.findByRole("button", {
+        name: "M'envoyer un lien de connexion",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("traite une panne réseau comme une erreur générique", async () => {
     fetchMock.mockRejectedValue(new Error("réseau coupé"));
     render(<ActivationForm token={TOKEN} email={EMAIL} />);

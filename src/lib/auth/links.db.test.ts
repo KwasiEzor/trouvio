@@ -27,7 +27,7 @@ import {
   type TestDatabase,
 } from "@/test/db/test-database";
 
-import { sessions, users } from "../../../db/schema";
+import { sessions, users, verifications } from "../../../db/schema";
 import type { Auth } from "./index";
 import { previewMagicLink, previewVerificationLink } from "./links";
 import type { AuthEmail } from "./mailer";
@@ -106,6 +106,20 @@ describe("previewMagicLink", () => {
     const token = tokenOf(lastEmail(outbox, "magic-link").url);
     vi.setSystemTime(new Date("2026-10-08T10:10:01Z"));
     expect(await previewMagicLink(auth, token)).toEqual({ status: "invalid" });
+  });
+
+  // Page anonyme : un aperçu lit par l'index sans purger la table (pas de DELETE à chaque GET).
+  it("ne supprime aucune ligne expirée", async () => {
+    await t.db.insert(verifications).values({
+      identifier: "ligne-expiree",
+      value: "x",
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    await previewMagicLink(auth, "a".repeat(32));
+    await previewMagicLink(auth, "b".repeat(32));
+    expect(
+      (await t.db.select().from(verifications)).map((row) => row.identifier),
+    ).toEqual(["ligne-expiree"]);
   });
 
   it.each(["", "inconnu", "a b", "x".repeat(5000)])(
