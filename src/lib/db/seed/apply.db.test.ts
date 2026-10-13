@@ -9,8 +9,8 @@ import {
   type TestDatabase,
 } from "@/test/db/test-database";
 
-import { searchProfiles, users } from "../../../../db/schema";
-import { applySeed } from "./apply";
+import { accounts, searchProfiles, users } from "../../../../db/schema";
+import { applySeed, SeedAdminPromotionError } from "./apply";
 import { parseSeedText, type SeedFile } from "./seed-file";
 
 const EXEMPLE = parseSeedText(
@@ -123,5 +123,73 @@ describe("applySeed", () => {
     };
     await expect(applySeed(t.db, invalide)).rejects.toThrow();
     expect(await rows()).toEqual([]);
+  });
+});
+
+// P1-06 (ADR 0017) : un tiers inscrit l'adresse de l'admin avant le seed, avec son mot de passe. Le
+// seed ne doit jamais promouvoir cette ligne : le tiers deviendrait admin.
+describe("garde de promotion admin", () => {
+  const [ADMIN] = EXEMPLE.users;
+  if (ADMIN?.role !== "admin")
+    throw new Error("l'exemple doit porter un admin");
+  const AUTRE = { ...ADMIN, email: "autre@example.com", role: "user" as const };
+
+  async function inscrit(
+    email: string,
+    {
+      role = "user",
+      credential = true,
+    }: { role?: "user" | "admin"; credential?: boolean } = {},
+  ) {
+    const [user] = await t.db
+      .insert(users)
+      .values({ email, name: "Tiers", role })
+      .returning({ id: users.id });
+    if (!user) throw new Error("insertion sans ligne");
+    if (credential) {
+      await t.db.insert(accounts).values({
+        accountId: user.id,
+        providerId: "credential",
+        userId: user.id,
+        password: "empreinte",
+      });
+    }
+    return user.id;
+  }
+
+  it("refuse de promouvoir une ligne qui porte un mot de passe, sans rien écrire", async () => {
+    await inscrit(ADMIN.email);
+    const seed: SeedFile = { users: [AUTRE, ADMIN] };
+    const refus = applySeed(t.db, seed);
+    await expect(refus).rejects.toBeInstanceOf(SeedAdminPromotionError);
+    await expect(refus).rejects.toMatchObject({ index: 1 });
+    await expect(refus).rejects.not.toThrow(ADMIN.email);
+    const tous = await t.db.select().from(users);
+    expect(tous.map(({ email, role }) => ({ email, role }))).toEqual([
+      { email: ADMIN.email, role: "user" },
+    ]);
+    expect(await t.db.select().from(searchProfiles)).toEqual([]);
+  });
+
+  it("accepte une ligne déjà admin qui porte un mot de passe (seed relancé)", async () => {
+    await inscrit(ADMIN.email, { role: "admin" });
+    expect(await applySeed(t.db, EXEMPLE)).toEqual({ created: 0, updated: 1 });
+  });
+
+  it("promeut une ligne vérifiée par lien magique, sans mot de passe", async () => {
+    await inscrit(ADMIN.email, { credential: false });
+    await applySeed(t.db, EXEMPLE);
+    expect((await rows())[0]).toMatchObject({
+      email: ADMIN.email,
+      role: "admin",
+    });
+  });
+
+  it("accepte une entrée user sur une ligne qui porte un mot de passe", async () => {
+    await inscrit(AUTRE.email);
+    expect(await applySeed(t.db, { users: [AUTRE] })).toEqual({
+      created: 0,
+      updated: 1,
+    });
   });
 });

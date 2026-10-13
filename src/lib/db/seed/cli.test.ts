@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EnvValidationError } from "@/lib/env";
 import { everythingLogged, fakeLogger } from "@/test/db/fake-logger";
 
+import { SeedAdminPromotionError } from "./apply";
 import { main, type SeedCliDeps } from "./cli";
 
 const EXEMPLE = readFileSync(
@@ -206,5 +207,19 @@ describe("db:seed", () => {
       "seed échoué (base locale)",
       expect.objectContaining({ err: expect.any(Error) }),
     );
+  });
+
+  it("refuse une promotion admin dangereuse en citant l'index, jamais l'adresse", async () => {
+    const { all, log } = deps({
+      apply: async () => {
+        throw new SeedAdminPromotionError(0);
+      },
+    });
+    expect(await main([], all)).toBe(1);
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("seed refusé"),
+      { index: 0 },
+    );
+    expect(everythingLogged(log)).not.toContain("alex.martin");
   });
 });
