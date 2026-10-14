@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+import { signJWT } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import {
   afterAll,
@@ -29,12 +30,14 @@ import {
   BASE,
   buildTestAuth,
   callAuth,
+  confirmMagicLink as confirmMagicLinkOf,
+  confirmVerification as confirmVerificationOf,
   lastEmail as lastEmailOf,
   PASSWORD,
-  pathOf,
   SESSION_COOKIE,
   sessionCookie,
   signUpVerified,
+  tokenOf,
   type Call,
 } from "@/test/auth/harness";
 import { SERVED_PATHS } from "@/test/auth/served-paths";
@@ -104,7 +107,29 @@ async function signUp(email: string, extra: Record<string, unknown> = {}) {
   });
 }
 
-/** Inscription puis clic sur le lien de vérification : rend le cookie de session. */
+/** Clic sur « Activer mon compte » avec le dernier lien d'activation reçu. */
+async function activate(
+  password = PASSWORD,
+  { instance = auth, ...options }: Call & { instance?: Auth } = {},
+) {
+  return confirmVerificationOf(
+    instance,
+    lastEmail("verification").url,
+    password,
+    options,
+  );
+}
+
+/** Clic sur « Me connecter » avec le dernier lien magique reçu. */
+async function confirmMagicLink(options: Call = {}) {
+  return confirmMagicLinkOf(auth, lastEmail("magic-link").url, options);
+}
+
+async function sessionCount() {
+  return (await t.db.select().from(sessions)).length;
+}
+
+/** Inscription puis activation par mot de passe : rend le cookie de session. */
 async function verifiedUser(email = "alex@example.com"): Promise<string> {
   return signUpVerified(auth, outbox, email);
 }
@@ -246,27 +271,131 @@ describe("connexion par mot de passe", () => {
   });
 });
 
-describe("vérification d'email", () => {
-  it("marque l'email vérifié et connecte au premier usage seulement", async () => {
+describe("activation par mot de passe (I1)", () => {
+  it("envoie un lien vers la page d'activation, jamais vers /api/auth", async () => {
     await signUp("alex@example.com");
-    const link = pathOf(lastEmail("verification").url);
-
-    const first = await call(link, { method: "GET" });
-    expect(sessionCookie(first)).toBeDefined();
-    expect((await userRow("alex@example.com"))?.emailVerified).toBe(true);
-
-    const second = await call(link, { method: "GET" });
-    expect(sessionCookie(second)).toBeUndefined();
-    expect(await t.db.select().from(sessions)).toHaveLength(1);
+    expect(lastEmail("verification").url).toMatch(
+      new RegExp(`^${BASE}/activation\\?token=[A-Za-z0-9_.-]+$`),
+    );
   });
 
-  it("refuse un jeton altéré et renvoie vers /fil?error=… (traité par la page)", async () => {
-    await signUp("alex@example.com", { callbackURL: "/fil" });
-    const url = new URL(lastEmail("verification").url);
-    url.searchParams.set("token", `${url.searchParams.get("token")}x`);
-    const response = await call(pathOf(url.toString()), { method: "GET" });
+  it("ne sert plus GET /verify-email : ouvrir le lien n'active rien", async () => {
+    await signUp("alex@example.com");
+    const response = await call(
+      `/verify-email?token=${tokenOf(lastEmail("verification").url)}`,
+      { method: "GET" },
+    );
+    expect(response.status).toBe(404);
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+    expect(await sessionCount()).toBe(0);
+  });
+
+  it("active et connecte avec le mot de passe de l'inscription, sans jeton en JSON ni cache", async () => {
+    await signUp("alex@example.com");
+    const response = await activate();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const cookie = sessionCookie(response);
+    expect(await response.json()).toEqual({ status: true });
+    expect(await sessionFor(cookie)).toMatchObject({
+      user: { email: "alex@example.com" },
+    });
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(true);
+  });
+
+  it("refuse un autre mot de passe : le compte reste non vérifié, sans session", async () => {
+    await signUp("alex@example.com");
+    const response = await activate(`${PASSWORD}!`);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "INVALID_PASSWORD" });
     expect(sessionCookie(response)).toBeUndefined();
-    expect(response.headers.get("location")).toMatch(/^\/fil\?error=/);
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+    expect(await sessionCount()).toBe(0);
+  });
+
+  it("refuse un jeton altéré", async () => {
+    await signUp("alex@example.com");
+    const response = await call("/verify-email/confirm", {
+      body: {
+        token: `${tokenOf(lastEmail("verification").url)}x`,
+        password: PASSWORD,
+      },
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_TOKEN" });
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+  });
+
+  it("refuse un jeton expiré", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-08T10:00:00Z"),
+    });
+    await signUp("alex@example.com");
+    vi.setSystemTime(new Date("2026-10-08T11:00:01Z"));
+    const response = await activate();
+    expect(response.status).toBe(400);
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+  });
+
+  // Jeton de changement d'adresse : signé avec le même secret, il ne doit rien activer.
+  it("refuse un jeton qui porte updateTo", async () => {
+    await signUp("alex@example.com");
+    const token = await signJWT(
+      { email: "alex@example.com", updateTo: "autre@example.com" },
+      "s".repeat(32),
+      3600,
+    );
+    const response = await call("/verify-email/confirm", {
+      body: { token, password: PASSWORD },
+    });
+    expect(response.status).toBe(400);
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+  });
+
+  it("refuse un compte déjà vérifié avant de regarder le mot de passe", async () => {
+    await verifiedUser();
+    const before = await sessionCount();
+    for (const password of [PASSWORD, `${PASSWORD}!`]) {
+      const response = await activate(password);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        code: "EMAIL_ALREADY_VERIFIED",
+      });
+      expect(sessionCookie(response)).toBeUndefined();
+    }
+    expect(await sessionCount()).toBe(before);
+  });
+
+  it.each([
+    ["une origine étrangère", { origin: "https://evil.example" }],
+    [
+      "une navigation intersite",
+      {
+        origin: null,
+        headers: {
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "navigate",
+        },
+      },
+    ],
+  ] as const)("refuse un POST sans cookie venu d'%s", async (_nom, options) => {
+    await signUp("alex@example.com");
+    const response = await activate(PASSWORD, options);
+    expect(response.status).toBe(403);
+    expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
+  });
+
+  it("refuse un corps qui n'est pas du JSON (formulaire intersite)", async () => {
+    await signUp("alex@example.com");
+    const response = await call("/verify-email/confirm", {
+      body: {
+        token: tokenOf(lastEmail("verification").url),
+        password: PASSWORD,
+      },
+      headers: { "content-type": "text/plain" },
+    });
+    expect(response.status).toBe(415);
     expect((await userRow("alex@example.com"))?.emailVerified).toBe(false);
   });
 });
@@ -278,10 +407,7 @@ describe("vérification d'email", () => {
 describe("sessions", () => {
   it("pose un cookie HttpOnly et SameSite=Lax, sans Secure en http local", async () => {
     await signUp("alex@example.com");
-    const response = await call(pathOf(lastEmail("verification").url), {
-      method: "GET",
-    });
-    const line = setCookieLine(response);
+    const line = setCookieLine(await activate());
     expect(line).toMatch(/HttpOnly/i);
     expect(line).toMatch(/SameSite=Lax/i);
     expect(line).not.toMatch(/;\s*Secure/i);
@@ -294,9 +420,8 @@ describe("sessions", () => {
       origin: "https://trouvio.example",
       body: { name: "Alex", email: "alex@example.com", password: PASSWORD },
     });
-    const response = await call(pathOf(lastEmail("verification").url), {
+    const response = await activate(PASSWORD, {
       instance: secure,
-      method: "GET",
       origin: "https://trouvio.example",
     });
     const line = setCookieLine(response);
@@ -349,16 +474,10 @@ describe("sessions", () => {
 // ---------------------------------------------------------------------------------------------
 
 async function requestMagicLink(email: string) {
-  return call("/sign-in/magic-link", {
-    body: {
-      email,
-      callbackURL: "/fil",
-      errorCallbackURL: "/connexion?erreur=lien",
-    },
-  });
+  return call("/sign-in/magic-link", { body: { email } });
 }
 
-describe("lien magique", () => {
+describe("lien magique (M1)", () => {
   it("répond pareil pour une adresse connue et inconnue", async () => {
     await verifiedUser();
     const known = await requestMagicLink("alex@example.com");
@@ -367,43 +486,54 @@ describe("lien magique", () => {
     expect(await unknown.json()).toEqual(await known.json());
   });
 
-  it("stocke le jeton haché, connecte une fois, puis refuse", async () => {
+  it("envoie un lien vers la page de confirmation, jamais vers /api/auth", async () => {
+    await requestMagicLink("alex@example.com");
+    expect(lastEmail("magic-link").url).toMatch(
+      new RegExp(`^${BASE}/connexion/lien\\?token=[A-Za-z]+$`),
+    );
+  });
+
+  it("ne sert plus GET /magic-link/verify, et le jeton reste valable", async () => {
     await verifiedUser();
     await requestMagicLink("alex@example.com");
-    const url = lastEmail("magic-link").url;
-    const token = new URL(url).searchParams.get("token") ?? "";
+    const token = tokenOf(lastEmail("magic-link").url);
+    const opened = await call(`/magic-link/verify?token=${token}`, {
+      method: "GET",
+    });
+    expect(opened.status).toBe(404);
+    expect(sessionCookie(opened)).toBeUndefined();
+    expect((await confirmMagicLink()).status).toBe(200);
+  });
+
+  it("stocke le jeton haché, connecte au clic une fois, puis refuse", async () => {
+    await verifiedUser();
+    await requestMagicLink("alex@example.com");
+    const token = tokenOf(lastEmail("magic-link").url);
     const stored = await t.db.select().from(verifications);
     expect(stored.length).toBeGreaterThan(0);
     expect(JSON.stringify(stored)).not.toContain(token);
 
-    const first = await call(pathOf(url), { method: "GET" });
+    const first = await confirmMagicLink();
+    expect(first.status).toBe(200);
+    expect(first.headers.get("cache-control")).toContain("no-store");
     expect(await sessionFor(sessionCookie(first))).toMatchObject({
       user: { email: "alex@example.com" },
     });
-    const second = await call(pathOf(url), { method: "GET" });
+    const second = await confirmMagicLink();
+    expect(second.status).toBe(400);
+    expect(await second.json()).toMatchObject({ code: "INVALID_TOKEN" });
     expect(sessionCookie(second)).toBeUndefined();
-    expect(second.headers.get("location")).toContain("/connexion?erreur=lien");
   });
 
-  it("ne rend pas le jeton de session en JSON (lien sans callbackURL)", async () => {
+  it("ne rend pas le jeton de session en JSON", async () => {
     await verifiedUser();
     await requestMagicLink("alex@example.com");
-    // Le lien envoyé porte toujours callbackURL ; sans lui, la vérification répond en JSON.
-    const url = new URL(lastEmail("magic-link").url);
-    url.searchParams.delete("callbackURL");
-    const response = await call(pathOf(url.toString()), { method: "GET" });
+    const response = await confirmMagicLink();
     const cookie = sessionCookie(response);
     expect(cookie).toBeDefined();
-    const body = (await response.json()) as {
-      token?: unknown;
-      session?: Record<string, unknown>;
-    };
-    expect(body.token ?? null).toBeNull();
-    expect(body.session).toBeDefined();
-    expect(body.session).not.toHaveProperty("token");
-    expect(JSON.stringify(body)).not.toContain(
-      cookie?.split("=")[1]?.split(".")[0] ?? "jeton",
-    );
+    const body = await response.text();
+    expect(JSON.parse(body)).toEqual({ status: true });
+    expect(body).not.toContain(cookie?.split("=")[1]?.split(".")[0] ?? "jeton");
   });
 
   it("refuse un lien expiré", async () => {
@@ -413,17 +543,25 @@ describe("lien magique", () => {
     });
     await requestMagicLink("alex@example.com");
     vi.setSystemTime(new Date("2026-10-08T10:11:00Z"));
-    const response = await call(pathOf(lastEmail("magic-link").url), {
-      method: "GET",
-    });
+    const response = await confirmMagicLink();
+    expect(response.status).toBe(400);
     expect(sessionCookie(response)).toBeUndefined();
+  });
+
+  it("n'ouvre qu'une session pour deux clics simultanés", async () => {
+    await verifiedUser();
+    await requestMagicLink("alex@example.com");
+    const before = await sessionCount();
+    const statuses = (
+      await Promise.all([confirmMagicLink(), confirmMagicLink()])
+    ).map((response) => response.status);
+    expect(statuses.sort()).toEqual([200, 400]);
+    expect(await sessionCount()).toBe(before + 1);
   });
 
   it("crée un compte vérifié en minuscules pour une adresse inconnue", async () => {
     await requestMagicLink("Nouveau@EXAMPLE.com");
-    const response = await call(pathOf(lastEmail("magic-link").url), {
-      method: "GET",
-    });
+    const response = await confirmMagicLink();
     expect(sessionCookie(response)).toBeDefined();
     expect(await userRow("nouveau@example.com")).toMatchObject({
       role: "user",
@@ -441,13 +579,32 @@ describe("lien magique", () => {
     await applySeed(t.db, seed);
     const email = seed.users[0]?.email ?? "";
     await requestMagicLink(email);
-    const response = await call(pathOf(lastEmail("magic-link").url), {
-      method: "GET",
-    });
+    const response = await confirmMagicLink();
     expect(await sessionFor(sessionCookie(response))).toMatchObject({
       user: { email, role: "admin" },
     });
     expect((await userRow(email))?.emailVerified).toBe(true);
+  });
+
+  it.each([
+    ["une origine étrangère", { origin: "https://evil.example" }],
+    [
+      "une navigation intersite",
+      {
+        origin: null,
+        headers: {
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "navigate",
+        },
+      },
+    ],
+  ] as const)("refuse un POST sans cookie venu d'%s", async (_nom, options) => {
+    await requestMagicLink("alex@example.com");
+    const response = await confirmMagicLink(options);
+    expect(response.status).toBe(403);
+    expect(sessionCookie(response)).toBeUndefined();
+    // Le jeton n'a pas été consommé.
+    expect((await confirmMagicLink()).status).toBe(200);
   });
 });
 
@@ -475,32 +632,6 @@ describe("refus", () => {
       });
       expect(response.status).toBe(403);
       expect(outbox).toEqual([]);
-    },
-  );
-
-  it.each([
-    "https://evil.example/fil",
-    "//evil.example/fil",
-    "/\\evil.example",
-  ])(
-    "refuse la redirection externe %s à l'ouverture d'un lien",
-    async (target) => {
-      const results = [];
-      for (const param of ["callbackURL", "errorCallbackURL"]) {
-        const query = new URLSearchParams({ token: "jeton", [param]: target });
-        const response = await call(`/magic-link/verify?${query}`, {
-          method: "GET",
-        });
-        results.push({
-          param,
-          status: response.status,
-          location: response.headers.get("location"),
-        });
-      }
-      expect(results).toEqual([
-        { param: "callbackURL", status: 403, location: null },
-        { param: "errorCallbackURL", status: 403, location: null },
-      ]);
     },
   );
 
@@ -552,28 +683,47 @@ describe("champs écrits par le client", () => {
     await call("/sign-in/magic-link", {
       body: { email: "nouveau@example.com", name: "n".repeat(5000) },
     });
-    await call(pathOf(lastEmail("magic-link").url), { method: "GET" });
+    await confirmMagicLink();
     expect(
       (await userRow("nouveau@example.com"))?.name.length,
     ).toBeLessThanOrEqual(NAME_MAX_LENGTH);
   });
 });
 
-describe("compte non vérifié repris par lien magique (pré-détournement)", () => {
-  it("retire le mot de passe posé par un tiers et ses sessions", async () => {
-    // Un tiers inscrit l'adresse de la victime avec son propre mot de passe, sans la vérifier.
-    await signUp("victime@example.com");
-    // La victime se connecte par lien magique.
-    await requestMagicLink("victime@example.com");
-    const response = await call(pathOf(lastEmail("magic-link").url), {
-      method: "GET",
-    });
-    const cookie = sessionCookie(response);
-    expect(await sessionFor(cookie)).toMatchObject({
-      user: { email: "victime@example.com" },
-    });
+describe("pré-détournement par le lien d'activation (I1)", () => {
+  const VICTIME = "victime@example.com";
+  const P_TIERS = PASSWORD;
+  const P_VICTIME = "le mot de passe de la victime";
 
-    const user = await userRow("victime@example.com");
+  it("le mot de passe du tiers ne connecte plus après le lien magique de la victime", async () => {
+    // 1. Le tiers inscrit l'adresse de la victime avec son propre mot de passe.
+    await signUp(VICTIME);
+    const activationLink = lastEmail("verification").url;
+
+    // 2. La victime ouvre le lien d'activation et saisit son mot de passe : refusé.
+    const refused = await confirmVerificationOf(
+      auth,
+      activationLink,
+      P_VICTIME,
+    );
+    expect(refused.status).toBe(401);
+    expect((await userRow(VICTIME))?.emailVerified).toBe(false);
+
+    // 3. Le tiers ne peut pas se connecter : compte non vérifié.
+    const early = await call("/sign-in/email", {
+      body: { email: VICTIME, password: P_TIERS },
+    });
+    expect(early.status).toBe(403);
+    expect(await early.json()).toMatchObject({ code: "EMAIL_NOT_VERIFIED" });
+    expect(sessionCookie(early)).toBeUndefined();
+
+    // 4. La victime demande un lien magique et le confirme d'un clic.
+    await requestMagicLink(VICTIME);
+    const victim = await confirmMagicLink();
+    expect(await sessionFor(sessionCookie(victim))).toMatchObject({
+      user: { email: VICTIME },
+    });
+    const user = await userRow(VICTIME);
     expect(user?.emailVerified).toBe(true);
     expect(
       await t.db
@@ -581,11 +731,31 @@ describe("compte non vérifié repris par lien magique (pré-détournement)", ()
         .from(accounts)
         .where(eq(accounts.userId, user?.id ?? "")),
     ).toEqual([]);
-    const tiers = await call("/sign-in/email", {
-      body: { email: "victime@example.com", password: PASSWORD },
+
+    // 5. Le mot de passe du tiers ne connecte plus.
+    const late = await call("/sign-in/email", {
+      body: { email: VICTIME, password: P_TIERS },
     });
-    expect(tiers.status).toBe(401);
-    expect(await t.db.select().from(sessions)).toHaveLength(1);
+    expect(late.status).toBe(401);
+
+    // 6. Rejouer le lien d'activation avec son mot de passe ne lui rend rien.
+    const replay = await confirmVerificationOf(auth, activationLink, P_TIERS);
+    expect(replay.status).toBe(400);
+    expect(await replay.json()).toMatchObject({
+      code: "EMAIL_ALREADY_VERIFIED",
+    });
+
+    // 7. Une seule session : celle de la victime.
+    expect(await sessionCount()).toBe(1);
+  });
+
+  it("prévient le titulaire d'un compte non activé qu'un lien de connexion le reprend", async () => {
+    await signUp(VICTIME);
+    await signUp(VICTIME);
+    expect(lastEmail("existing-account")).toMatchObject({
+      to: VICTIME,
+      subject: "Ton compte Trouvio n'est pas activé",
+    });
   });
 });
 
@@ -598,6 +768,10 @@ describe("journaux", () => {
     await verifiedUser("sentinelle@example.com");
     await signUp("sentinelle@example.com");
     await requestMagicLink("sentinelle@example.com");
+    await confirmMagicLink();
+    await confirmMagicLink();
+    await signUp("sentinelle2@example.com");
+    await activate(`${PASSWORD}!`);
     await call("/sign-in/magic-link", {
       body: {
         email: "sentinelle@example.com",
@@ -612,7 +786,7 @@ describe("journaux", () => {
       email.url,
       new URL(email.url).searchParams.get("token") ?? email.url,
     ]);
-    expect(secrets.length).toBeGreaterThan(0);
+    expect(secrets.length).toBeGreaterThanOrEqual(4);
     expect(logged).not.toContain("sentinelle");
     expect(secrets.filter((secret) => logged.includes(secret))).toEqual([]);
   });

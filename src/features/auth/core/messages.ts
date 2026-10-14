@@ -59,6 +59,21 @@ export function messageForAuthError({ code, status }: AuthErrorLike): string {
   return (code === undefined ? undefined : MESSAGES.get(code)) ?? GENERIC;
 }
 
+// Pages /activation et /connexion/lien : le jeton prouve l'accès à la boîte, dire que le mot de
+// passe est faux n'énumère aucun compte.
+const LINK_MESSAGES = new Map<string, string>([
+  ["INVALID_TOKEN", EXPIRED_LINK],
+  ["TOKEN_EXPIRED", EXPIRED_LINK],
+  ["EMAIL_ALREADY_VERIFIED", "Ton compte est déjà actif. Connecte-toi."],
+  ["INVALID_PASSWORD", "Ce n'est pas le mot de passe choisi à l'inscription."],
+]);
+
+export function messageForLinkError({ code, status }: AuthErrorLike): string {
+  if (code === ACCOUNT_LOCKED_CODE) return ACCOUNT_LOCKED;
+  if (status === 429) return RATE_LIMITED;
+  return (code === undefined ? undefined : LINK_MESSAGES.get(code)) ?? GENERIC;
+}
+
 /** Message de /connexion pour le paramètre `erreur` de l'URL. */
 export function noticeForQuery(
   erreur: string | readonly string[] | undefined,

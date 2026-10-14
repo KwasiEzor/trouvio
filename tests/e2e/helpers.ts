@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * Attend que React ait hydraté la page : le titre principal porte alors une clé interne
@@ -15,4 +15,20 @@ export async function attendreHydratation(page: Page): Promise<void> {
       Object.keys(titre).some((cle) => cle.startsWith("__reactFiber"))
     );
   });
+}
+
+/**
+ * Ouvre le lien d'activation reçu par email et confirme avec le mot de passe de l'inscription
+ * (P1-06, ADR 0017) : la page ne consomme rien, le clic active et connecte.
+ */
+export async function activerCompte(
+  page: Page,
+  url: string,
+  motDePasse: string,
+): Promise<void> {
+  await page.goto(url);
+  await attendreHydratation(page);
+  await page.getByLabel("Mot de passe").fill(motDePasse);
+  await page.getByRole("button", { name: "Activer mon compte" }).click();
+  await expect(page).toHaveURL(/\/fil$/);
 }

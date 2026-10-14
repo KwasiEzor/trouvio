@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AUTH_NOTICES } from "@/features/auth/core/messages";
-import { AUTH_PATHS } from "@/features/auth/core/policy";
 
 import { MagicLinkForm } from "./magic-link-form";
 
@@ -42,7 +41,7 @@ describe("MagicLinkForm (lien de connexion)", () => {
     expect(signInMagicLink).not.toHaveBeenCalled();
   });
 
-  it("envoie la demande avec les chemins du code, puis ne montre que le message unique", async () => {
+  it("envoie la demande sans callbackURL (le lien mène à une page de l'application), puis ne montre que le message unique", async () => {
     signInMagicLink.mockResolvedValue({ data: { status: true }, error: null });
     render(<MagicLinkForm />);
     envoyer(" Ada@Example.com ");
@@ -52,8 +51,6 @@ describe("MagicLinkForm (lien de connexion)", () => {
     );
     expect(signInMagicLink).toHaveBeenCalledWith({
       email: "ada@example.com",
-      callbackURL: AUTH_PATHS.afterSignIn,
-      errorCallbackURL: AUTH_PATHS.invalidLink,
     });
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });

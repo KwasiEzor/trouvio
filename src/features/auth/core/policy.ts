@@ -21,4 +21,7 @@ export const AUTH_PATHS = {
   signUp: "/inscription",
   afterSignIn: "/fil",
   invalidLink: "/connexion?erreur=lien",
+  // Pages des liens d'email (ADR 0017) : en lecture seule, un clic consomme le lien.
+  activate: "/activation",
+  magicLink: "/connexion/lien",
 } as const;

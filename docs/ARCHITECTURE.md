@@ -37,7 +37,7 @@ flowchart LR
 src/
   app/
     (public)/            accueil, fonctionnalites, tarifs, contact, legal/*
-    (auth)/              connexion, inscription
+    (auth)/              connexion, inscription, activation, connexion/lien (pages des liens d'email, ADR 0017)
     (app)/               fil (provisoire en P1-02), offres/[id], suivi, statistiques, configuration
     admin/               tableau de bord admin (rôle requis)
     api/
@@ -54,7 +54,7 @@ src/
     auth/                politique, schémas des formulaires, messages, textes des emails, formulaires
     jobs/                runDailyJob() : orchestration du job quotidien (ADR 0008)
     billing/             Stripe (phase 9)
-  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, access et guards : requireUser, requireAdmin, authorizeRoute ; client, mailer), db (client, owned : registre des tables possédées et ownedBy), rate-limit (limiteur à clés HMAC, règles, branchement Better Auth ; ADR 0015), http (en-têtes de sécurité et CSP à nonce, logique du proxy, requestLogger ; ADR 0016), design-tokens (charte validée), utils (cn)
+  lib/                   db, env, llm, logger, observability (options Sentry), auth (config, getAuth, getSession, confirmed-links : activation et lien magique en POST, links : aperçus des liens ; ADR 0017, access et guards : requireUser, requireAdmin, authorizeRoute ; client, mailer), db (client, owned : registre des tables possédées et ownedBy), rate-limit (limiteur à clés HMAC, règles, branchement Better Auth ; ADR 0015), http (en-têtes de sécurité et CSP à nonce, logique du proxy, requestLogger ; ADR 0016), design-tokens (charte validée), utils (cn)
   components/ui/         shadcn
   components/magicui/    effets Magic UI, liste fermée (ADR 0007)
   proxy.ts               proxy de Next (runtime Node) : CSP à nonce, requestId, prolongation de session ; jamais d'autorisation (ADR 0016)

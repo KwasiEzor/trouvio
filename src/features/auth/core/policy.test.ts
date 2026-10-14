@@ -28,6 +28,11 @@ describe("politique d'authentification", () => {
     expect(SESSION_REFRESH_SECONDS).toBe(JOUR);
   });
 
+  it("sert les liens d'email par des pages de l'application", () => {
+    expect(AUTH_PATHS.activate).toBe("/activation");
+    expect(AUTH_PATHS.magicLink).toBe("/connexion/lien");
+  });
+
   // Ces chemins servent de callbackURL : une adresse externe ferait une redirection ouverte.
   it.each(Object.entries(AUTH_PATHS))(
     "garde le chemin %s à l'intérieur de l'application",

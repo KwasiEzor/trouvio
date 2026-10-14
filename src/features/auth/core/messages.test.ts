@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { AUTH_NOTICES, messageForAuthError, noticeForQuery } from "./messages";
+import {
+  AUTH_NOTICES,
+  messageForAuthError,
+  messageForLinkError,
+  noticeForQuery,
+} from "./messages";
 
 const GENERIQUE = "Une erreur est survenue. Réessaie dans un instant.";
 
@@ -85,4 +90,44 @@ describe("AUTH_NOTICES", () => {
         "Si cette adresse peut être utilisée, un lien vient d'y être envoyé.",
     });
   });
+});
+
+describe("messageForLinkError", () => {
+  it.each(["INVALID_TOKEN", "TOKEN_EXPIRED"])(
+    "annonce un lien qui n'est plus valable pour %s",
+    (code) => {
+      expect(messageForLinkError({ code, status: 400 })).toBe(
+        "Ce lien n'est plus valable. Demande-en un nouveau.",
+      );
+    },
+  );
+
+  it("dit qu'un compte déjà actif n'a plus besoin du lien", () => {
+    expect(
+      messageForLinkError({ code: "EMAIL_ALREADY_VERIFIED", status: 400 }),
+    ).toBe("Ton compte est déjà actif. Connecte-toi.");
+  });
+
+  // Le jeton prouve l'accès à la boîte : dire que le mot de passe est faux n'énumère rien.
+  it("dit que le mot de passe n'est pas celui de l'inscription", () => {
+    expect(messageForLinkError({ code: "INVALID_PASSWORD", status: 401 })).toBe(
+      "Ce n'est pas le mot de passe choisi à l'inscription.",
+    );
+  });
+
+  it("reprend les textes du verrou et du limiteur", () => {
+    expect(
+      messageForLinkError({ code: "TOO_MANY_ATTEMPTS", status: 429 }),
+    ).toBe(messageForAuthError({ code: "TOO_MANY_ATTEMPTS", status: 429 }));
+    expect(messageForLinkError({ status: 429 })).toBe(
+      "Trop de tentatives. Réessaie dans un instant.",
+    );
+  });
+
+  it.each([[{}], [{ code: "CODE_INCONNU" }], [{ code: "constructor" }]])(
+    "reste générique pour %o",
+    (erreur) => {
+      expect(messageForLinkError(erreur)).toBe(GENERIQUE);
+    },
+  );
 });

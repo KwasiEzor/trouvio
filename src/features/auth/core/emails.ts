@@ -30,8 +30,9 @@ export function verificationEmail({ url }: { url: string }): AuthEmailContent {
   return {
     subject: "Confirme ton adresse email",
     text: body(
-      `Pour activer ton compte Trouvio, ouvre ce lien :\n${url}`,
+      `Pour activer ton compte Trouvio, ouvre ce lien, puis saisis le mot de passe choisi à l'inscription :\n${url}`,
       `Il est valable ${formatDuration(EMAIL_VERIFICATION_TTL_SECONDS)}.`,
+      "Tu n'as pas créé ce compte ? Sur la même page, demande un lien de connexion : il retire tout mot de passe que tu n'aurais pas choisi.",
       `${IGNORE} : aucun compte ne sera activé.`,
     ),
   };
@@ -59,6 +60,25 @@ export function existingAccountEmail({
       "Quelqu'un vient de demander la création d'un compte Trouvio avec cette adresse, qui en a déjà un.",
       `Si c'était toi, connecte-toi ici (tu peux y demander un lien de connexion si tu n'as plus ton mot de passe) :\n${signInUrl}`,
       `${IGNORE} : ton compte n'a pas changé.`,
+    ),
+  };
+}
+
+/**
+ * Inscription sur une adresse dont le compte n'est pas activé : peut-être commencé par un tiers avec
+ * son propre mot de passe (pré-détournement, ADR 0017). Le lien magique retire ce mot de passe.
+ */
+export function unverifiedAccountEmail({
+  signInUrl,
+}: {
+  signInUrl: string;
+}): AuthEmailContent {
+  return {
+    subject: "Ton compte Trouvio n'est pas activé",
+    text: body(
+      "Un compte a été commencé avec cette adresse sans être activé. Pour le reprendre, demande un lien de connexion : il retire tout mot de passe que tu n'aurais pas choisi.",
+      `Tu peux le demander ici :\n${signInUrl}`,
+      `${IGNORE} : rien ne change tant que personne n'ouvre de lien envoyé à cette adresse.`,
     ),
   };
 }

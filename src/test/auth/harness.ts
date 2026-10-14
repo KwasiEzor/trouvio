@@ -52,18 +52,30 @@ export type Call = {
   origin?: string | null;
   /** x-forwarded-for, tel que posé par le reverse proxy. */
   ip?: string;
+  /** En-têtes en plus (Fetch Metadata, content-type). */
+  headers?: Record<string, string>;
 };
 
 export async function callAuth(
   instance: Auth,
   path: string,
-  { method = "POST", body, cookie, origin = BASE, ip }: Call = {},
+  {
+    method = "POST",
+    body,
+    cookie,
+    origin = BASE,
+    ip,
+    headers: extra,
+  }: Call = {},
 ): Promise<Response> {
   const headers = new Headers();
   if (body !== undefined) headers.set("content-type", "application/json");
   if (cookie !== undefined) headers.set("cookie", cookie);
   if (origin !== null) headers.set("origin", origin);
   if (ip !== undefined) headers.set("x-forwarded-for", ip);
+  for (const [name, value] of Object.entries(extra ?? {})) {
+    headers.set(name, value);
+  }
   const base = instance.options.baseURL ?? BASE;
   return instance.handler(
     new Request(`${base}/api/auth${path}`, {
@@ -90,13 +102,39 @@ export function lastEmail(outbox: AuthEmail[], kind: AuthEmailKind): AuthEmail {
   return email;
 }
 
-/** Chemin et paramètres d'un lien reçu, rejoués sur le handler. */
-export function pathOf(url: string): string {
-  const parsed = new URL(url);
-  return `${parsed.pathname.replace(/^\/api\/auth/, "")}${parsed.search}`;
+/** Jeton d'un lien reçu par email (pages /activation et /connexion/lien). */
+export function tokenOf(url: string): string {
+  const token = new URL(url).searchParams.get("token");
+  if (token === null) throw new Error("lien sans jeton");
+  return token;
 }
 
-/** Inscription puis clic sur le lien de vérification : rend le cookie de session. */
+/** Clic sur « Activer mon compte » de la page /activation. */
+export async function confirmVerification(
+  instance: Auth,
+  url: string,
+  password: string,
+  options: Call = {},
+): Promise<Response> {
+  return callAuth(instance, "/verify-email/confirm", {
+    ...options,
+    body: { token: tokenOf(url), password },
+  });
+}
+
+/** Clic sur « Me connecter » de la page /connexion/lien. */
+export async function confirmMagicLink(
+  instance: Auth,
+  url: string,
+  options: Call = {},
+): Promise<Response> {
+  return callAuth(instance, "/magic-link/confirm", {
+    ...options,
+    body: { token: tokenOf(url) },
+  });
+}
+
+/** Inscription puis activation par mot de passe : rend le cookie de session. */
 export async function signUpVerified(
   instance: Auth,
   outbox: AuthEmail[],
@@ -105,12 +143,12 @@ export async function signUpVerified(
   await callAuth(instance, "/sign-up/email", {
     body: { name: "Alex", email, password: PASSWORD },
   });
-  const response = await callAuth(
+  const response = await confirmVerification(
     instance,
-    pathOf(lastEmail(outbox, "verification").url),
-    { method: "GET" },
+    lastEmail(outbox, "verification").url,
+    PASSWORD,
   );
   const cookie = sessionCookie(response);
-  if (cookie === undefined) throw new Error("vérification sans session");
+  if (cookie === undefined) throw new Error("activation sans session");
   return cookie;
 }

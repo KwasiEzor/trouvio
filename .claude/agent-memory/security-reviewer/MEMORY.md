@@ -5,3 +5,4 @@
 - [Faits revue authz P1-03](project_p1-03-authz-review-facts.md) — contournements ESLint/UserId mesurés, routes Better Auth ouvertes, disabledPaths robuste
 - [Faits revue limiteur P1-04](project_p1-04-ratelimit-review-facts.md) — pipeline Better Auth (hooks avant CSRF sans cookie), getIP/XFF Next, verrouillage total par un tiers
 - [Faits revue en-têtes P1-05](project_p1-05-headers-review-facts.md) — routes à jeton, hooks.after sur auth.api, 404 hors matcher sans CSP, x-request-id API
+- [Faits revue liens P1-06](project_p1-06-links-review-facts.md) — drizzleAdapter sans transaction, purge globale findVerificationValue, formCsrf, recopie lien magique

@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AUTH_NOTICES } from "@/features/auth/core/messages";
-import { AUTH_PATHS } from "@/features/auth/core/policy";
 
 import { SignUpForm } from "./sign-up-form";
 
@@ -72,7 +71,7 @@ describe("SignUpForm (inscription)", () => {
     expect(screen.getByLabelText("Nom")).toHaveFocus();
   });
 
-  it("envoie des valeurs nettoyées avec le callbackURL du code, puis ne montre que le message unique", async () => {
+  it("envoie des valeurs nettoyées sans callbackURL, puis ne montre que le message unique", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<SignUpForm />);
     remplir("  Ada  ", " Ada@Example.com ", MOT_DE_PASSE);
@@ -85,7 +84,6 @@ describe("SignUpForm (inscription)", () => {
       name: "Ada",
       email: "ada@example.com",
       password: MOT_DE_PASSE,
-      callbackURL: AUTH_PATHS.afterSignIn,
     });
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Nom")).not.toBeInTheDocument();

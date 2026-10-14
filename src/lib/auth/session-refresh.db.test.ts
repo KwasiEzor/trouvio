@@ -7,9 +7,9 @@ import { createRateLimiter } from "@/lib/rate-limit/limiter";
 import {
   buildTestAuth,
   callAuth,
+  confirmVerification,
   lastEmail,
   PASSWORD,
-  pathOf,
   SESSION_COOKIE,
   signUpVerified,
 } from "@/test/auth/harness";
@@ -123,10 +123,11 @@ describe("refreshSession", () => {
       origin,
       body: { name: "Alex", email: "alex@example.com", password: PASSWORD },
     });
-    const verified = await callAuth(
+    const verified = await confirmVerification(
       secure,
-      pathOf(lastEmail(outbox, "verification").url),
-      { method: "GET", origin },
+      lastEmail(outbox, "verification").url,
+      PASSWORD,
+      { origin },
     );
     const pair = verified.headers
       .getSetCookie()

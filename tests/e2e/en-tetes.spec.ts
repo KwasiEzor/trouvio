@@ -93,7 +93,14 @@ test("un script statique porte nosniff et HSTS", async ({ request }) => {
   );
 });
 
-for (const chemin of ["/", "/connexion", "/inscription", "/styleguide"]) {
+// /activation sans jeton : page « lien plus valable », rendue à la requête comme avec un jeton.
+for (const chemin of [
+  "/",
+  "/connexion",
+  "/inscription",
+  "/activation",
+  "/styleguide",
+]) {
   test(`${chemin} : scripts sous nonce, nonce neuf à chaque requête, chargement sans violation`, async ({
     page,
     request,

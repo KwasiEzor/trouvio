@@ -4,12 +4,14 @@ import { expect, test, type Response } from "@playwright/test";
 
 import { expirationSession, vieillirSession } from "./base";
 import { verifierChargementPropre, verifierScriptsSousNonce } from "./csp";
+import { activerCompte } from "./helpers";
 import { prendreEmail } from "./outbox";
 
 /**
  * Sessions glissantes dans le vrai runtime Next (P1-05, ADR 0016) : src/proxy.ts relit la session
- * sur un chargement de document et recopie le Set-Cookie prolongé. Budget : 1 /sign-up/email, sur
- * une IP propre à ce fichier (X-Forwarded-For, limiteur par IP, ADR 0015).
+ * sur un chargement de document et recopie le Set-Cookie prolongé. Budget : 1 /sign-up/email et
+ * 1 /verify-email/confirm, sur une IP propre à ce fichier (X-Forwarded-For, limiteur par IP,
+ * ADR 0015).
  */
 
 test.describe.configure({ mode: "serial" });
@@ -36,19 +38,21 @@ test("prolonge la session au chargement d'une page, cookie compris", async ({
   page,
   baseURL,
 }) => {
-  // Inscription par l'API, puis clic sur le lien de vérification : session ouverte.
+  // Inscription par l'API, puis activation par mot de passe : session ouverte.
   const inscription = await page.request.post("/api/auth/sign-up/email", {
     headers: { origin: baseURL ?? "" },
     data: {
       name: "Alex E2E",
       email: EMAIL,
       password: MOT_DE_PASSE,
-      callbackURL: "/fil",
     },
   });
   expect(inscription.status()).toBe(200);
-  await page.goto((await prendreEmail(EMAIL, "verification")).url);
-  await expect(page).toHaveURL(/\/fil$/);
+  await activerCompte(
+    page,
+    (await prendreEmail(EMAIL, "verification")).url,
+    MOT_DE_PASSE,
+  );
 
   // Session de plus d'un jour : le chargement de /fil la prolonge, en base et en cookie.
   await vieillirSession(EMAIL);

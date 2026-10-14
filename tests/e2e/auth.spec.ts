@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { attendreHydratation } from "./helpers";
+import { activerCompte, attendreHydratation } from "./helpers";
 import { prendreEmail } from "./outbox";
 
 /**
@@ -12,8 +12,9 @@ import { prendreEmail } from "./outbox";
  * actif (ADR 0015, src/lib/rate-limit/rules.ts), par IP et par chemin exact : 10 / 5 min sur
  * /sign-in/email, 5 / 10 min sur /sign-up/email et le lien magique ; 3 emails / 15 min par
  * destinataire ; 10 connexions / 15 min par compte. Budget de ce fichier : 1 /sign-up/email,
- * 2 /sign-in/email, 1 /sign-in/magic-link, 2 emails. Les négatifs nombreux vivent dans
- * src/lib/auth/auth.db.test.ts ; le 429 de production dans limiteur.spec.ts.
+ * 2 /sign-in/email, 1 /sign-in/magic-link, 1 /verify-email/confirm, 1 /magic-link/confirm,
+ * 2 emails. Le scénario du tiers (pré-détournement) vit dans liens.spec.ts. Les négatifs nombreux
+ * vivent dans src/lib/auth/auth.db.test.ts ; le 429 de production dans limiteur.spec.ts.
  *
  * Les alertes se cherchent dans <main> : Next ajoute après l'hydratation un annonceur de route
  * (role="alert", shadow DOM ouvert) que page.getByRole verrait aussi.
@@ -53,7 +54,7 @@ test("les pages d'inscription et de connexion sont accessibles (axe)", async ({
   }
 });
 
-test("inscription, vérification, connexion, déconnexion, lien magique", async ({
+test("inscription, activation, connexion, déconnexion, lien magique", async ({
   page,
   context,
 }) => {
@@ -69,10 +70,9 @@ test("inscription, vérification, connexion, déconnexion, lien magique", async 
     "Vérifie ta boîte mail",
   );
 
-  // Lien de vérification : connecté, arrivée sur /fil.
+  // Lien d'activation : la page demande le mot de passe de l'inscription, puis connecte.
   const verification = await prendreEmail(EMAIL, "verification");
-  await page.goto(verification.url);
-  await expect(page).toHaveURL(/\/fil$/);
+  await activerCompte(page, verification.url, PASSWORD);
   await expect(page.getByText(EMAIL)).toBeVisible();
 
   const cookie = (await context.cookies()).find((c) =>
@@ -116,6 +116,8 @@ test("inscription, vérification, connexion, déconnexion, lien magique", async 
   );
   const magique = await prendreEmail(EMAIL, "magic-link");
   await page.goto(magique.url);
+  await attendreHydratation(page);
+  await page.getByRole("button", { name: "Me connecter" }).click();
   await expect(page).toHaveURL(/\/fil$/);
   await expect(page.getByText(EMAIL)).toBeVisible();
 

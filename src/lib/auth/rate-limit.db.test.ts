@@ -9,6 +9,8 @@ import {
   BASE,
   buildTestAuth,
   callAuth,
+  confirmVerification,
+  lastEmail,
   PASSWORD,
   sessionCookie,
   signUpVerified,
@@ -123,6 +125,26 @@ describe("par IP (handler HTTP)", () => {
     ).toBe(429);
   });
 
+  it("limite l'activation à 10 en 5 minutes par IP", async () => {
+    const confirm = () =>
+      call("/verify-email/confirm", {
+        body: { token: "jeton-invalide", password: PASSWORD },
+        ip: ipOf(11),
+      });
+    for (let i = 0; i < 10; i++) expect((await confirm()).status).toBe(400);
+    expect((await confirm()).status).toBe(429);
+  });
+
+  it("limite la confirmation du lien magique à 5 par minute et par IP", async () => {
+    const confirm = () =>
+      call("/magic-link/confirm", {
+        body: { token: "jetoninvalide" },
+        ip: ipOf(12),
+      });
+    for (let i = 0; i < 5; i++) expect((await confirm()).status).toBe(400);
+    expect((await confirm()).status).toBe(429);
+  });
+
   it("limite l'inscription à 5 en 10 minutes par IP", async () => {
     for (let i = 0; i < 5; i++) {
       await call("/sign-up/email", {
@@ -204,6 +226,33 @@ describe("par compte (connexion par mot de passe)", () => {
     const unknown = await signIn("inconnu@example.com", ipOf(201));
     expect(known.status).toBe(unknown.status);
     expect(await known.json()).toEqual(await unknown.json());
+  });
+
+  it("partage le verrou avec l'activation : un devineur ne double pas son budget", async () => {
+    await call("/sign-up/email", {
+      body: { name: "Alex", email: "alex@example.com", password: PASSWORD },
+      ip: ipOf(1),
+    });
+    const link = lastEmail(outbox, "verification").url;
+    for (let i = 0; i < 10; i++) {
+      const response = await confirmVerification(
+        auth,
+        link,
+        `essai ${i} faux`,
+        {
+          ip: ipOf(100 + i),
+        },
+      );
+      expect(response.status).toBe(401);
+    }
+    const locked = await confirmVerification(auth, link, PASSWORD, {
+      ip: ipOf(200),
+    });
+    expect(locked.status).toBe(429);
+    expect(await locked.json()).toMatchObject({ code: ACCOUNT_LOCKED_CODE });
+    expect(await signIn("alex@example.com", ipOf(201))).toMatchObject({
+      status: 429,
+    });
   });
 
   it("ne touche pas une autre adresse", async () => {

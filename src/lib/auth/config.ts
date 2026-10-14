@@ -6,8 +6,10 @@ import { magicLink } from "better-auth/plugins";
 import {
   existingAccountEmail,
   magicLinkEmail,
+  unverifiedAccountEmail,
   verificationEmail,
 } from "@/features/auth/core/emails";
+import { activationUrl, magicLinkUrl } from "@/features/auth/core/links";
 import {
   AUTH_PATHS,
   EMAIL_VERIFICATION_TTL_SECONDS,
@@ -27,6 +29,7 @@ import type { RateLimiter } from "@/lib/rate-limit/types";
 
 import { accounts, sessions, users, verifications } from "../../../db/schema";
 import { accountLockHook } from "./account-lock";
+import { confirmedLinks } from "./confirmed-links";
 import { bridge } from "./log-bridge";
 import { capRecipients, type AuthMailer } from "./mailer";
 import { sessionTokenHook } from "./session-token-hook";
@@ -60,6 +63,8 @@ export type AuthDeps = {
 // attendent P7-02. /get-session (P1-05, ADR 0016) rendrait le jeton de session en JSON et
 // compterait dans le limiteur à chaque appel : aucun consommateur, la session se lit côté serveur
 // (auth.api.getSession, non concerné par disabledPaths) et se prolonge dans src/proxy.ts.
+// /verify-email et /magic-link/verify (P1-06, ADR 0017) consommaient un lien par un simple GET
+// (scanner d'emails, connexion forcée) ; remplacées par les POST du plugin confirmed-links.
 // Les routes servies sont figées par une liste blanche (auth.db.test.ts).
 export const DISABLED_PATHS = [
   "/update-user",
@@ -83,6 +88,8 @@ export const DISABLED_PATHS = [
   "/change-password",
   "/verify-password",
   "/get-session",
+  "/verify-email",
+  "/magic-link/verify",
 ];
 
 export function buildAuthOptions({
@@ -151,20 +158,28 @@ export function buildAuthOptions({
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       onExistingUserSignUp: async ({ user }) => {
         const signInUrl = new URL(AUTH_PATHS.signIn, baseURL).toString();
+        // Compte non activé : peut-être commencé par un tiers, le lien magique le reprend (D7).
+        const content = user.emailVerified
+          ? existingAccountEmail({ signInUrl })
+          : unverifiedAccountEmail({ signInUrl });
         await mailer.send({
           kind: "existing-account",
           to: user.email,
           url: signInUrl,
-          ...existingAccountEmail({ signInUrl }),
+          ...content,
         });
       },
     },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
-      autoSignInAfterVerification: true,
+      // /verify-email est fermée ; si elle était rouverte, elle ne connecterait pas sans mot de
+      // passe (ADR 0017, défense en profondeur).
+      autoSignInAfterVerification: false,
       expiresIn: EMAIL_VERIFICATION_TTL_SECONDS,
-      sendVerificationEmail: async ({ user, url }) => {
+      // L'url de Better Auth (GET /api/auth/verify-email) est ignorée : le lien mène à la page.
+      sendVerificationEmail: async ({ user, token }) => {
+        const url = activationUrl(baseURL, token);
         await mailer.send({
           kind: "verification",
           to: user.email,
@@ -209,7 +224,8 @@ export function buildAuthOptions({
       magicLink({
         expiresIn: MAGIC_LINK_TTL_SECONDS,
         storeToken: "hashed",
-        sendMagicLink: async ({ email, url }) => {
+        sendMagicLink: async ({ email, token }) => {
+          const url = magicLinkUrl(baseURL, token);
           await mailer.send({
             kind: "magic-link",
             to: email,
@@ -218,6 +234,7 @@ export function buildAuthOptions({
           });
         },
       }),
+      confirmedLinks({ limiter: rateLimit.limiter }),
       // Toujours le dernier : pose les cookies des appels faits depuis le serveur.
       nextCookies(),
     ],

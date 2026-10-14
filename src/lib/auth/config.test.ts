@@ -118,7 +118,14 @@ describe("options de Better Auth", () => {
       "/change-password",
       "/verify-password",
       "/get-session",
+      // Liens consommés par un GET (P1-06, ADR 0017) : remplacés par les POST de confirmed-links.
+      "/verify-email",
+      "/magic-link/verify",
     ]);
+  });
+
+  it("ne connecte jamais par la seule vérification d'email (défense en profondeur)", () => {
+    expect(options.emailVerification.autoSignInAfterVerification).toBe(false);
   });
 
   it("retire le jeton de session des réponses JSON (hook after)", () => {
@@ -127,7 +134,7 @@ describe("options de Better Auth", () => {
 
   it("stocke le jeton du lien magique haché, valable 10 minutes, nextCookies en dernier", () => {
     const ids = (options.plugins ?? []).map((plugin) => plugin.id);
-    expect(ids).toEqual(["magic-link", "next-cookies"]);
+    expect(ids).toEqual(["magic-link", "confirmed-links", "next-cookies"]);
     const magic = options.plugins?.[0];
     expect(magic?.options).toMatchObject({
       storeToken: "hashed",
@@ -216,7 +223,7 @@ describe("emails d'authentification", () => {
     updatedAt: new Date(),
   };
 
-  it("envoie le lien de vérification par le port", async () => {
+  it("envoie un lien vers la page d'activation, bâti sur le jeton (l'URL de Better Auth est ignorée)", async () => {
     const d = deps();
     const options = buildAuthOptions(d);
     await options.emailVerification?.sendVerificationEmail?.({
@@ -228,26 +235,54 @@ describe("emails d'authentification", () => {
       expect.objectContaining({
         kind: "verification",
         to: "alex@example.com",
-        url: `${BASE_URL}/api/auth/verify-email?token=jeton`,
+        url: `${BASE_URL}/activation?token=jeton`,
       }),
     ]);
     expect(d.sent[0]?.text).toContain(d.sent[0]?.url);
     expect(d.sent[0]?.text).not.toContain("Alex");
   });
 
-  it("prévient le titulaire d'une adresse déjà inscrite, avec le lien de connexion", async () => {
+  it("envoie un lien magique vers la page de confirmation, bâti sur le jeton", async () => {
     const d = deps();
-    await buildAuthOptions(d).emailAndPassword?.onExistingUserSignUp?.({
-      user,
-    });
+    const magic = buildAuthOptions(d).plugins[0];
+    await magic.options.sendMagicLink(
+      {
+        email: "alex@example.com",
+        url: `${BASE_URL}/api/auth/magic-link/verify?token=jeton`,
+        token: "jeton",
+      },
+      undefined,
+    );
     expect(d.sent).toEqual([
       expect.objectContaining({
-        kind: "existing-account",
+        kind: "magic-link",
         to: "alex@example.com",
-        url: `${BASE_URL}/connexion`,
+        url: `${BASE_URL}/connexion/lien?token=jeton`,
       }),
     ]);
+    expect(d.sent[0]?.text).toContain(d.sent[0]?.url);
   });
+
+  it.each([
+    [true, "Tu as déjà un compte Trouvio"],
+    [false, "Ton compte Trouvio n'est pas activé"],
+  ])(
+    "prévient le titulaire d'une adresse déjà inscrite (vérifiée : %s), avec le lien de connexion",
+    async (emailVerified, subject) => {
+      const d = deps();
+      await buildAuthOptions(d).emailAndPassword?.onExistingUserSignUp?.({
+        user: { ...user, emailVerified },
+      });
+      expect(d.sent).toEqual([
+        expect.objectContaining({
+          kind: "existing-account",
+          to: "alex@example.com",
+          url: `${BASE_URL}/connexion`,
+          subject,
+        }),
+      ]);
+    },
+  );
 
   it("propage l'échec du transport plutôt que de prétendre avoir envoyé", async () => {
     const panne = new Error("transport en panne");
