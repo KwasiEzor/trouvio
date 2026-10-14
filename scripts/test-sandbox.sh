@@ -137,10 +137,20 @@ if seed_listed; then
   # Fichier réel de l'utilisateur : jamais réécrit, sondé par code de retour seul.
   must_fail "db/seed.local.json : cat" 'cat -- "$ROOT/db/seed.local.json"'
   must_fail "db/seed.local.json : node -e" 'node -e "require(\"fs\").readFileSync(process.argv[1])" "$ROOT/db/seed.local.json"'
+  # Écriture refusée (porte P1, I1 : un admin ajouté au seed passerait en production).
+  must_fail "ouverture en ajout de db/seed.local.json (n'écrit rien)" ': >>"$ROOT/db/seed.local.json"'
 else
   # Pas de canari à sa place : le bac à sable refuse aussi de supprimer un fichier qu'il ne peut
   # pas lire, le canari resterait (mesuré le 2026-10-01).
-  echo "SAUTÉ   db/seed.local.json absent"
+  echo "SAUTÉ   db/seed.local.json absent (lecture)"
+  # Création refusée (porte P1, I1). Si elle réussit, le bac à sable n'écrit pas sur ce chemin :
+  # la suppression réussit aussi, rien ne reste.
+  if bash -c ': >"$1"' _ "$ROOT/db/seed.local.json" 2>/dev/null; then
+    rm -f -- "$ROOT/db/seed.local.json"
+    report ko "création de db/seed.local.json" "création réussie"
+  else
+    report ok "création de db/seed.local.json"
+  fi
 fi
 
 echo "--- Contre-épreuves (doivent réussir)"

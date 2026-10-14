@@ -1,6 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": { "NEXT_TELEMETRY_DISABLED": "1", "WATCHPACK_POLLING": "true" },
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "WATCHPACK_POLLING": "true"
+  },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
@@ -40,7 +43,8 @@
         "./node_modules/*",
         "./node_modules/.bin",
         "./node_modules/.pnpm",
-        "./node_modules/.modules.yaml"
+        "./node_modules/.modules.yaml",
+        "./db/seed.local.json"
       ]
     },
     "network": {
@@ -140,6 +144,8 @@
       "Read(./.env.production)",
       "Read(./.env.production.local)",
       "Read(./db/seed.local.json)",
+      "Edit(./db/seed.local.json)",
+      "Write(./db/seed.local.json)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(sudo *)"
