@@ -6,3 +6,4 @@
 - [Faits revue limiteur P1-04](project_p1-04-ratelimit-review-facts.md) — pipeline Better Auth (hooks avant CSRF sans cookie), getIP/XFF Next, verrouillage total par un tiers
 - [Faits revue en-têtes P1-05](project_p1-05-headers-review-facts.md) — routes à jeton, hooks.after sur auth.api, 404 hors matcher sans CSP, x-request-id API
 - [Faits revue liens P1-06](project_p1-06-links-review-facts.md) — drizzleAdapter sans transaction, purge globale findVerificationValue, formCsrf, recopie lien magique
+- [Faits porte P1](project_p1-gate-review-facts.md) — oracle send-verification-email, exp JWT optionnel, denyWrite seed absent, audit prod
