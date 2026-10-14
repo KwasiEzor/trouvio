@@ -99,9 +99,9 @@ describe("par IP (handler HTTP)", () => {
     for (let i = 0; i < 10; i++) await signIn(`essai${i}@example.com`, ipOf(7));
     expect((await signIn("essai10@example.com", ipOf(7))).status).toBe(429);
     expect((await signIn("autre@example.com", ipOf(8))).status).toBe(401);
-    expect(
-      (await call("/get-session", { method: "GET", ip: ipOf(7) })).status,
-    ).toBe(200);
+    expect((await call("/ok", { method: "GET", ip: ipOf(7) })).status).toBe(
+      200,
+    );
   });
 
   it("accepte de nouveau à la fin de la fenêtre", async () => {

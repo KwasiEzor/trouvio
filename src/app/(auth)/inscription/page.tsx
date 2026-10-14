@@ -3,10 +3,13 @@ import Link from "next/link";
 
 import { SignUpForm } from "@/features/auth/components/sign-up-form";
 import { AUTH_PATHS } from "@/features/auth/core/policy";
+import { redirectIfSignedIn } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Inscription · Trouvio" };
 
-export default function InscriptionPage() {
+export default async function InscriptionPage() {
+  // Déjà connecté : direction le fil (decideAccess, ADR 0014). Hors de tout try/catch.
+  await redirectIfSignedIn();
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 p-6">
       <header className="flex flex-col gap-2">

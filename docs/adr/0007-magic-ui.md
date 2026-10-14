@@ -30,6 +30,7 @@ Contraintes existantes :
 − Nouvelle dépendance `motion` (poids du bundle client) : à mesurer sur les pages concernées (Lighthouse en P7-01).
 − Adaptation manuelle de chaque composant (tokens, mouvement réduit) : coût ponctuel à chaque installation.
 − Pas de mises à jour automatiques : le code copié évolue avec nous, pas avec Magic UI.
+− CSP (ADR 0016) : les attributs `style` rendus au SSR sont admis (`style-src-attr 'unsafe-inline'`), mais un élément `<style>` injecté (Radix Dialog, `react-remove-scroll`) doit porter le nonce de la requête (`setNonce`), sinon il est bloqué.
 
 ## Alternatives écartées
 - **Magic UI partout** : contraire à la sobriété des maquettes, risque sur la performance et l'accessibilité de l'app.

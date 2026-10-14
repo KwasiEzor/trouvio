@@ -7,7 +7,6 @@ export const SERVED_PATHS: readonly string[] = [
   // Rappel OAuth : aucun fournisseur social configuré, la route répond en erreur.
   "/callback/:id",
   "/error",
-  "/get-session",
   "/magic-link/verify",
   "/ok",
   // Sert le jeton émis par /request-password-reset, désactivée : aucun jeton n'existe.

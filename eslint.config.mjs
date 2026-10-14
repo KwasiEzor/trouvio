@@ -26,6 +26,10 @@ const SENTRY_PATTERN = {
   message:
     "Signaler une erreur via logger.error (@/lib/logger), qui masque puis transmet à Sentry.",
 };
+// /get-session est fermée (P1-05, ADR 0016) : la session se lit côté serveur (requireUser), jamais
+// dans le navigateur, où elle exposerait le jeton en JSON.
+const AUTH_SESSION_CLIENT_MESSAGE =
+  "Session lue côté serveur (requireUser, getSession de @/lib/auth/session) : /api/auth/get-session est fermée (ADR 0016).";
 // Accès détournés à process.env (globalThis, crochets, déstructuration, Reflect).
 const ENV_SYNTAX = [
   {
@@ -205,6 +209,11 @@ const eslintConfig = defineConfig([
       "no-restricted-properties": [
         "error",
         { object: "process", property: "env", message: ENV_MESSAGE },
+        ...["useSession", "getSession"].map((property) => ({
+          object: "authClient",
+          property,
+          message: AUTH_SESSION_CLIENT_MESSAGE,
+        })),
       ],
       "no-restricted-syntax": [
         "error",

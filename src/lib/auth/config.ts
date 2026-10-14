@@ -29,6 +29,7 @@ import { accounts, sessions, users, verifications } from "../../../db/schema";
 import { accountLockHook } from "./account-lock";
 import { bridge } from "./log-bridge";
 import { capRecipients, type AuthMailer } from "./mailer";
+import { sessionTokenHook } from "./session-token-hook";
 
 /**
  * Configuration de Better Auth (ADR 0003, ADR 0013). Fonction pure de ses dépendances : rien n'est
@@ -56,7 +57,10 @@ export type AuthDeps = {
 // navigateur les jetons de toutes les sessions. À rouvrir avec leurs tests IDOR (P7-04).
 // /change-password (rend un jeton de session) et /verify-password (servie en HTTP malgré son
 // scope « server », hors des règles du limiteur : devinette du mot de passe avec un cookie volé)
-// attendent P7-02. Les routes servies sont figées par une liste blanche (auth.db.test.ts).
+// attendent P7-02. /get-session (P1-05, ADR 0016) rendrait le jeton de session en JSON et
+// compterait dans le limiteur à chaque appel : aucun consommateur, la session se lit côté serveur
+// (auth.api.getSession, non concerné par disabledPaths) et se prolonge dans src/proxy.ts.
+// Les routes servies sont figées par une liste blanche (auth.db.test.ts).
 export const DISABLED_PATHS = [
   "/update-user",
   "/change-email",
@@ -78,6 +82,7 @@ export const DISABLED_PATHS = [
   "/refresh-token",
   "/change-password",
   "/verify-password",
+  "/get-session",
 ];
 
 export function buildAuthOptions({
@@ -123,7 +128,10 @@ export function buildAuthOptions({
       ),
       customStorage: toBetterAuthStorage(rateLimit.limiter, log),
     },
-    hooks: { before: accountLockHook(rateLimit.limiter) },
+    hooks: {
+      before: accountLockHook(rateLimit.limiter),
+      after: sessionTokenHook,
+    },
     user: {
       additionalFields: {
         // input: false : une valeur envoyée à l'inscription est remplacée par le défaut.

@@ -16,7 +16,7 @@ Le limiteur intégré de Better Auth n'est actif qu'en production, garde ses com
 ## Conséquences
 - \+ Comportement identique en développement, en test d'intégration et en production ; compteurs persistants aux redéploiements, partagés entre instances.
 - \+ Le test d'acceptation (dépassement → 429) tourne sur le handler HTTP réel et sur le build de production (`tests/e2e/limiteur.spec.ts`).
-- − Une écriture en base par requête `/api/auth/*`, `/get-session` compris (à surveiller si `proxy.ts` la relaie, P1-05).
+- − Une écriture en base par requête `/api/auth/*`. `/get-session` est fermée depuis P1-05 et la prolongation de session ne passe pas par le limiteur (complété par l'ADR 0016).
 - − `hooks.before` passe **avant** le contrôle d'origine : une tentative à l'origine refusée (403) compte pour le verrou. Sans effet pour un attaquant, qui pose une origine valide depuis un client direct ; ne pas reproduire ce contrôle dans le hook (une lecture divergente ouvrirait un contournement).
 - − **Verrouillage complet par un tiers (revue sécurité de P1-04)** : 30 tentatives de connexion verrouillent le mot de passe 24 h, puis 10 liens magiques épuisent le plafond par destinataire ; la victime ne reçoit plus son lien (réponse 200, aucun envoi). Une quarantaine de requêtes par jour suffisent. Sans effet tant qu'aucun email ne part (P4-03) ; à corriger avant : cookie d'appareil connu qui exempte du verrou (méthode OWASP) et plafond du lien magique par destinataire et IP séparé des emails non sollicités (note ROADMAP P4-03).
 - − Derrière Docker, un client IPv6 peut apparaître sous l'IP de passerelle (compteur commun) si Caddy ne voit pas l'IP réelle : à vérifier en P10-02.

@@ -17,7 +17,7 @@ L'ADR 0003 retient Better Auth (adaptateur Drizzle, sessions en base, cookies `H
 10. **Instance paresseuse** (`getAuth()`) : rien n'est lu à l'import, le build n'exige ni base ni secret.
 11. **Tables écrites à la main** d'après `getAuthTables`, sans la CLI Better Auth : tables au pluriel (`usePlural`), colonnes `timestamptz`, contraintes nommées, dans `db/schema.ts`. Un test de parité permanent et le contrôle de schéma de Better Auth à l'exécution gardent l'accord.
 12. **Champs libres** : Better Auth ne borne ni `name` ni `image` côté serveur ; un hook `user.create.before` coupe le nom à 100 caractères et force `image` à `null`. Routes de réinitialisation du mot de passe désactivées jusqu'à P7-02.
-13. **Sessions** : 7 jours, `updateAge` d'un jour. La prolongation n'est pas encore effective : seul un Server Component lit la session, où le cookie ne peut pas être réécrit (P1-05).
+13. **Sessions** : 7 jours, `updateAge` d'un jour. Prolongation effective depuis P1-05 : `src/proxy.ts` relit la session sur un chargement de document et recopie le cookie prolongé (complété par l'ADR 0016).
 14. **Mot de passe** : 12 à 128 caractères, scrypt (défaut). Contrôle des mots de passe compromis reporté à P10-01 : le plugin `haveibeenpwned` échoue fermé et rendrait l'inscription dépendante d'un tiers.
 
 ## Conséquences

@@ -17,7 +17,16 @@ import { maskQueryValues, redact, redactString } from "../logger/redact";
  * beforeBreadcrumb masquent ce qui passerait quand même ; (3) les scrubbers du projet Sentry.
  */
 
-const ALLOWED_HEADERS = ["user-agent", "content-type", "accept-language"];
+// x-request-id : posé par src/proxy.ts (UUID aléatoire), relie un événement aux journaux.
+const ALLOWED_HEADERS = [
+  "user-agent",
+  "content-type",
+  "accept-language",
+  "x-request-id",
+];
+
+// Module isomorphe (navigateur compris) : une regex plutôt que Zod.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const DATA_COLLECTION = {
   userInfo: false,
@@ -108,8 +117,11 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
       ...(url !== undefined && { url: scrubUrl(url) }),
       ...(headers && {
         headers: Object.fromEntries(
-          Object.entries(headers).filter(([name]) =>
-            ALLOWED_HEADERS.includes(name.toLowerCase()),
+          Object.entries(headers).filter(
+            ([name, value]) =>
+              ALLOWED_HEADERS.includes(name.toLowerCase()) &&
+              // Hors des pages (API), x-request-id vient du client : texte libre refusé.
+              (name.toLowerCase() !== "x-request-id" || UUID.test(value)),
           ),
         ),
       }),

@@ -32,6 +32,7 @@ function evenementSale(): ErrorEvent {
         Cookie: "a=b",
         "Content-Type": "text/html",
         "X-Forwarded-For": "203.0.113.7",
+        "X-Request-Id": "6f1c2b8e-9a3d-4e6f-8b7a-1c2d3e4f5a6b",
       },
     },
     user: {
@@ -149,7 +150,14 @@ describe("buildSentryOptions", () => {
       userInfo: false,
       cookies: false,
       httpHeaders: {
-        request: { allow: ["user-agent", "content-type", "accept-language"] },
+        request: {
+          allow: [
+            "user-agent",
+            "content-type",
+            "accept-language",
+            "x-request-id",
+          ],
+        },
         response: false,
       },
       httpBodies: [],
@@ -172,8 +180,22 @@ describe("scrubEvent", () => {
     expect(propre.request).toEqual({
       method: "GET",
       url: "https://trouvio.example/offres",
-      headers: { "User-Agent": "Mozilla/5.0", "Content-Type": "text/html" },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Content-Type": "text/html",
+        // Relie l'événement aux journaux de la requête (src/proxy.ts).
+        "X-Request-Id": "6f1c2b8e-9a3d-4e6f-8b7a-1c2d3e4f5a6b",
+      },
     });
+  });
+
+  it("retire un x-request-id qui n'est pas un UUID (valeur du client hors des pages)", () => {
+    const event = evenementSale();
+    event.request = {
+      ...event.request,
+      headers: { "X-Request-Id": "texte libre alex@example.com" },
+    };
+    expect(scrubEvent(event).request?.headers).toEqual({});
   });
 
   it("réduit l'utilisateur à son identifiant interne", () => {
